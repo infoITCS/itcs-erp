@@ -1,5 +1,6 @@
-// Phase 1: identity, audit, currencies, organization readiness, document numbers.
-// Sales, purchasing, inventory, accounting, and tender tables are not in this schema.
+// Phase 1 plus customers, contacts, and customer addresses.
+// Reseller, opportunities, sales, purchasing, inventory, accounting, and tender tables are not in this schema.
+// Customer.resellerId is intentionally absent until the Reseller module adds the foreign key.
 //
 // Finalized financial documents (invoices, payments, bills, journals) will be
 // append-only after posting. A correction is a new reversing document.
@@ -38,8 +39,37 @@ enum DocumentType {
   TENDER
   PAYMENT
   RENEWAL
+  CUSTOMER
 
   @@map("document_type")
+}
+
+enum CustomerType {
+  COMPANY
+  INDIVIDUAL
+
+  @@map("customer_type")
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("customer_status")
+}
+
+enum AddressPurpose {
+  BILLING
+  SHIPPING
+
+  @@map("address_purpose")
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("contact_status")
 }
 
 /// Company boundary. Later operational tables will reference this id.
@@ -59,6 +89,7 @@ model Organization {
   auditLogs         AuditLog[]
   exchangeRates     ExchangeRate[]
   documentSequences DocumentSequence[]
+  customers         Customer[]
 
   @@index([status])
   @@map("organizations")
@@ -85,6 +116,12 @@ model User {
   refreshTokens  RefreshToken[]
   passwordResets PasswordResetToken[]
   auditLogs      AuditLog[]
+  customersCreated Customer[]        @relation("CustomerCreatedBy")
+  customersUpdated Customer[]        @relation("CustomerUpdatedBy")
+  addressesCreated CustomerAddress[] @relation("AddressCreatedBy")
+  addressesUpdated CustomerAddress[] @relation("AddressUpdatedBy")
+  contactsCreated  Contact[]         @relation("ContactCreatedBy")
+  contactsUpdated  Contact[]         @relation("ContactUpdatedBy")
 
   @@index([status])
   @@map("users")
@@ -232,6 +269,7 @@ model Currency {
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organizations Organization[]
+  customers     Customer[]
   baseRates     ExchangeRate[] @relation("ExchangeRateBase")
   quoteRates    ExchangeRate[] @relation("ExchangeRateQuote")
 
@@ -277,4 +315,99 @@ model DocumentSequence {
 
   @@unique([organizationId, documentType, year])
   @@map("document_sequences")
+}
+
+/// Commercial party. Prospect status belongs to a future Opportunities module.
+/// Soft-deleted rows stay so later documents can still reference the id.
+model Customer {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  customerNumber String         @map("customer_number") @db.VarChar(32)
+  customerType   CustomerType   @map("customer_type")
+  legalName      String         @map("legal_name") @db.VarChar(200)
+  displayName    String         @map("display_name") @db.VarChar(200)
+  email          String?        @db.VarChar(320)
+  phone          String?        @db.VarChar(40)
+  website        String?        @db.VarChar(200)
+  countryCode    String         @map("country_code") @db.Char(2)
+  currencyCode   String         @map("currency_code") @db.Char(3)
+  taxNumber      String?        @map("tax_number") @db.VarChar(64)
+  status         CustomerStatus @default(ACTIVE)
+  notes          String?        @db.VarChar(4000)
+  createdById    String         @map("created_by_id") @db.Uuid
+  updatedById    String         @map("updated_by_id") @db.Uuid
+  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  currency     Currency          @relation(fields: [currencyCode], references: [code])
+  createdBy    User              @relation("CustomerCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User              @relation("CustomerUpdatedBy", fields: [updatedById], references: [id])
+  addresses    CustomerAddress[]
+  contacts     Contact[]
+
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, customerType, createdAt])
+  @@index([organizationId, countryCode, createdAt])
+  @@index([organizationId, currencyCode])
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  customerId     String         @map("customer_id") @db.Uuid
+  purpose        AddressPurpose
+  isPrimary      Boolean        @default(false) @map("is_primary")
+  label          String?        @db.VarChar(80)
+  line1          String         @db.VarChar(200)
+  line2          String?        @db.VarChar(200)
+  city           String         @db.VarChar(120)
+  region         String?        @db.VarChar(120)
+  postalCode     String?        @map("postal_code") @db.VarChar(20)
+  countryCode    String         @map("country_code") @db.Char(2)
+  createdById    String         @map("created_by_id") @db.Uuid
+  updatedById    String         @map("updated_by_id") @db.Uuid
+  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer  Customer @relation(fields: [customerId], references: [id])
+  createdBy User     @relation("AddressCreatedBy", fields: [createdById], references: [id])
+  updatedBy User     @relation("AddressUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([organizationId, customerId, purpose])
+  @@map("customer_addresses")
+}
+
+model Contact {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  customerId     String        @map("customer_id") @db.Uuid
+  firstName      String        @map("first_name") @db.VarChar(100)
+  lastName       String        @map("last_name") @db.VarChar(100)
+  displayName    String        @map("display_name") @db.VarChar(200)
+  jobTitle       String?       @map("job_title") @db.VarChar(120)
+  department     String?       @db.VarChar(120)
+  email          String?       @db.VarChar(320)
+  phone          String?       @db.VarChar(40)
+  mobile         String?       @db.VarChar(40)
+  isPrimary      Boolean       @default(false) @map("is_primary")
+  status         ContactStatus @default(ACTIVE)
+  notes          String?       @db.VarChar(4000)
+  createdById    String        @map("created_by_id") @db.Uuid
+  updatedById    String        @map("updated_by_id") @db.Uuid
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  customer  Customer @relation(fields: [customerId], references: [id])
+  createdBy User     @relation("ContactCreatedBy", fields: [createdById], references: [id])
+  updatedBy User     @relation("ContactUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([organizationId, customerId, createdAt, id])
+  @@index([organizationId, email])
+  @@map("contacts")
 }

@@ -25,19 +25,37 @@ export class AuditLogsRepository extends BaseRepository {
     });
   }
 
-  async list(limit: number, cursor: string | undefined, organizationId: string) {
+  async list(
+    limit: number,
+    cursor: string | undefined,
+    organizationId: string,
+    filter: { module?: string; entityType?: string; entityId?: string; subjectId?: string } = {},
+  ) {
     const decoded = cursor ? decodeCursor(cursor) : null;
+    const and: Prisma.AuditLogWhereInput[] = [];
+    if (filter.subjectId) {
+      and.push({
+        OR: [
+          { entityId: filter.subjectId },
+          { newValues: { path: ["customerId"], equals: filter.subjectId } },
+        ],
+      });
+    }
+    if (decoded) {
+      and.push({
+        OR: [
+          { createdAt: { lt: new Date(decoded.createdAt) } },
+          { createdAt: new Date(decoded.createdAt), id: { lt: decoded.id } },
+        ],
+      });
+    }
     const rows = await this.db.auditLog.findMany({
       where: {
         organizationId,
-        ...(decoded
-          ? {
-              OR: [
-                { createdAt: { lt: new Date(decoded.createdAt) } },
-                { createdAt: new Date(decoded.createdAt), id: { lt: decoded.id } },
-              ],
-            }
-          : {}),
+        ...(filter.module ? { module: filter.module } : {}),
+        ...(filter.entityType ? { entityType: filter.entityType } : {}),
+        ...(filter.entityId ? { entityId: filter.entityId } : {}),
+        ...(and.length > 0 ? { AND: and } : {}),
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,

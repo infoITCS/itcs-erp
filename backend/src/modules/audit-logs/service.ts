@@ -11,8 +11,13 @@ export class AuditLogsService {
     logger.info({ audit: { action: entry.action, module: entry.module, entityId: entry.entityId } }, "audit.event");
   }
 
-  async list(organizationId: string, limit: number, cursor?: string) {
-    const rows = await this.repository.list(limit, cursor, organizationId);
+  async list(
+    organizationId: string,
+    limit: number,
+    cursor?: string,
+    filter?: { module?: string; entityType?: string; entityId?: string; subjectId?: string },
+  ) {
+    const rows = await this.repository.list(limit, cursor, organizationId, filter);
     return toCursorPage(rows, limit);
   }
 }

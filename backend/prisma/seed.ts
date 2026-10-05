@@ -5,11 +5,11 @@ import { Pool } from "pg";
 import { DOCUMENT_PREFIX, DOCUMENT_TYPES } from "../src/common/numbering/format";
 import { hashPassword } from "../src/modules/auth/password";
 import {
-  permissionCode,
   PHASE1_PERMISSION_CODES,
   PHASE1_PERMISSIONS,
   VIEWER_PERMISSION_CODES,
 } from "../src/modules/permissions/catalog";
+import { permissionCode } from "../src/modules/permissions/types";
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const adminPassword = process.env.ADMIN_PASSWORD;

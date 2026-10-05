@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { listQuerySchema } from "../../common/pagination/list-query";
 import { validate } from "../../common/validation/validate";
 import { authenticate } from "../../middleware/authenticate";
 import { requirePermission } from "../../middleware/authorize";
 import type { AuditLogsController } from "./controller";
+import { auditListQuerySchema } from "./validation";
 
 export function createAuditLogsRouter(controller: AuditLogsController): Router {
   const router = Router();
@@ -11,7 +11,7 @@ export function createAuditLogsRouter(controller: AuditLogsController): Router {
     "/",
     authenticate,
     requirePermission("audit-logs:read"),
-    validate({ query: listQuerySchema }),
+    validate({ query: auditListQuerySchema }),
     controller.list,
   );
   return router;

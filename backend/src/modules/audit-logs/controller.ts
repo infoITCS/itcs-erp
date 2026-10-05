@@ -1,9 +1,9 @@
 import type { Request, Response } from "express";
-import type { ListQuery } from "../../common/pagination/list-query";
 import { UnauthorizedError } from "../../common/errors/app-error";
 import { asyncHandler } from "../../common/utils/async-handler";
 import { sendSuccess } from "../../common/utils/api-response";
 import type { AuditLogsService } from "./service";
+import type { AuditListQuery } from "./validation";
 
 export class AuditLogsController {
   constructor(private readonly auditLogsService: AuditLogsService) {}
@@ -12,8 +12,13 @@ export class AuditLogsController {
     if (!req.auth?.organizationId) {
       throw new UnauthorizedError();
     }
-    const query = req.validated?.query as ListQuery;
-    const page = await this.auditLogsService.list(req.auth.organizationId, query.limit, query.cursor);
+    const query = req.validated?.query as AuditListQuery;
+    const page = await this.auditLogsService.list(req.auth.organizationId, query.limit, query.cursor, {
+      module: query.module,
+      entityType: query.entityType,
+      entityId: query.entityId,
+      subjectId: query.subjectId,
+    });
     sendSuccess(res, { message: "Audit logs", data: page });
   });
 }

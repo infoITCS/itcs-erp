@@ -1,8 +1,11 @@
-import { Suspense } from "react";
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AppLayout } from "@/components/layouts/AppLayout.tsx";
 import { LoginPage } from "@/features/auth/index.tsx";
 import { navItems } from "./nav.tsx";
+
+const CustomerFormPage = lazy(() => import("@/features/customers/form-page.tsx"));
+const CustomerDetailPage = lazy(() => import("@/features/customers/detail-page.tsx"));
 
 function PageLoading() {
   return <p className="text-sm text-slate-500">Loading page…</p>;
@@ -34,6 +37,30 @@ export function AppRouter() {
               }
             />
           ))}
+          <Route
+            path="/customers/new"
+            element={
+              <Suspense fallback={<PageLoading />}>
+                <CustomerFormPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/customers/:id/edit"
+            element={
+              <Suspense fallback={<PageLoading />}>
+                <CustomerFormPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/customers/:id"
+            element={
+              <Suspense fallback={<PageLoading />}>
+                <CustomerDetailPage />
+              </Suspense>
+            }
+          />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
