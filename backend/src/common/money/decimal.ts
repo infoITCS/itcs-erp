@@ -3,18 +3,18 @@ import { ValidationFailedError } from "../errors/app-error";
 const DECIMAL_PATTERN = /^\d+(\.\d+)?$/;
 
 /** Accepts a decimal string only. JSON numbers are rejected at the route. */
-export function assertDecimalString(value: string, scale: number): string {
+export function assertDecimalString(value: string, scale: number, field = "rate"): string {
   const normalized = value.trim();
   if (!DECIMAL_PATTERN.test(normalized)) {
     throw new ValidationFailedError({
-      rate: ["Enter a decimal amount such as 278.50"],
+      [field]: ["Enter a decimal amount such as 278.50"],
     });
   }
 
   const fraction = normalized.split(".")[1] ?? "";
   if (fraction.length > scale) {
     throw new ValidationFailedError({
-      rate: [`Use at most ${scale} decimal places`],
+      [field]: [`Use at most ${scale} decimal places`],
     });
   }
 

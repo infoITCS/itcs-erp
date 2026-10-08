@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { AuthLayout } from "@/components/layouts/AuthLayout.tsx";
 import { FormField } from "@/components/forms/FormField.tsx";
@@ -18,8 +18,17 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
+function safeReturnPath(from: unknown): string {
+  if (typeof from !== "string" || !from.startsWith("/") || from.startsWith("//") || from.startsWith("/login")) {
+    return "/";
+  }
+  return from;
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnTo = safeReturnPath((location.state as { from?: unknown } | null)?.from);
   const [formError, setFormError] = useState<string | null>(null);
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -43,7 +52,7 @@ export function LoginPage() {
                 refreshToken: result.data.refreshToken,
                 email: result.data.user.email,
               });
-              navigate("/");
+              navigate(returnTo, { replace: true });
             }
           } catch (error) {
             setFormError(getApiErrorMessage(error));
@@ -66,9 +75,6 @@ export function LoginPage() {
           {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
         </Button>
       </form>
-      <Link to="/" className="mt-4 inline-block text-sm text-slate-600">
-        Back to the shell
-      </Link>
     </AuthLayout>
   );
 }

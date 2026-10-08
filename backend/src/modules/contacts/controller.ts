@@ -4,7 +4,7 @@ import { asyncHandler } from "../../common/utils/async-handler";
 import { sendSuccess } from "../../common/utils/api-response";
 import type { RequestMeta } from "../auth/types";
 import type { ContactsService } from "./service";
-import type { UpdateContactInput } from "./validation";
+import type { ContactListQuery, UpdateContactInput } from "./validation";
 
 function meta(req: Request): RequestMeta {
   return { ipAddress: req.ip ?? null, userAgent: req.get("user-agent") ?? null };
@@ -26,6 +26,12 @@ function actorId(req: Request): string {
 
 export class ContactsController {
   constructor(private readonly contactsService: ContactsService) {}
+
+  list = asyncHandler(async (req: Request, res: Response) => {
+    const query = req.validated?.query as ContactListQuery;
+    const page = await this.contactsService.listAll(organizationId(req), query, req.auth?.permissions ?? []);
+    sendSuccess(res, { message: "Contacts", data: page });
+  });
 
   get = asyncHandler(async (req: Request, res: Response) => {
     const params = req.validated?.params as { id: string };

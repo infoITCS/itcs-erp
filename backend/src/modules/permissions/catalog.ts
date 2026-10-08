@@ -20,6 +20,16 @@ export const PHASE1_PERMISSIONS = [
   { module: "contacts", action: "update", description: "Update contacts and the primary contact" },
   { module: "contacts", action: "delete", description: "Soft-delete contacts" },
   { module: "contacts", action: "restore", description: "Restore soft-deleted contacts" },
+  { module: "products", action: "read", description: "View products, categories, prices, UOMs, and tax codes" },
+  { module: "products", action: "create", description: "Create products and categories" },
+  { module: "products", action: "update", description: "Update products, categories, and prices" },
+  { module: "products", action: "delete", description: "Soft-delete products and categories" },
+  { module: "products", action: "restore", description: "Restore soft-deleted products" },
+  { module: "resellers", action: "read", description: "View resellers, addresses, contacts, and linked customers" },
+  { module: "resellers", action: "create", description: "Create resellers" },
+  { module: "resellers", action: "update", description: "Update resellers, addresses, contacts, and customer assignments" },
+  { module: "resellers", action: "delete", description: "Soft-delete resellers" },
+  { module: "resellers", action: "restore", description: "Restore soft-deleted resellers" },
 ] as const;
 
 export const PHASE1_PERMISSION_CODES = PHASE1_PERMISSIONS.map((permission) =>

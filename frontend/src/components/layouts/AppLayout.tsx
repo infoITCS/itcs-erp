@@ -48,13 +48,7 @@ export function AppLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-6">
           <p className="text-sm text-slate-500">ITCS ERP</p>
-          {signedInEmail ? (
-            <p className="text-sm font-medium text-slate-700">{signedInEmail}</p>
-          ) : (
-            <NavLink to="/login" className="text-sm font-medium text-slate-700">
-              Sign in
-            </NavLink>
-          )}
+          <p className="text-sm font-medium text-slate-700">{signedInEmail}</p>
         </header>
         <main className="min-w-0 flex-1 p-6">
           <Outlet />

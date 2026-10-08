@@ -1,6 +1,5 @@
-// Phase 1 plus customers, contacts, and customer addresses.
-// Reseller, opportunities, sales, purchasing, inventory, accounting, and tender tables are not in this schema.
-// Customer.resellerId is intentionally absent until the Reseller module adds the foreign key.
+// Phase 1 plus customers/contacts, products/services, and resellers.
+// Opportunities, sales, purchasing, inventory, accounting, and tender tables are not in this schema.
 //
 // Finalized financial documents (invoices, payments, bills, journals) will be
 // append-only after posting. A correction is a new reversing document.
@@ -40,6 +39,8 @@ enum DocumentType {
   PAYMENT
   RENEWAL
   CUSTOMER
+  PRODUCT
+  RESELLER
 
   @@map("document_type")
 }
@@ -72,6 +73,35 @@ enum ContactStatus {
   @@map("contact_status")
 }
 
+enum ProductType {
+  PHYSICAL_PRODUCT
+  SERVICE
+
+  @@map("product_type")
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+
+  @@map("product_status")
+}
+
+enum ProductPriceType {
+  SALES
+  PURCHASE
+
+  @@map("product_price_type")
+}
+
+enum ResellerStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+
+  @@map("reseller_status")
+}
+
 /// Company boundary. Later operational tables will reference this id.
 /// One row is seeded now. This is not SaaS tenant isolation.
 model Organization {
@@ -90,6 +120,14 @@ model Organization {
   exchangeRates     ExchangeRate[]
   documentSequences DocumentSequence[]
   customers         Customer[]
+  resellers         Reseller[]
+  resellerAddresses ResellerAddress[]
+  resellerContacts  ResellerContact[]
+  products          Product[]
+  productCategories ProductCategory[]
+  unitsOfMeasure    UnitOfMeasure[]
+  taxCodes          TaxCode[]
+  productPrices     ProductPrice[]
 
   @@index([status])
   @@map("organizations")
@@ -122,6 +160,18 @@ model User {
   addressesUpdated CustomerAddress[] @relation("AddressUpdatedBy")
   contactsCreated  Contact[]         @relation("ContactCreatedBy")
   contactsUpdated  Contact[]         @relation("ContactUpdatedBy")
+  resellersCreated Reseller[]        @relation("ResellerCreatedBy")
+  resellersUpdated Reseller[]        @relation("ResellerUpdatedBy")
+  resellerAddressesCreated ResellerAddress[] @relation("ResellerAddressCreatedBy")
+  resellerAddressesUpdated ResellerAddress[] @relation("ResellerAddressUpdatedBy")
+  resellerContactsCreated  ResellerContact[] @relation("ResellerContactCreatedBy")
+  resellerContactsUpdated  ResellerContact[] @relation("ResellerContactUpdatedBy")
+  productsCreated  Product[]         @relation("ProductCreatedBy")
+  productsUpdated  Product[]         @relation("ProductUpdatedBy")
+  categoriesCreated ProductCategory[] @relation("CategoryCreatedBy")
+  categoriesUpdated ProductCategory[] @relation("CategoryUpdatedBy")
+  pricesCreated    ProductPrice[]    @relation("PriceCreatedBy")
+  pricesUpdated    ProductPrice[]    @relation("PriceUpdatedBy")
 
   @@index([status])
   @@map("users")
@@ -270,6 +320,8 @@ model Currency {
 
   organizations Organization[]
   customers     Customer[]
+  resellers     Reseller[]
+  productPrices ProductPrice[]
   baseRates     ExchangeRate[] @relation("ExchangeRateBase")
   quoteRates    ExchangeRate[] @relation("ExchangeRateQuote")
 
@@ -322,6 +374,7 @@ model DocumentSequence {
 model Customer {
   id             String         @id @default(uuid()) @db.Uuid
   organizationId String         @map("organization_id") @db.Uuid
+  resellerId     String?        @map("reseller_id") @db.Uuid
   customerNumber String         @map("customer_number") @db.VarChar(32)
   customerType   CustomerType   @map("customer_type")
   legalName      String         @map("legal_name") @db.VarChar(200)
@@ -341,6 +394,7 @@ model Customer {
   updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization      @relation(fields: [organizationId], references: [id])
+  reseller     Reseller?         @relation(fields: [resellerId], references: [id])
   currency     Currency          @relation(fields: [currencyCode], references: [code])
   createdBy    User              @relation("CustomerCreatedBy", fields: [createdById], references: [id])
   updatedBy    User              @relation("CustomerUpdatedBy", fields: [updatedById], references: [id])
@@ -352,6 +406,7 @@ model Customer {
   @@index([organizationId, customerType, createdAt])
   @@index([organizationId, countryCode, createdAt])
   @@index([organizationId, currencyCode])
+  @@index([organizationId, resellerId, createdAt])
   @@map("customers")
 }
 
@@ -410,4 +465,223 @@ model Contact {
   @@index([organizationId, customerId, createdAt, id])
   @@index([organizationId, email])
   @@map("contacts")
+}
+
+model Reseller {
+  id                       String         @id @default(uuid()) @db.Uuid
+  organizationId           String         @map("organization_id") @db.Uuid
+  resellerNumber           String         @map("reseller_number") @db.VarChar(32)
+  legalName                String         @map("legal_name") @db.VarChar(200)
+  displayName              String         @map("display_name") @db.VarChar(200)
+  email                    String?        @db.VarChar(320)
+  phone                    String?        @db.VarChar(40)
+  website                  String?        @db.VarChar(200)
+  countryCode              String         @map("country_code") @db.Char(2)
+  currencyCode             String         @map("currency_code") @db.Char(3)
+  taxNumber                String?        @map("tax_number") @db.VarChar(64)
+  status                   ResellerStatus @default(ACTIVE)
+  priceListCode            String         @default("STANDARD") @map("price_list_code") @db.VarChar(32)
+  defaultDiscountPercent   Decimal?       @map("default_discount_percent") @db.Decimal(7, 4)
+  defaultCommissionPercent Decimal?       @map("default_commission_percent") @db.Decimal(7, 4)
+  notes                    String?        @db.VarChar(4000)
+  createdById              String         @map("created_by_id") @db.Uuid
+  updatedById              String         @map("updated_by_id") @db.Uuid
+  deletedAt                DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt                DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  currency     Currency          @relation(fields: [currencyCode], references: [code])
+  createdBy    User              @relation("ResellerCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User              @relation("ResellerUpdatedBy", fields: [updatedById], references: [id])
+  addresses    ResellerAddress[]
+  contacts     ResellerContact[]
+  customers    Customer[]
+
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, countryCode, createdAt])
+  @@map("resellers")
+}
+
+model ResellerAddress {
+  id             String         @id @default(uuid()) @db.Uuid
+  organizationId String         @map("organization_id") @db.Uuid
+  resellerId     String         @map("reseller_id") @db.Uuid
+  purpose        AddressPurpose
+  isPrimary      Boolean        @default(false) @map("is_primary")
+  label          String?        @db.VarChar(80)
+  line1          String         @db.VarChar(200)
+  line2          String?        @db.VarChar(200)
+  city           String         @db.VarChar(120)
+  region         String?        @db.VarChar(120)
+  postalCode     String?        @map("postal_code") @db.VarChar(20)
+  countryCode    String         @map("country_code") @db.Char(2)
+  createdById    String         @map("created_by_id") @db.Uuid
+  updatedById    String         @map("updated_by_id") @db.Uuid
+  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  reseller     Reseller     @relation(fields: [resellerId], references: [id])
+  createdBy    User         @relation("ResellerAddressCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User         @relation("ResellerAddressUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([organizationId, resellerId, purpose])
+  @@map("reseller_addresses")
+}
+
+model ResellerContact {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  resellerId     String        @map("reseller_id") @db.Uuid
+  firstName      String        @map("first_name") @db.VarChar(100)
+  lastName       String        @map("last_name") @db.VarChar(100)
+  displayName    String        @map("display_name") @db.VarChar(200)
+  jobTitle       String?       @map("job_title") @db.VarChar(120)
+  department     String?       @db.VarChar(120)
+  email          String?       @db.VarChar(320)
+  phone          String?       @db.VarChar(40)
+  mobile         String?       @db.VarChar(40)
+  isPrimary      Boolean       @default(false) @map("is_primary")
+  status         ContactStatus @default(ACTIVE)
+  notes          String?       @db.VarChar(4000)
+  createdById    String        @map("created_by_id") @db.Uuid
+  updatedById    String        @map("updated_by_id") @db.Uuid
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  reseller     Reseller     @relation(fields: [resellerId], references: [id])
+  createdBy    User         @relation("ResellerContactCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User         @relation("ResellerContactUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([organizationId, resellerId, createdAt, id])
+  @@index([organizationId, email])
+  @@map("reseller_contacts")
+}
+
+model UnitOfMeasure {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  code           String   @db.VarChar(32)
+  name           String   @db.VarChar(80)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  products     Product[]
+
+  @@unique([organizationId, code])
+  @@map("units_of_measure")
+}
+
+model ProductCategory {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  parentId       String?   @map("parent_id") @db.Uuid
+  code           String    @db.VarChar(32)
+  name           String    @db.VarChar(120)
+  description    String?   @db.VarChar(500)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdById    String    @map("created_by_id") @db.Uuid
+  updatedById    String    @map("updated_by_id") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization      @relation(fields: [organizationId], references: [id])
+  parent       ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children     ProductCategory[] @relation("CategoryTree")
+  products     Product[]
+  createdBy    User              @relation("CategoryCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User              @relation("CategoryUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([organizationId, parentId])
+  @@index([organizationId, createdAt, id])
+  @@map("product_categories")
+}
+
+/// Stub for later quote/invoice lines. Not a full tax engine.
+model TaxCode {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  code           String   @db.VarChar(32)
+  name           String   @db.VarChar(120)
+  rate           Decimal  @db.Decimal(7, 4)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  products     Product[]
+
+  @@unique([organizationId, code])
+  @@map("tax_codes")
+}
+
+model Product {
+  id              String        @id @default(uuid()) @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  code            String        @db.VarChar(64)
+  name            String        @db.VarChar(200)
+  description     String?       @db.VarChar(4000)
+  productType     ProductType   @map("product_type")
+  status          ProductStatus @default(ACTIVE)
+  categoryId      String?       @map("category_id") @db.Uuid
+  unitOfMeasureId String        @map("unit_of_measure_id") @db.Uuid
+  taxCodeId       String?       @map("tax_code_id") @db.Uuid
+  trackInventory  Boolean       @default(false) @map("track_inventory")
+  notes           String?       @db.VarChar(4000)
+  createdById     String        @map("created_by_id") @db.Uuid
+  updatedById     String        @map("updated_by_id") @db.Uuid
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization     @relation(fields: [organizationId], references: [id])
+  category      ProductCategory? @relation(fields: [categoryId], references: [id])
+  unitOfMeasure UnitOfMeasure    @relation(fields: [unitOfMeasureId], references: [id])
+  taxCode       TaxCode?         @relation(fields: [taxCodeId], references: [id])
+  createdBy     User             @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User             @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
+  prices        ProductPrice[]
+
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, productType, createdAt])
+  @@index([organizationId, categoryId, createdAt])
+  @@index([organizationId, trackInventory])
+  @@map("products")
+}
+
+model ProductPrice {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  productId      String           @map("product_id") @db.Uuid
+  priceType      ProductPriceType @map("price_type")
+  priceListCode  String           @default("STANDARD") @map("price_list_code") @db.VarChar(32)
+  currencyCode   String           @map("currency_code") @db.Char(3)
+  amount         Decimal          @db.Decimal(19, 4)
+  effectiveDate  DateTime         @map("effective_date") @db.Date
+  expiryDate     DateTime?        @map("expiry_date") @db.Date
+  isActive       Boolean          @default(true) @map("is_active")
+  createdById    String           @map("created_by_id") @db.Uuid
+  updatedById    String           @map("updated_by_id") @db.Uuid
+  deletedAt      DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  product      Product      @relation(fields: [productId], references: [id])
+  currency     Currency     @relation(fields: [currencyCode], references: [code])
+  createdBy    User         @relation("PriceCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User         @relation("PriceUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([organizationId, productId, priceType, effectiveDate])
+  @@index([organizationId, priceListCode, currencyCode])
+  @@map("product_prices")
 }

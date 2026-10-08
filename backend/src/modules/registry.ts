@@ -5,8 +5,8 @@ import { createRolesModule } from "./roles";
 import { createPermissionsModule } from "./permissions";
 import { createCustomersModule } from "./customers";
 import { createContactsModule } from "./contacts";
-import { createProductsModule } from "./products";
-import { createResellersModule } from "./resellers";
+import { createProductsModules } from "./products";
+import { createResellersModules } from "./resellers";
 import { createOpportunitiesModule } from "./opportunities";
 import { createTendersModule } from "./tenders";
 import { createQuotesModule } from "./quotes";
@@ -37,8 +37,8 @@ export function createModules(deps: ModuleDependencies): AppModule[] {
     createPermissionsModule(deps),
     createCustomersModule(deps),
     createContactsModule(deps),
-    createProductsModule(deps),
-    createResellersModule(deps),
+    ...createProductsModules(deps),
+    ...createResellersModules(deps),
     createOpportunitiesModule(deps),
     createTendersModule(deps),
     createQuotesModule(deps),

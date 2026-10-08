@@ -179,6 +179,42 @@ async function main(): Promise<void> {
       },
     });
   }
+
+  const defaultUoms = [
+    { code: "EACH", name: "Each" },
+    { code: "HOUR", name: "Hour" },
+    { code: "DAY", name: "Day" },
+    { code: "MONTH", name: "Month" },
+    { code: "LICENSE", name: "License" },
+    { code: "KG", name: "Kilogram" },
+    { code: "BOX", name: "Box" },
+  ];
+  for (const uom of defaultUoms) {
+    await prisma.unitOfMeasure.upsert({
+      where: { organizationId_code: { organizationId: organization.id, code: uom.code } },
+      update: { name: uom.name, isActive: true },
+      create: { organizationId: organization.id, code: uom.code, name: uom.name, isActive: true },
+    });
+  }
+
+  const defaultTaxCodes = [
+    { code: "ZERO", name: "Zero rated", rate: "0.0000" },
+    { code: "STD", name: "Standard VAT", rate: "17.0000" },
+    { code: "EXEMPT", name: "Exempt", rate: "0.0000" },
+  ];
+  for (const tax of defaultTaxCodes) {
+    await prisma.taxCode.upsert({
+      where: { organizationId_code: { organizationId: organization.id, code: tax.code } },
+      update: { name: tax.name, rate: tax.rate, isActive: true },
+      create: {
+        organizationId: organization.id,
+        code: tax.code,
+        name: tax.name,
+        rate: tax.rate,
+        isActive: true,
+      },
+    });
+  }
 }
 
 async function replaceRolePermissions(

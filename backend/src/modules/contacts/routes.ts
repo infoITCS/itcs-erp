@@ -3,11 +3,12 @@ import { validate } from "../../common/validation/validate";
 import { authenticate } from "../../middleware/authenticate";
 import { requirePermission } from "../../middleware/authorize";
 import type { ContactsController } from "./controller";
-import { contactIdParamSchema, updateContactSchema } from "./validation";
+import { contactIdParamSchema, contactListQuerySchema, updateContactSchema } from "./validation";
 
 export function createContactsRouter(controller: ContactsController): Router {
   const router = Router();
   router.use(authenticate);
+  router.get("/", requirePermission("customers:read"), validate({ query: contactListQuerySchema }), controller.list);
   router.get("/:id", requirePermission("customers:read"), validate({ params: contactIdParamSchema }), controller.get);
   router.patch(
     "/:id",

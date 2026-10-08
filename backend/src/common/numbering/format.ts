@@ -10,6 +10,8 @@ export const DOCUMENT_PREFIX: Record<DocumentType, string> = {
   PAYMENT: "PAY",
   RENEWAL: "RN",
   CUSTOMER: "CUS",
+  PRODUCT: "PRD",
+  RESELLER: "RSL",
 };
 
 export const DOCUMENT_TYPES = Object.keys(DOCUMENT_PREFIX) as DocumentType[];

@@ -37,11 +37,19 @@ export const updateContactSchema = contactBodySchema.partial().refine((value) =>
 });
 
 export const contactListQuerySchema = listQuerySchema.extend({
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  isPrimary: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === "true")),
+  customerId: z.string().uuid().optional(),
   includeDeleted: z
     .enum(["true", "false"])
     .optional()
     .transform((value) => value === "true"),
 });
+
+export const orgContactListQuerySchema = contactListQuerySchema;
 
 export const contactIdParamSchema = z.object({
   id: z.string().uuid(),
@@ -50,3 +58,4 @@ export const contactIdParamSchema = z.object({
 export type ContactBody = z.infer<typeof contactBodySchema>;
 export type UpdateContactInput = z.infer<typeof updateContactSchema>;
 export type ContactListQuery = z.infer<typeof contactListQuerySchema>;
+export type OrgContactListQuery = ContactListQuery;

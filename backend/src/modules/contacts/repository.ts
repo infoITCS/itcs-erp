@@ -22,6 +22,14 @@ const contactSelect = {
   deletedAt: true,
   createdAt: true,
   updatedAt: true,
+  customer: {
+    select: {
+      id: true,
+      customerNumber: true,
+      displayName: true,
+      status: true,
+    },
+  },
 } satisfies Prisma.ContactSelect;
 
 export type ContactRecord = Prisma.ContactGetPayload<{ select: typeof contactSelect }>;
@@ -54,6 +62,49 @@ export class ContactsRepository extends BaseRepository {
         customerId,
         ...(includeDeleted ? {} : { deletedAt: null }),
         ...(decoded ? cursorFilter(decoded, "desc") : {}),
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
+      select: contactSelect,
+    });
+  }
+
+  async listForOrganization(
+    organizationId: string,
+    filter: {
+      q?: string;
+      status?: "ACTIVE" | "INACTIVE";
+      isPrimary?: boolean;
+      customerId?: string;
+      includeDeleted?: boolean;
+    },
+    limit: number,
+    cursor?: string,
+  ) {
+    const decoded = cursor ? decodeCursor(cursor) : null;
+    const search = filter.q?.trim();
+    return this.db.contact.findMany({
+      where: {
+        organizationId,
+        ...(filter.includeDeleted ? {} : { deletedAt: null }),
+        ...(filter.status ? { status: filter.status } : {}),
+        ...(filter.isPrimary === undefined ? {} : { isPrimary: filter.isPrimary }),
+        ...(filter.customerId ? { customerId: filter.customerId } : {}),
+        ...(decoded ? cursorFilter(decoded, "desc") : {}),
+        ...(search
+          ? {
+              OR: [
+                { displayName: { contains: search, mode: "insensitive" } },
+                { firstName: { contains: search, mode: "insensitive" } },
+                { lastName: { contains: search, mode: "insensitive" } },
+                { email: { contains: search, mode: "insensitive" } },
+                { phone: { contains: search, mode: "insensitive" } },
+                { mobile: { contains: search, mode: "insensitive" } },
+                { customer: { displayName: { contains: search, mode: "insensitive" } } },
+                { customer: { customerNumber: { contains: search, mode: "insensitive" } } },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: limit + 1,

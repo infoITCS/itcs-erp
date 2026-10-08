@@ -23,6 +23,25 @@ export class ContactsService {
     return toCursorPage(rows, query.limit);
   }
 
+  async listAll(organizationId: string, query: ContactListQuery, permissions: string[]) {
+    if (query.includeDeleted && !permissions.includes("contacts:delete") && !permissions.includes("contacts:restore")) {
+      throw new ForbiddenError();
+    }
+    const rows = await this.repository.listForOrganization(
+      organizationId,
+      {
+        q: query.q,
+        status: query.status,
+        isPrimary: query.isPrimary,
+        customerId: query.customerId,
+        includeDeleted: query.includeDeleted,
+      },
+      query.limit,
+      query.cursor,
+    );
+    return toCursorPage(rows, query.limit);
+  }
+
   async get(organizationId: string, id: string) {
     const contact = await this.repository.findById(organizationId, id);
     if (!contact) {

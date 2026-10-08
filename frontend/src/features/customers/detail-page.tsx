@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { z } from "zod";
 import { FormField } from "@/components/forms/FormField.tsx";
+import { ConfirmDialog } from "@/components/modals/ConfirmDialog.tsx";
 import { Modal } from "@/components/modals/Modal.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
@@ -30,6 +31,11 @@ const contactSchema = z.object({
   isPrimary: z.boolean(),
 });
 
+type PendingDelete =
+  | { kind: "customer" }
+  | { kind: "address"; id: string; label: string }
+  | { kind: "contact"; id: string; label: string };
+
 export default function CustomerDetailPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
@@ -37,6 +43,8 @@ export default function CustomerDetailPage() {
   const [contactOpen, setContactOpen] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
   const customer = useQuery({ queryKey: ["customers", id], queryFn: () => getCustomer(id) });
   const contacts = useQuery({ queryKey: ["customers", id, "contacts"], queryFn: () => listContacts(id) });
   const audit = useQuery({ queryKey: ["customers", id, "audit"], queryFn: () => listCustomerAudit(id) });
@@ -52,6 +60,27 @@ export default function CustomerDetailPage() {
       navigate("/customers");
     },
   });
+
+  async function confirmDelete() {
+    if (!pendingDelete) {
+      return;
+    }
+    setConfirmBusy(true);
+    try {
+      if (pendingDelete.kind === "customer") {
+        await removeCustomer.mutateAsync();
+      } else if (pendingDelete.kind === "address") {
+        await deleteAddress(id, pendingDelete.id);
+        await refresh();
+      } else {
+        await deleteContact(pendingDelete.id);
+        await refresh();
+      }
+      setPendingDelete(null);
+    } finally {
+      setConfirmBusy(false);
+    }
+  }
 
   return (
     <section className="flex flex-col gap-6">
@@ -72,7 +101,7 @@ export default function CustomerDetailPage() {
               <Link to={`/customers/${id}/edit`} className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-sm">
                 Edit
               </Link>
-              <Button variant="secondary" onClick={() => removeCustomer.mutate()} disabled={removeCustomer.isPending}>
+              <Button variant="secondary" onClick={() => setPendingDelete({ kind: "customer" })}>
                 Delete
               </Button>
             </div>
@@ -104,7 +133,13 @@ export default function CustomerDetailPage() {
                   <button
                     type="button"
                     className="mt-2 text-sm text-red-700"
-                    onClick={() => deleteAddress(id, address.id).then(refresh)}
+                    onClick={() =>
+                      setPendingDelete({
+                        kind: "address",
+                        id: address.id,
+                        label: `${address.purpose} · ${address.line1}`,
+                      })
+                    }
                   >
                     Remove
                   </button>
@@ -139,7 +174,11 @@ export default function CustomerDetailPage() {
                         Make primary
                       </button>
                     )}
-                    <button type="button" className="text-red-700" onClick={() => deleteContact(contact.id).then(refresh)}>
+                    <button
+                      type="button"
+                      className="text-red-700"
+                      onClick={() => setPendingDelete({ kind: "contact", id: contact.id, label: contact.displayName })}
+                    >
                       Remove
                     </button>
                   </div>
@@ -164,152 +203,163 @@ export default function CustomerDetailPage() {
         </>
       ) : null}
 
-      <ContactModal
-        open={contactOpen}
-        error={formError}
-        onClose={() => setContactOpen(false)}
-        onSubmit={async (values) => {
-          setFormError(null);
-          try {
-            await createContact(id, values);
-            setContactOpen(false);
-            await refresh();
-          } catch (error) {
-            setFormError(getApiErrorMessage(error));
-          }
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={
+          pendingDelete?.kind === "customer"
+            ? "Delete customer?"
+            : pendingDelete?.kind === "address"
+              ? "Remove address?"
+              : "Remove contact?"
+        }
+        description={
+          pendingDelete?.kind === "customer" ? (
+            <p>
+              Soft-delete <span className="font-medium text-slate-900">{customer.data?.displayName}</span>? You can restore it later
+              with the right permission.
+            </p>
+          ) : (
+            <p>
+              Remove <span className="font-medium text-slate-900">{pendingDelete?.label}</span>? This soft-deletes the record.
+            </p>
+          )
+        }
+        confirmLabel={pendingDelete?.kind === "customer" ? "Delete customer" : "Remove"}
+        busy={confirmBusy || removeCustomer.isPending}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          void confirmDelete();
         }}
       />
-      <AddressModal
-        open={addressOpen}
-        error={formError}
-        onClose={() => setAddressOpen(false)}
-        onSubmit={async (values) => {
-          setFormError(null);
-          try {
-            await createAddress(id, values);
-            setAddressOpen(false);
-            await refresh();
-          } catch (error) {
-            setFormError(getApiErrorMessage(error));
-          }
-        }}
-      />
+
+      <Modal open={addressOpen} title="Add address" onClose={() => setAddressOpen(false)}>
+        <AddressForm
+          error={formError}
+          onSubmit={async (body) => {
+            setFormError(null);
+            try {
+              await createAddress(id, body);
+              await refresh();
+              setAddressOpen(false);
+            } catch (error) {
+              setFormError(getApiErrorMessage(error));
+            }
+          }}
+        />
+      </Modal>
+
+      <Modal open={contactOpen} title="Add contact" onClose={() => setContactOpen(false)}>
+        <ContactForm
+          error={formError}
+          onSubmit={async (body) => {
+            setFormError(null);
+            try {
+              await createContact(id, body);
+              await refresh();
+              setContactOpen(false);
+            } catch (error) {
+              setFormError(getApiErrorMessage(error));
+            }
+          }}
+        />
+      </Modal>
     </section>
   );
 }
 
-function ContactModal({
-  open,
-  error,
-  onClose,
-  onSubmit,
-}: {
-  open: boolean;
-  error: string | null;
-  onClose: () => void;
-  onSubmit: (values: ContactWrite) => Promise<void>;
-}) {
-  const [values, setValues] = useState({ firstName: "", lastName: "", email: "", phone: "", jobTitle: "", isPrimary: true });
-  const [fieldError, setFieldError] = useState<string | null>(null);
+function AddressForm({ error, onSubmit }: { error: string | null; onSubmit: (body: AddressWrite) => Promise<void> }) {
   return (
-    <Modal open={open} title="Add contact" onClose={onClose}>
-      <form
-        className="flex flex-col gap-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const parsed = contactSchema.safeParse(values);
-          if (!parsed.success) {
-            setFieldError(parsed.error.issues[0]?.message ?? "Check the contact");
-            return;
-          }
-          setFieldError(null);
-          void onSubmit({
-            firstName: parsed.data.firstName,
-            lastName: parsed.data.lastName,
-            isPrimary: parsed.data.isPrimary,
-            ...(parsed.data.email ? { email: parsed.data.email } : {}),
-            ...(parsed.data.phone ? { phone: parsed.data.phone } : {}),
-            ...(parsed.data.jobTitle ? { jobTitle: parsed.data.jobTitle } : {}),
-          });
-        }}
-      >
-        <FormField label="First name" htmlFor="firstName">
-          <Input id="firstName" value={values.firstName} onChange={(event) => setValues({ ...values, firstName: event.target.value })} />
-        </FormField>
-        <FormField label="Last name" htmlFor="lastName">
-          <Input id="lastName" value={values.lastName} onChange={(event) => setValues({ ...values, lastName: event.target.value })} />
-        </FormField>
-        <FormField label="Email" htmlFor="contactEmail">
-          <Input id="contactEmail" value={values.email} onChange={(event) => setValues({ ...values, email: event.target.value })} />
-        </FormField>
-        <FormField label="Phone" htmlFor="contactPhone">
-          <Input id="contactPhone" value={values.phone} onChange={(event) => setValues({ ...values, phone: event.target.value })} />
-        </FormField>
-        <FormField label="Job title" htmlFor="jobTitle">
-          <Input id="jobTitle" value={values.jobTitle} onChange={(event) => setValues({ ...values, jobTitle: event.target.value })} />
-        </FormField>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" checked={values.isPrimary} onChange={(event) => setValues({ ...values, isPrimary: event.target.checked })} />
-          Primary contact
-        </label>
-        {fieldError ? <p className="text-sm text-red-700">{fieldError}</p> : null}
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
-        <Button type="submit">Save contact</Button>
-      </form>
-    </Modal>
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        void onSubmit({
+          purpose: String(form.get("purpose") ?? "BILLING") as AddressWrite["purpose"],
+          isPrimary: form.get("isPrimary") === "on",
+          line1: String(form.get("line1") ?? ""),
+          city: String(form.get("city") ?? ""),
+          countryCode: String(form.get("countryCode") ?? "").toUpperCase(),
+          line2: String(form.get("line2") ?? "") || undefined,
+          region: String(form.get("region") ?? "") || undefined,
+          postalCode: String(form.get("postalCode") ?? "") || undefined,
+        });
+      }}
+    >
+      <FormField label="Purpose" htmlFor="purpose">
+        <select id="purpose" name="purpose" className="h-9 w-full rounded-md border border-slate-300 px-3 text-sm" defaultValue="BILLING">
+          <option value="BILLING">Billing</option>
+          <option value="SHIPPING">Shipping</option>
+        </select>
+      </FormField>
+      <FormField label="Line 1" htmlFor="line1">
+        <Input id="line1" name="line1" required />
+      </FormField>
+      <FormField label="City" htmlFor="city">
+        <Input id="city" name="city" required />
+      </FormField>
+      <FormField label="Country" htmlFor="countryCode">
+        <Input id="countryCode" name="countryCode" maxLength={2} required defaultValue="PK" />
+      </FormField>
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" name="isPrimary" />
+        Primary for this purpose
+      </label>
+      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      <Button type="submit">Save address</Button>
+    </form>
   );
 }
 
-function AddressModal({
-  open,
-  error,
-  onClose,
-  onSubmit,
-}: {
-  open: boolean;
-  error: string | null;
-  onClose: () => void;
-  onSubmit: (values: AddressWrite) => Promise<void>;
-}) {
-  const [values, setValues] = useState<AddressWrite>({
-    purpose: "BILLING",
-    isPrimary: true,
-    line1: "",
-    city: "",
-    countryCode: "PK",
-  });
+function ContactForm({ error, onSubmit }: { error: string | null; onSubmit: (body: ContactWrite) => Promise<void> }) {
   return (
-    <Modal open={open} title="Add address" onClose={onClose}>
-      <form
-        className="flex flex-col gap-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void onSubmit({ ...values, countryCode: values.countryCode.toUpperCase(), isPrimary: true });
-        }}
-      >
-        <FormField label="Purpose" htmlFor="purpose">
-          <select
-            id="purpose"
-            className="h-9 rounded-md border border-slate-300 px-3 text-sm"
-            value={values.purpose}
-            onChange={(event) => setValues({ ...values, purpose: event.target.value as AddressWrite["purpose"] })}
-          >
-            <option value="BILLING">Billing</option>
-            <option value="SHIPPING">Shipping</option>
-          </select>
-        </FormField>
-        <FormField label="Address line" htmlFor="line1">
-          <Input id="line1" value={values.line1} onChange={(event) => setValues({ ...values, line1: event.target.value })} />
-        </FormField>
-        <FormField label="City" htmlFor="city">
-          <Input id="city" value={values.city} onChange={(event) => setValues({ ...values, city: event.target.value })} />
-        </FormField>
-        <FormField label="Country" htmlFor="addressCountry">
-          <Input id="addressCountry" maxLength={2} value={values.countryCode} onChange={(event) => setValues({ ...values, countryCode: event.target.value })} />
-        </FormField>
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
-        <Button type="submit">Save address</Button>
-      </form>
-    </Modal>
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const form = new FormData(event.currentTarget);
+        const parsed = contactSchema.safeParse({
+          firstName: String(form.get("firstName") ?? ""),
+          lastName: String(form.get("lastName") ?? ""),
+          email: String(form.get("email") ?? ""),
+          phone: String(form.get("phone") ?? ""),
+          jobTitle: String(form.get("jobTitle") ?? ""),
+          isPrimary: form.get("isPrimary") === "on",
+        });
+        if (!parsed.success) {
+          return;
+        }
+        void onSubmit({
+          firstName: parsed.data.firstName,
+          lastName: parsed.data.lastName,
+          email: parsed.data.email || undefined,
+          phone: parsed.data.phone || undefined,
+          jobTitle: parsed.data.jobTitle || undefined,
+          isPrimary: parsed.data.isPrimary,
+        });
+      }}
+    >
+      <FormField label="First name" htmlFor="firstName">
+        <Input id="firstName" name="firstName" required />
+      </FormField>
+      <FormField label="Last name" htmlFor="lastName">
+        <Input id="lastName" name="lastName" required />
+      </FormField>
+      <FormField label="Job title" htmlFor="jobTitle">
+        <Input id="jobTitle" name="jobTitle" />
+      </FormField>
+      <FormField label="Email" htmlFor="email">
+        <Input id="email" name="email" type="email" />
+      </FormField>
+      <FormField label="Phone" htmlFor="phone">
+        <Input id="phone" name="phone" />
+      </FormField>
+      <label className="flex items-center gap-2 text-sm text-slate-700">
+        <input type="checkbox" name="isPrimary" />
+        Primary contact
+      </label>
+      {error ? <p className="text-sm text-red-700">{error}</p> : null}
+      <Button type="submit">Save contact</Button>
+    </form>
   );
 }

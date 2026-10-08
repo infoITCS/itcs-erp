@@ -15,3 +15,20 @@ http.interceptors.request.use((config) => {
   }
   return config;
 });
+
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const url = String(error.config?.url ?? "");
+      const isAuthCall = url.includes("/api/v1/auth/");
+      if (!isAuthCall) {
+        tokenStore.clear();
+        if (!window.location.pathname.startsWith("/login")) {
+          window.location.assign("/login");
+        }
+      }
+    }
+    return Promise.reject(error);
+  },
+);

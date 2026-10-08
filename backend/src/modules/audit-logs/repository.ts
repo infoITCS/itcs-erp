@@ -38,6 +38,9 @@ export class AuditLogsRepository extends BaseRepository {
         OR: [
           { entityId: filter.subjectId },
           { newValues: { path: ["customerId"], equals: filter.subjectId } },
+          { newValues: { path: ["productId"], equals: filter.subjectId } },
+          { newValues: { path: ["categoryId"], equals: filter.subjectId } },
+          { newValues: { path: ["resellerId"], equals: filter.subjectId } },
         ],
       });
     }
