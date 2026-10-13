@@ -7,10 +7,12 @@ import type { CustomersController } from "./controller";
 import {
   addressIdParamSchema,
   addressInputSchema,
+  createAccountingCategorySchema,
   createCustomerSchema,
   customerContactParamSchema,
   customerIdParamSchema,
   customerListQuerySchema,
+  createPaymentTermSchema,
   updateCustomerSchema,
 } from "./validation";
 
@@ -19,6 +21,9 @@ export function createCustomersRouter(controller: CustomersController): Router {
   router.use(authenticate);
 
   router.get("/", requirePermission("customers:read"), validate({ query: customerListQuerySchema }), controller.list);
+  router.get("/form-options", requirePermission("customers:read"), controller.formOptions);
+  router.post("/payment-terms", requirePermission("customers:create"), validate({ body: createPaymentTermSchema }), controller.createPaymentTerm);
+  router.post("/accounting-categories", requirePermission("customers:create"), validate({ body: createAccountingCategorySchema }), controller.createAccountingCategory);
   router.post("/", requirePermission("customers:create"), validate({ body: createCustomerSchema }), controller.create);
   router.get(
     "/:id/addresses",
@@ -68,6 +73,12 @@ export function createCustomersRouter(controller: CustomersController): Router {
     requirePermission("customers:delete"),
     validate({ params: customerIdParamSchema }),
     controller.remove,
+  );
+  router.delete(
+    "/:id/permanent",
+    requirePermission("customers:delete"),
+    validate({ params: customerIdParamSchema }),
+    controller.permanentlyRemove,
   );
   router.post(
     "/:id/restore",

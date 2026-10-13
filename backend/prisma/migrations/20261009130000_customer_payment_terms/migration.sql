@@ -1,0 +1,57 @@
+WITH payment_terms(code, name, due_days, requires_prepayment) AS (
+  VALUES
+    ('NET15', 'Net 15', 15, false),
+    ('NET30', 'Net 30', 30, false),
+    ('ADVANCE', 'Advance payment', 0, true),
+    ('CUSTOMER_001', 'Due on receipt', 0, false),
+    ('CUSTOMER_002', 'At 30 days', 30, false),
+    ('CUSTOMER_003', 'At 90 days', 90, false),
+    ('CUSTOMER_004', 'In two installments', 0, false),
+    ('CUSTOMER_005', 'In three installments', 0, false),
+    ('CUSTOMER_006', '70% Advance, 30% on Delivery', 0, true),
+    ('CUSTOMER_007', '70% Advance / 30% on Delivery', 0, true),
+    ('CUSTOMER_008', '70% Advance - 30% on Delivery', 0, true),
+    ('CUSTOMER_009', '70% Advance -- 30% on Delivery', 0, true),
+    ('CUSTOMER_010', 'In four installments (Quarterly)', 0, false),
+    ('CUSTOMER_011', '50% Advance, 50% on Delivery', 0, true),
+    ('CUSTOMER_012', '14 days after delivery', 14, false),
+    ('CUSTOMER_013', 'Sind Club Maintenance Contract', 0, false),
+    ('CUSTOMER_014', 'At 45 Days', 45, false),
+    ('CUSTOMER_015', '30% Advance / 70% Delivery', 0, true),
+    ('CUSTOMER_016', 'NTC Tender Terms', 0, false),
+    ('CUSTOMER_017', 'NTC Payment Terms', 0, false),
+    ('CUSTOMER_018', '100% Advance', 0, true),
+    ('CUSTOMER_019', '35 Monthly Installments', 1050, false),
+    ('CUSTOMER_020', '50% Upfront, 50% Midterm', 0, true),
+    ('CUSTOMER_021', 'At 60 days', 60, false),
+    ('CUSTOMER_022', '80% Upfront 20% after 60 days', 60, true),
+    ('CUSTOMER_023', 'In three Installments over 3 months', 90, false),
+    ('CUSTOMER_024', '50% on delivery, 50% after 30 days', 30, false),
+    ('CUSTOMER_025', '50% on delivery, 50% after 90 days', 90, false),
+    ('CUSTOMER_026', '12 Monthly Installments', 360, false),
+    ('CUSTOMER_027', '25% Advance, 25% at 45 Days and 50% at 90 Days', 90, true),
+    ('CUSTOMER_028', '25% Advance, 75% on Delivery', 0, true),
+    ('CUSTOMER_029', 'At 40 days', 40, false),
+    ('CUSTOMER_030', '7 Monthly Installments', 210, false),
+    ('CUSTOMER_031', '50% at 45 Days and remaining 50% at 6 months and 45 days', 225, false),
+    ('CUSTOMER_032', 'At 25 Days', 25, false),
+    ('CUSTOMER_033', '90% on Delivery 10% After 1 Year', 365, true),
+    ('CUSTOMER_034', 'At 7 days', 7, false),
+    ('CUSTOMER_035', 'Post Biannual Payment', 180, false),
+    ('CUSTOMER_036', 'At 15 days', 15, false),
+    ('CUSTOMER_037', '50% advance, 50% delivery', 0, true),
+    ('CUSTOMER_038', '50% advance, 50% after delivery within 15 days', 15, true),
+    ('CUSTOMER_039', 'Within 30 Days', 30, false),
+    ('CUSTOMER_040', 'One Week after Installation', 7, false),
+    ('CUSTOMER_041', 'At 180 days', 180, false)
+)
+INSERT INTO "payment_terms" ("id", "organization_id", "code", "name", "due_days", "requires_prepayment", "is_active", "created_at", "updated_at")
+SELECT gen_random_uuid(), organization."id", term.code, term.name, term.due_days, term.requires_prepayment, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+FROM "organizations" AS organization
+CROSS JOIN payment_terms AS term
+ON CONFLICT ("organization_id", "code") DO UPDATE
+SET "name" = EXCLUDED."name",
+    "due_days" = EXCLUDED."due_days",
+    "requires_prepayment" = EXCLUDED."requires_prepayment",
+    "is_active" = true,
+    "updated_at" = CURRENT_TIMESTAMP;

@@ -58,8 +58,7 @@ async function main(): Promise<void> {
     countryCode: "PK",
     currencyCode: "PKR",
   });
-  assert.equal(duplicate.status, 201);
-  assert.equal(duplicate.body.data.possibleDuplicate, true);
+  assert.equal(duplicate.status, 409);
 
   const listed = await request(app).get("/api/v1/customers").set(auth).query({ q: displayName, status: "ACTIVE", country: "PK", limit: 50 });
   assert.equal(listed.status, 200);

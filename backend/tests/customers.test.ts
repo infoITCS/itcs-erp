@@ -4,7 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 import { requirePermission } from "../src/middleware/authorize";
 import { buildCustomerListWhere } from "../src/modules/customers/list-filter";
 import { CustomersService } from "../src/modules/customers/service";
-import { createCustomerSchema, customerListQuerySchema } from "../src/modules/customers/validation";
+import { createCustomerSchema, customerListQuerySchema, updateCustomerSchema } from "../src/modules/customers/validation";
 import type { AuditEntry } from "../src/modules/audit-logs/types";
 import { ContactsService } from "../src/modules/contacts/service";
 
@@ -35,6 +35,65 @@ describe("customer validation", () => {
     }
     const page = customerListQuerySchema.safeParse({ limit: "101" });
     assert.equal(page.success, false);
+    const erpFilters = customerListQuerySchema.safeParse({ status: "HOLD", customerType: "WHOLESALE" });
+    assert.equal(erpFilters.success, true);
+  });
+
+  it("accepts nested address/contact financial data and defaults tax exemption", () => {
+    const parsed = createCustomerSchema.safeParse({
+      ...validCustomer,
+      customerType: "B2B",
+      status: "HOLD",
+      creditLimit: "250000.00",
+      openingBalance: "-1250.50",
+      addresses: [{ purpose: "BILLING", line1: "1 Main Street", city: "Karachi", countryCode: "PK" }],
+      contacts: [{ firstName: "Ayesha", lastName: "Siddiqui", role: "BILLING", whatsappOptIn: true }],
+    });
+    assert.equal(parsed.success, true);
+    if (parsed.success) {
+      assert.equal(parsed.data.taxExempt, false);
+      assert.equal(parsed.data.contacts?.[0]?.whatsappOptIn, true);
+    }
+  });
+
+  it("validates entity-specific identity, business fields, tax exemption and preferences", () => {
+    const individual = createCustomerSchema.safeParse({
+      ...validCustomer,
+      entityType: "INDIVIDUAL",
+      customerType: "B2C",
+      customerCategory: "RETAIL",
+      identityDocumentType: "CNIC",
+      identityDocumentNumber: "12345-1234567-1",
+      preferredPaymentMethod: "BANK_TRANSFER",
+      preferredCommunicationChannel: "WHATSAPP",
+      emailMarketingOptIn: true,
+    });
+    assert.equal(individual.success, true);
+
+    const exemptWithoutCode = createCustomerSchema.safeParse({ ...validCustomer, taxExempt: true });
+    assert.equal(exemptWithoutCode.success, false);
+    const badEmployeeCount = createCustomerSchema.safeParse({ ...validCustomer, employeeCount: -1 });
+    assert.equal(badEmployeeCount.success, false);
+    const badCnic = createCustomerSchema.safeParse({
+      ...validCustomer,
+      entityType: "INDIVIDUAL",
+      identityDocumentType: "CNIC",
+      identityDocumentNumber: "1234",
+    });
+    assert.equal(badCnic.success, false);
+  });
+
+  it("rejects multiple primary nested rows and allows nullable edit fields", () => {
+    const duplicatePrimary = createCustomerSchema.safeParse({
+      ...validCustomer,
+      contacts: [
+        { firstName: "Ayesha", lastName: "One", isPrimary: true },
+        { firstName: "Bilal", lastName: "Two", isPrimary: true },
+      ],
+    });
+    assert.equal(duplicatePrimary.success, false);
+    const cleared = updateCustomerSchema.safeParse({ email: null, taxNumber: null, notes: null, paymentTermId: null });
+    assert.equal(cleared.success, true);
   });
 });
 
@@ -45,6 +104,7 @@ describe("customer list filters", () => {
     assert.equal(where.deletedAt, null);
     assert.equal(where.status, "ACTIVE");
     assert.ok(Array.isArray(where.OR));
+    assert.equal(JSON.stringify(where.OR).includes("taxNumber"), true);
   });
 
   it("keeps deleted rows only when includeDeleted is set", () => {
@@ -55,8 +115,26 @@ describe("customer list filters", () => {
 });
 
 describe("customer service", () => {
-  it("creates a customer, records an audit event, and warns on a duplicate email", async () => {
+  it("creates an organization payment term and records an audit event", async () => {
     const audits: AuditEntry[] = [];
+    const service = new CustomersService(
+      {
+        async createPaymentTerm(_organizationId: string, input: { name: string; dueDays: number; requiresPrepayment: boolean }) {
+          return { id: "11111111-1111-4111-8111-111111111111", code: "CUSTOMER_TEST", ...input };
+        },
+      } as never,
+      recorder(audits),
+    );
+
+    const result = await service.createPaymentTerm(orgId, actorId, { name: "Milestone billing", dueDays: 45, requiresPrepayment: true }, meta);
+    assert.equal(result.name, "Milestone billing");
+    assert.equal(result.dueDays, 45);
+    assert.equal(audits[0]?.action, "customers.payment_term.created");
+  });
+
+  it("rejects a duplicate email before creating or auditing a customer", async () => {
+    const audits: AuditEntry[] = [];
+    let created = false;
     const service = new CustomersService(
       {
         async currencyIsActive() {
@@ -64,6 +142,39 @@ describe("customer service", () => {
         },
         async emailExists() {
           return true;
+        },
+        async create() {
+          created = true;
+          return {
+            id: "11111111-1111-4111-8111-111111111111",
+            customerNumber: "CUS-2026-00001",
+            displayName: "Northwind",
+            status: "ACTIVE",
+            addresses: [],
+            contacts: [],
+          };
+        },
+      } as never,
+      recorder(audits),
+    );
+
+    await assert.rejects(
+      service.create(orgId, actorId, { ...validCustomer, email: "billing@northwind.test" } as never, meta),
+      /customer with this email already exists/i,
+    );
+    assert.equal(created, false);
+    assert.equal(audits.length, 0);
+  });
+
+  it("creates a customer and records an audit event when the email is unique", async () => {
+    const audits: AuditEntry[] = [];
+    const service = new CustomersService(
+      {
+        async currencyIsActive() {
+          return true;
+        },
+        async emailExists() {
+          return false;
         },
         async create() {
           return {
@@ -85,10 +196,41 @@ describe("customer service", () => {
       { ...validCustomer, email: "billing@northwind.test" } as never,
       meta,
     );
-    assert.equal(result.possibleDuplicate, true);
+    assert.equal(result.possibleDuplicate, false);
     assert.equal(result.customer.customerNumber, "CUS-2026-00001");
     assert.equal(audits[0]?.action, "customers.created");
     assert.equal(JSON.stringify(audits).includes("CUS-2026-00001"), true);
+  });
+
+  it("rejects updating a customer to another customer's email", async () => {
+    let updated = false;
+    const service = new CustomersService(
+      {
+        async findById() {
+          return { id: "11111111-1111-4111-8111-111111111111", displayName: "Northwind", status: "ACTIVE" };
+        },
+        async emailExists() {
+          return true;
+        },
+        async update() {
+          updated = true;
+          return {};
+        },
+      } as never,
+      recorder([]),
+    );
+
+    await assert.rejects(
+      service.update(
+        orgId,
+        actorId,
+        "11111111-1111-4111-8111-111111111111",
+        { email: "billing@northwind.test" } as never,
+        meta,
+      ),
+      /customer with this email already exists/i,
+    );
+    assert.equal(updated, false);
   });
 
   it("soft-deletes a customer without removing the row", async () => {
@@ -110,6 +252,38 @@ describe("customer service", () => {
     await service.remove(orgId, actorId, "11111111-1111-4111-8111-111111111111", meta);
     assert.equal(deleted, true);
     assert.equal(audits[0]?.action, "customers.deleted");
+  });
+
+  it("permanently deletes a soft-deleted customer and records an audit event", async () => {
+    const audits: AuditEntry[] = [];
+    let deleted = false;
+    const service = new CustomersService(
+      {
+        async permanentlyDelete() {
+          deleted = true;
+          return { id: "11111111-1111-4111-8111-111111111111", customerNumber: "CUS-2026-00001", displayName: "Northwind" };
+        },
+      } as never,
+      recorder(audits),
+    );
+
+    const result = await service.permanentlyRemove(orgId, actorId, "11111111-1111-4111-8111-111111111111", meta);
+    assert.deepEqual(result, { id: "11111111-1111-4111-8111-111111111111" });
+    assert.equal(deleted, true);
+    assert.equal(audits[0]?.action, "customers.permanently_deleted");
+    assert.equal(audits[0]?.newValues.customerNumber, "CUS-2026-00001");
+  });
+
+  it("does not permanently delete an active customer", async () => {
+    const service = new CustomersService(
+      { async permanentlyDelete() { return null; } } as never,
+      recorder([]),
+    );
+
+    await assert.rejects(
+      service.permanentlyRemove(orgId, actorId, "11111111-1111-4111-8111-111111111111", meta),
+      /deleted customer not found/i,
+    );
   });
 });
 

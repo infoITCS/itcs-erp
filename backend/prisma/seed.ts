@@ -10,6 +10,7 @@ import {
   VIEWER_PERMISSION_CODES,
 } from "../src/modules/permissions/catalog";
 import { permissionCode } from "../src/modules/permissions/types";
+import { CUSTOMER_PAYMENT_TERMS } from "../src/modules/customers/payment-terms";
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const adminPassword = process.env.ADMIN_PASSWORD;
@@ -58,6 +59,45 @@ async function main(): Promise<void> {
     update: { name: "ITCS", status: "ACTIVE", baseCurrencyCode: "PKR" },
     create: { code: "ITCS", name: "ITCS", baseCurrencyCode: "PKR", status: "ACTIVE" },
   });
+
+  const paymentTerms = [
+    ...CUSTOMER_PAYMENT_TERMS,
+    { code: "NET15", name: "Net 15", dueDays: 15, requiresPrepayment: false },
+    { code: "NET30", name: "Net 30", dueDays: 30, requiresPrepayment: false },
+    { code: "ADVANCE", name: "Advance payment", dueDays: 0, requiresPrepayment: true },
+  ];
+  for (const term of paymentTerms) {
+    await prisma.paymentTerm.upsert({
+      where: { organizationId_code: { organizationId: organization.id, code: term.code } },
+      update: { name: term.name, dueDays: term.dueDays, requiresPrepayment: term.requiresPrepayment, isActive: true },
+      create: { organizationId: organization.id, ...term, isActive: true },
+    });
+  }
+
+  await prisma.customerPricingGroup.upsert({
+    where: { organizationId_code: { organizationId: organization.id, code: "STANDARD" } },
+    update: { name: "Standard", groupType: "PRICING_TIER", discountPercent: null, isActive: true },
+    create: {
+      organizationId: organization.id,
+      code: "STANDARD",
+      name: "Standard",
+      groupType: "PRICING_TIER",
+      isActive: true,
+    },
+  });
+
+  const accountingCategories = [
+    { code: "LOCAL", name: "Local" },
+    { code: "REGIONAL", name: "Regional" },
+    { code: "EXPORT", name: "Export" },
+  ];
+  for (const category of accountingCategories) {
+    await prisma.accountingCategory.upsert({
+      where: { organizationId_code: { organizationId: organization.id, code: category.code } },
+      update: { name: category.name, isActive: true },
+      create: { organizationId: organization.id, code: category.code, name: category.name, isActive: true },
+    });
+  }
 
   for (const permission of PHASE1_PERMISSIONS) {
     const code = permissionCode(permission.module, permission.action);

@@ -6,7 +6,7 @@ import type { RequestMeta } from "../auth/types";
 import type { ContactsService } from "../contacts/service";
 import type { ContactBody, ContactListQuery } from "../contacts/validation";
 import type { CustomersService } from "./service";
-import type { AddressInput, CreateCustomerInput, CustomerListQuery, UpdateCustomerInput } from "./validation";
+import type { AddressInput, CreateAccountingCategoryInput, CreateCustomerInput, CreatePaymentTermInput, CustomerListQuery, UpdateCustomerInput } from "./validation";
 
 function meta(req: Request): RequestMeta {
   return { ipAddress: req.ip ?? null, userAgent: req.get("user-agent") ?? null };
@@ -38,6 +38,23 @@ export class CustomersController {
     sendSuccess(res, { message: "Customers", data: page });
   });
 
+  formOptions = asyncHandler(async (req: Request, res: Response) => {
+    const options = await this.customersService.formOptions(organizationId(req));
+    sendSuccess(res, { message: "Customer form options", data: options });
+  });
+
+  createPaymentTerm = asyncHandler(async (req: Request, res: Response) => {
+    const body = req.validated?.body as CreatePaymentTermInput;
+    const term = await this.customersService.createPaymentTerm(organizationId(req), actorId(req), body, meta(req));
+    sendSuccess(res, { message: "Payment term created", data: term }, 201);
+  });
+
+  createAccountingCategory = asyncHandler(async (req: Request, res: Response) => {
+    const body = req.validated?.body as CreateAccountingCategoryInput;
+    const category = await this.customersService.createAccountingCategory(organizationId(req), actorId(req), body, meta(req));
+    sendSuccess(res, { message: "Accounting category created", data: category }, 201);
+  });
+
   get = asyncHandler(async (req: Request, res: Response) => {
     const params = req.validated?.params as { id: string };
     const customer = await this.customersService.get(organizationId(req), params.id);
@@ -61,6 +78,12 @@ export class CustomersController {
     const params = req.validated?.params as { id: string };
     const result = await this.customersService.remove(organizationId(req), actorId(req), params.id, meta(req));
     sendSuccess(res, { message: "Customer deleted", data: result });
+  });
+
+  permanentlyRemove = asyncHandler(async (req: Request, res: Response) => {
+    const params = req.validated?.params as { id: string };
+    const result = await this.customersService.permanentlyRemove(organizationId(req), actorId(req), params.id, meta(req));
+    sendSuccess(res, { message: "Customer permanently deleted", data: result });
   });
 
   restore = asyncHandler(async (req: Request, res: Response) => {

@@ -48,6 +48,9 @@ enum DocumentType {
 enum CustomerType {
   COMPANY
   INDIVIDUAL
+  B2B
+  B2C
+  WHOLESALE
 
   @@map("customer_type")
 }
@@ -55,6 +58,7 @@ enum CustomerType {
 enum CustomerStatus {
   ACTIVE
   INACTIVE
+  HOLD
 
   @@map("customer_status")
 }
@@ -71,6 +75,174 @@ enum ContactStatus {
   INACTIVE
 
   @@map("contact_status")
+}
+
+enum CustomerLeadSource {
+  WEBSITE
+  REFERRAL
+  COLD_CALL
+  SOCIAL_MEDIA
+  ADVERTISEMENT
+  PARTNER
+  TENDER
+  OTHER
+
+  @@map("customer_lead_source")
+}
+
+enum CustomerTaxIdType {
+  NTN
+  STRN
+  OTHER
+
+  @@map("customer_tax_id_type")
+}
+
+enum CustomerEntityType {
+  COMPANY
+  INDIVIDUAL
+
+  @@map("customer_entity_type")
+}
+
+enum CustomerCategory {
+  RETAIL
+  WHOLESALE
+  CORPORATE
+  VIP
+  PARTNER
+  OTHER
+
+  @@map("customer_category")
+}
+
+enum CustomerRating {
+  HOT
+  WARM
+  COLD
+  MISCELLANEOUS
+
+  @@map("customer_rating")
+}
+
+enum CustomerPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+
+  @@map("customer_priority")
+}
+
+enum CustomerIncorporationStatus {
+  REGISTERED
+  PENDING
+  UNREGISTERED
+  NOT_APPLICABLE
+
+  @@map("customer_incorporation_status")
+}
+
+enum CustomerIdentityDocumentType {
+  CNIC
+  PASSPORT
+
+  @@map("customer_identity_document_type")
+}
+
+enum CustomerPaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CARD
+  CHEQUE
+  MOBILE_WALLET
+  OTHER
+
+  @@map("customer_payment_method")
+}
+
+enum CustomerCommunicationChannel {
+  EMAIL
+  PHONE
+  SMS
+  WHATSAPP
+
+  @@map("customer_communication_channel")
+}
+
+enum ContactMethod {
+  EMAIL
+  PHONE
+  SMS
+
+  @@map("contact_method")
+}
+
+enum CustomerContactRole {
+  BILLING
+  PROCUREMENT
+  FINANCE
+  OPERATIONS
+  SALES
+  OTHER
+
+  @@map("customer_contact_role")
+}
+
+enum CustomerPricingGroupType {
+  PRICING_TIER
+  DISCOUNT_GROUP
+
+  @@map("customer_pricing_group_type")
+}
+
+enum CustomerNoteType {
+  GENERAL
+  BILLING
+  SUPPORT
+  INTERNAL
+
+  @@map("customer_note_type")
+}
+
+enum CustomerActivityType {
+  CALL
+  EMAIL
+  MEETING
+  TASK
+  SITE_VISIT
+  OTHER
+
+  @@map("customer_activity_type")
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+
+  @@map("support_ticket_status")
+}
+
+enum SupportTicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+
+  @@map("support_ticket_priority")
+}
+
+enum CustomerDocumentType {
+  NDA
+  TAX_CERTIFICATE
+  CONTRACT
+  PURCHASE_ORDER
+  OTHER
+
+  @@map("customer_document_type")
 }
 
 enum ProductType {
@@ -113,21 +285,28 @@ model Organization {
   createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  baseCurrency      Currency           @relation(fields: [baseCurrencyCode], references: [code])
-  members           OrganizationMember[]
-  roles             Role[]
-  auditLogs         AuditLog[]
-  exchangeRates     ExchangeRate[]
-  documentSequences DocumentSequence[]
-  customers         Customer[]
-  resellers         Reseller[]
-  resellerAddresses ResellerAddress[]
-  resellerContacts  ResellerContact[]
-  products          Product[]
-  productCategories ProductCategory[]
-  unitsOfMeasure    UnitOfMeasure[]
-  taxCodes          TaxCode[]
-  productPrices     ProductPrice[]
+  baseCurrency           Currency                @relation(fields: [baseCurrencyCode], references: [code])
+  members                OrganizationMember[]
+  roles                  Role[]
+  auditLogs              AuditLog[]
+  exchangeRates          ExchangeRate[]
+  documentSequences      DocumentSequence[]
+  customers              Customer[]
+  resellers              Reseller[]
+  resellerAddresses      ResellerAddress[]
+  resellerContacts       ResellerContact[]
+  products               Product[]
+  productCategories      ProductCategory[]
+  unitsOfMeasure         UnitOfMeasure[]
+  taxCodes               TaxCode[]
+  productPrices          ProductPrice[]
+  paymentTerms           PaymentTerm[]
+  customerPricingGroups  CustomerPricingGroup[]
+  accountingCategories   AccountingCategory[]
+  customerNotes          CustomerNote[]
+  customerActivities     CustomerActivity[]
+  customerSupportTickets CustomerSupportTicket[]
+  customerDocuments      CustomerDocument[]
 
   @@index([status])
   @@map("organizations")
@@ -149,29 +328,35 @@ model User {
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  memberships    OrganizationMember[]
-  userRoles      UserRole[]
-  refreshTokens  RefreshToken[]
-  passwordResets PasswordResetToken[]
-  auditLogs      AuditLog[]
-  customersCreated Customer[]        @relation("CustomerCreatedBy")
-  customersUpdated Customer[]        @relation("CustomerUpdatedBy")
-  addressesCreated CustomerAddress[] @relation("AddressCreatedBy")
-  addressesUpdated CustomerAddress[] @relation("AddressUpdatedBy")
-  contactsCreated  Contact[]         @relation("ContactCreatedBy")
-  contactsUpdated  Contact[]         @relation("ContactUpdatedBy")
-  resellersCreated Reseller[]        @relation("ResellerCreatedBy")
-  resellersUpdated Reseller[]        @relation("ResellerUpdatedBy")
-  resellerAddressesCreated ResellerAddress[] @relation("ResellerAddressCreatedBy")
-  resellerAddressesUpdated ResellerAddress[] @relation("ResellerAddressUpdatedBy")
-  resellerContactsCreated  ResellerContact[] @relation("ResellerContactCreatedBy")
-  resellerContactsUpdated  ResellerContact[] @relation("ResellerContactUpdatedBy")
-  productsCreated  Product[]         @relation("ProductCreatedBy")
-  productsUpdated  Product[]         @relation("ProductUpdatedBy")
-  categoriesCreated ProductCategory[] @relation("CategoryCreatedBy")
-  categoriesUpdated ProductCategory[] @relation("CategoryUpdatedBy")
-  pricesCreated    ProductPrice[]    @relation("PriceCreatedBy")
-  pricesUpdated    ProductPrice[]    @relation("PriceUpdatedBy")
+  memberships               OrganizationMember[]
+  userRoles                 UserRole[]
+  refreshTokens             RefreshToken[]
+  passwordResets            PasswordResetToken[]
+  auditLogs                 AuditLog[]
+  customersCreated          Customer[]              @relation("CustomerCreatedBy")
+  customersUpdated          Customer[]              @relation("CustomerUpdatedBy")
+  customersAssigned         Customer[]              @relation("CustomerSalesRep")
+  addressesCreated          CustomerAddress[]       @relation("AddressCreatedBy")
+  addressesUpdated          CustomerAddress[]       @relation("AddressUpdatedBy")
+  contactsCreated           Contact[]               @relation("ContactCreatedBy")
+  contactsUpdated           Contact[]               @relation("ContactUpdatedBy")
+  resellersCreated          Reseller[]              @relation("ResellerCreatedBy")
+  resellersUpdated          Reseller[]              @relation("ResellerUpdatedBy")
+  resellerAddressesCreated  ResellerAddress[]       @relation("ResellerAddressCreatedBy")
+  resellerAddressesUpdated  ResellerAddress[]       @relation("ResellerAddressUpdatedBy")
+  resellerContactsCreated   ResellerContact[]       @relation("ResellerContactCreatedBy")
+  resellerContactsUpdated   ResellerContact[]       @relation("ResellerContactUpdatedBy")
+  productsCreated           Product[]               @relation("ProductCreatedBy")
+  productsUpdated           Product[]               @relation("ProductUpdatedBy")
+  categoriesCreated         ProductCategory[]       @relation("CategoryCreatedBy")
+  categoriesUpdated         ProductCategory[]       @relation("CategoryUpdatedBy")
+  pricesCreated             ProductPrice[]          @relation("PriceCreatedBy")
+  pricesUpdated             ProductPrice[]          @relation("PriceUpdatedBy")
+  customerNotesCreated      CustomerNote[]          @relation("CustomerNoteCreatedBy")
+  customerActivitiesCreated CustomerActivity[]      @relation("CustomerActivityCreatedBy")
+  customerTicketsCreated    CustomerSupportTicket[] @relation("CustomerTicketCreatedBy")
+  customerTicketsUpdated    CustomerSupportTicket[] @relation("CustomerTicketUpdatedBy")
+  customerDocumentsUploaded CustomerDocument[]      @relation("CustomerDocumentUploadedBy")
 
   @@index([status])
   @@map("users")
@@ -329,6 +514,46 @@ model Currency {
   @@map("currencies")
 }
 
+model PaymentTerm {
+  id                 String   @id @default(uuid()) @db.Uuid
+  organizationId     String   @map("organization_id") @db.Uuid
+  code               String   @db.VarChar(32)
+  name               String   @db.VarChar(100)
+  dueDays            Int      @default(0) @map("due_days")
+  discountDays       Int      @default(0) @map("discount_days")
+  discountPercent    Decimal? @map("discount_percent") @db.Decimal(7, 4)
+  requiresPrepayment Boolean  @default(false) @map("requires_prepayment")
+  isActive           Boolean  @default(true) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customers    Customer[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+  @@map("payment_terms")
+}
+
+model CustomerPricingGroup {
+  id              String                   @id @default(uuid()) @db.Uuid
+  organizationId  String                   @map("organization_id") @db.Uuid
+  code            String                   @db.VarChar(32)
+  name            String                   @db.VarChar(100)
+  groupType       CustomerPricingGroupType @map("group_type")
+  discountPercent Decimal?                 @map("discount_percent") @db.Decimal(7, 4)
+  isActive        Boolean                  @default(true) @map("is_active")
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customers    Customer[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, groupType, isActive])
+  @@map("customer_pricing_groups")
+}
+
 /// Rate is quote-currency units per 1 base-currency unit.
 /// Example: base USD, quote PKR, rate 278.50000000 means 1 USD = 278.50 PKR.
 model ExchangeRate {
@@ -369,37 +594,96 @@ model DocumentSequence {
   @@map("document_sequences")
 }
 
+/// Organization-scoped accounting/tax classification (e.g. Local, Regional, Export)
+/// that groups customers for revenue and tax posting.
+model AccountingCategory {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  code           String   @db.VarChar(32)
+  name           String   @db.VarChar(100)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customers    Customer[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId, isActive])
+  @@map("accounting_categories")
+}
+
 /// Commercial party. Prospect status belongs to a future Opportunities module.
 /// Soft-deleted rows stay so later documents can still reference the id.
 model Customer {
-  id             String         @id @default(uuid()) @db.Uuid
-  organizationId String         @map("organization_id") @db.Uuid
-  resellerId     String?        @map("reseller_id") @db.Uuid
-  customerNumber String         @map("customer_number") @db.VarChar(32)
-  customerType   CustomerType   @map("customer_type")
-  legalName      String         @map("legal_name") @db.VarChar(200)
-  displayName    String         @map("display_name") @db.VarChar(200)
-  email          String?        @db.VarChar(320)
-  phone          String?        @db.VarChar(40)
-  website        String?        @db.VarChar(200)
-  countryCode    String         @map("country_code") @db.Char(2)
-  currencyCode   String         @map("currency_code") @db.Char(3)
-  taxNumber      String?        @map("tax_number") @db.VarChar(64)
-  status         CustomerStatus @default(ACTIVE)
-  notes          String?        @db.VarChar(4000)
-  createdById    String         @map("created_by_id") @db.Uuid
-  updatedById    String         @map("updated_by_id") @db.Uuid
-  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(6)
-  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                 String              @id @default(uuid()) @db.Uuid
+  organizationId     String              @map("organization_id") @db.Uuid
+  resellerId         String?             @map("reseller_id") @db.Uuid
+  customerNumber     String              @map("customer_number") @db.VarChar(32)
+  customerCode       String?             @map("customer_code") @db.VarChar(32)
+  entityType         CustomerEntityType  @default(COMPANY) @map("entity_type")
+  customerType       CustomerType        @map("customer_type")
+  customerCategory   CustomerCategory?   @map("customer_category")
+  industry           String?             @db.VarChar(120)
+  employeeCount      Int?                @map("employee_count")
+  incorporationStatus CustomerIncorporationStatus? @map("incorporation_status")
+  businessRegistrationDate DateTime?      @map("business_registration_date") @db.Date
+  registrationNumber String?             @map("registration_number") @db.VarChar(64)
+  rating             CustomerRating?     @map("rating")
+  priority           CustomerPriority    @default(NORMAL) @map("priority")
+  sameAsBilling      Boolean             @default(true) @map("same_as_billing")
+  leadSource         CustomerLeadSource? @map("lead_source")
+  assignedSalesRepId String?             @map("assigned_sales_rep_id") @db.Uuid
+  legalName          String              @map("legal_name") @db.VarChar(200)
+  displayName        String              @map("display_name") @db.VarChar(200)
+  middleName         String?             @map("middle_name") @db.VarChar(100)
+  email              String?             @db.VarChar(320)
+  phone              String?             @db.VarChar(40)
+  website            String?             @db.VarChar(200)
+  countryCode        String              @map("country_code") @db.Char(2)
+  currencyCode       String              @map("currency_code") @db.Char(3)
+  taxNumber          String?             @map("tax_number") @db.VarChar(64)
+  taxIdType          CustomerTaxIdType?  @map("tax_id_type")
+  taxExemptionCode   String?             @map("tax_exemption_code") @db.VarChar(64)
+  defaultTaxCodeId   String?             @map("default_tax_code_id") @db.Uuid
+  identityDocumentType CustomerIdentityDocumentType? @map("identity_document_type")
+  identityDocumentNumber String?          @map("identity_document_number") @db.VarChar(40)
+  status             CustomerStatus      @default(ACTIVE)
+  taxExempt          Boolean             @default(false) @map("tax_exempt")
+  pricesIncludeTax   Boolean             @default(false) @map("prices_include_tax")
+  emailMarketingOptIn Boolean             @default(false) @map("email_marketing_opt_in")
+  creditHold         Boolean             @default(false) @map("credit_hold")
+  creditLimit        Decimal             @default(0) @map("credit_limit") @db.Decimal(19, 4)
+  preferredPaymentMethod CustomerPaymentMethod? @map("preferred_payment_method")
+  preferredCommunicationChannel CustomerCommunicationChannel? @map("preferred_communication_channel")
+  paymentTermId      String?             @map("payment_term_id") @db.Uuid
+  pricingGroupId     String?             @map("pricing_group_id") @db.Uuid
+  accountingCategoryId String?            @map("accounting_category_id") @db.Uuid
+  openingBalance     Decimal             @default(0) @map("opening_balance") @db.Decimal(19, 4)
+  openingBalanceDate DateTime?           @map("opening_balance_date") @db.Date
+  notes              String?             @db.VarChar(4000)
+  createdById        String              @map("created_by_id") @db.Uuid
+  updatedById        String              @map("updated_by_id") @db.Uuid
+  deletedAt          DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization      @relation(fields: [organizationId], references: [id])
-  reseller     Reseller?         @relation(fields: [resellerId], references: [id])
-  currency     Currency          @relation(fields: [currencyCode], references: [code])
-  createdBy    User              @relation("CustomerCreatedBy", fields: [createdById], references: [id])
-  updatedBy    User              @relation("CustomerUpdatedBy", fields: [updatedById], references: [id])
-  addresses    CustomerAddress[]
-  contacts     Contact[]
+  organization     Organization            @relation(fields: [organizationId], references: [id])
+  reseller         Reseller?               @relation(fields: [resellerId], references: [id])
+  currency         Currency                @relation(fields: [currencyCode], references: [code])
+  createdBy        User                    @relation("CustomerCreatedBy", fields: [createdById], references: [id])
+  updatedBy        User                    @relation("CustomerUpdatedBy", fields: [updatedById], references: [id])
+  assignedSalesRep User?                   @relation("CustomerSalesRep", fields: [assignedSalesRepId], references: [id])
+  paymentTerm      PaymentTerm?            @relation(fields: [paymentTermId], references: [id])
+  pricingGroup     CustomerPricingGroup?   @relation(fields: [pricingGroupId], references: [id])
+  accountingCategory AccountingCategory?   @relation(fields: [accountingCategoryId], references: [id])
+  defaultTaxCode   TaxCode?                @relation("CustomerDefaultTaxCode", fields: [defaultTaxCodeId], references: [id], onDelete: SetNull)
+  addresses        CustomerAddress[]
+  contacts         Contact[]
+  customerNotes    CustomerNote[]
+  activities       CustomerActivity[]
+  supportTickets   CustomerSupportTicket[]
+  documents        CustomerDocument[]
 
   @@index([organizationId, createdAt, id])
   @@index([organizationId, status, createdAt])
@@ -407,27 +691,35 @@ model Customer {
   @@index([organizationId, countryCode, createdAt])
   @@index([organizationId, currencyCode])
   @@index([organizationId, resellerId, createdAt])
+  @@index([organizationId, assignedSalesRepId, status])
+  @@index([organizationId, paymentTermId])
+  @@index([organizationId, pricingGroupId])
+  @@index([organizationId, accountingCategoryId])
+  @@unique([organizationId, customerCode])
   @@map("customers")
 }
 
 model CustomerAddress {
-  id             String         @id @default(uuid()) @db.Uuid
-  organizationId String         @map("organization_id") @db.Uuid
-  customerId     String         @map("customer_id") @db.Uuid
-  purpose        AddressPurpose
-  isPrimary      Boolean        @default(false) @map("is_primary")
-  label          String?        @db.VarChar(80)
-  line1          String         @db.VarChar(200)
-  line2          String?        @db.VarChar(200)
-  city           String         @db.VarChar(120)
-  region         String?        @db.VarChar(120)
-  postalCode     String?        @map("postal_code") @db.VarChar(20)
-  countryCode    String         @map("country_code") @db.Char(2)
-  createdById    String         @map("created_by_id") @db.Uuid
-  updatedById    String         @map("updated_by_id") @db.Uuid
-  deletedAt      DateTime?      @map("deleted_at") @db.Timestamptz(6)
-  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                   String         @id @default(uuid()) @db.Uuid
+  organizationId       String         @map("organization_id") @db.Uuid
+  customerId           String         @map("customer_id") @db.Uuid
+  purpose              AddressPurpose
+  isPrimary            Boolean        @default(false) @map("is_primary")
+  label                String?        @db.VarChar(80)
+  line1                String         @db.VarChar(200)
+  line2                String?        @db.VarChar(200)
+  city                 String         @db.VarChar(120)
+  region               String?        @db.VarChar(120)
+  postalCode           String?        @map("postal_code") @db.VarChar(20)
+  countryCode          String         @map("country_code") @db.Char(2)
+  latitude             Decimal?       @db.Decimal(9, 6)
+  longitude            Decimal?       @db.Decimal(9, 6)
+  geofenceRadiusMeters Int?           @map("geofence_radius_meters")
+  createdById          String         @map("created_by_id") @db.Uuid
+  updatedById          String         @map("updated_by_id") @db.Uuid
+  deletedAt            DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   customer  Customer @relation(fields: [customerId], references: [id])
   createdBy User     @relation("AddressCreatedBy", fields: [createdById], references: [id])
@@ -438,33 +730,145 @@ model CustomerAddress {
 }
 
 model Contact {
-  id             String        @id @default(uuid()) @db.Uuid
-  organizationId String        @map("organization_id") @db.Uuid
-  customerId     String        @map("customer_id") @db.Uuid
-  firstName      String        @map("first_name") @db.VarChar(100)
-  lastName       String        @map("last_name") @db.VarChar(100)
-  displayName    String        @map("display_name") @db.VarChar(200)
-  jobTitle       String?       @map("job_title") @db.VarChar(120)
-  department     String?       @db.VarChar(120)
-  email          String?       @db.VarChar(320)
-  phone          String?       @db.VarChar(40)
-  mobile         String?       @db.VarChar(40)
-  isPrimary      Boolean       @default(false) @map("is_primary")
-  status         ContactStatus @default(ACTIVE)
-  notes          String?       @db.VarChar(4000)
-  createdById    String        @map("created_by_id") @db.Uuid
-  updatedById    String        @map("updated_by_id") @db.Uuid
-  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(6)
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                     String         @id @default(uuid()) @db.Uuid
+  organizationId         String         @map("organization_id") @db.Uuid
+  customerId             String         @map("customer_id") @db.Uuid
+  firstName              String         @map("first_name") @db.VarChar(100)
+  lastName               String         @map("last_name") @db.VarChar(100)
+  displayName            String         @map("display_name") @db.VarChar(200)
+  jobTitle               String?        @map("job_title") @db.VarChar(120)
+  department             String?        @db.VarChar(120)
+  email                  String?        @db.VarChar(320)
+  phone                  String?        @db.VarChar(40)
+  mobile                 String?        @db.VarChar(40)
+  isPrimary              Boolean        @default(false) @map("is_primary")
+  preferredContactMethod ContactMethod? @map("preferred_contact_method")
+  emailOptIn             Boolean        @default(false) @map("email_opt_in")
+  phoneOptIn             Boolean        @default(false) @map("phone_opt_in")
+  smsOptIn               Boolean        @default(false) @map("sms_opt_in")
+  whatsappOptIn          Boolean        @default(false) @map("whatsapp_opt_in")
+  status                 ContactStatus  @default(ACTIVE)
+  notes                  String?        @db.VarChar(4000)
+  createdById            String         @map("created_by_id") @db.Uuid
+  updatedById            String         @map("updated_by_id") @db.Uuid
+  deletedAt              DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  createdAt              DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  customer  Customer @relation(fields: [customerId], references: [id])
-  createdBy User     @relation("ContactCreatedBy", fields: [createdById], references: [id])
-  updatedBy User     @relation("ContactUpdatedBy", fields: [updatedById], references: [id])
+  customer        Customer                        @relation(fields: [customerId], references: [id])
+  roleAssignments CustomerContactRoleAssignment[]
+  createdBy       User                            @relation("ContactCreatedBy", fields: [createdById], references: [id])
+  updatedBy       User                            @relation("ContactUpdatedBy", fields: [updatedById], references: [id])
 
   @@index([organizationId, customerId, createdAt, id])
   @@index([organizationId, email])
   @@map("contacts")
+}
+
+model CustomerContactRoleAssignment {
+  id        String              @id @default(uuid()) @db.Uuid
+  contactId String              @map("contact_id") @db.Uuid
+  role      CustomerContactRole
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, role])
+  @@index([role, contactId])
+  @@map("customer_contact_role_assignments")
+}
+
+model CustomerNote {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  customerId     String           @map("customer_id") @db.Uuid
+  noteType       CustomerNoteType @default(GENERAL) @map("note_type")
+  content        String           @db.Text
+  isPrivate      Boolean          @default(true) @map("is_private")
+  createdById    String           @map("created_by_id") @db.Uuid
+  deletedAt      DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  createdBy    User         @relation("CustomerNoteCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, customerId, createdAt])
+  @@map("customer_notes")
+}
+
+/// CRM interactions; system changes continue to use the shared AuditLog model.
+model CustomerActivity {
+  id             String               @id @default(uuid()) @db.Uuid
+  organizationId String               @map("organization_id") @db.Uuid
+  customerId     String               @map("customer_id") @db.Uuid
+  activityType   CustomerActivityType @map("activity_type")
+  subject        String               @db.VarChar(200)
+  description    String?              @db.Text
+  occurredAt     DateTime             @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  metadata       Json?                @db.JsonB
+  createdById    String               @map("created_by_id") @db.Uuid
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  createdBy    User         @relation("CustomerActivityCreatedBy", fields: [createdById], references: [id])
+
+  @@index([organizationId, customerId, occurredAt])
+  @@map("customer_activities")
+}
+
+model CustomerSupportTicket {
+  id             String                @id @default(uuid()) @db.Uuid
+  organizationId String                @map("organization_id") @db.Uuid
+  customerId     String                @map("customer_id") @db.Uuid
+  ticketNumber   String                @map("ticket_number") @db.VarChar(32)
+  subject        String                @db.VarChar(200)
+  description    String?               @db.Text
+  status         SupportTicketStatus   @default(OPEN)
+  priority       SupportTicketPriority @default(NORMAL)
+  openedAt       DateTime              @default(now()) @map("opened_at") @db.Timestamptz(6)
+  resolvedAt     DateTime?             @map("resolved_at") @db.Timestamptz(6)
+  closedAt       DateTime?             @map("closed_at") @db.Timestamptz(6)
+  createdById    String                @map("created_by_id") @db.Uuid
+  updatedById    String                @map("updated_by_id") @db.Uuid
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  createdBy    User         @relation("CustomerTicketCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User         @relation("CustomerTicketUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([organizationId, ticketNumber])
+  @@index([organizationId, customerId, status, openedAt])
+  @@map("customer_support_tickets")
+}
+
+/// Store object-storage metadata here; file bytes belong in private blob storage.
+model CustomerDocument {
+  id               String               @id @default(uuid()) @db.Uuid
+  organizationId   String               @map("organization_id") @db.Uuid
+  customerId       String               @map("customer_id") @db.Uuid
+  documentType     CustomerDocumentType @map("document_type")
+  displayName      String               @map("display_name") @db.VarChar(160)
+  originalFileName String               @map("original_file_name") @db.VarChar(255)
+  storageKey       String               @map("storage_key") @db.VarChar(500)
+  mimeType         String               @map("mime_type") @db.VarChar(120)
+  sizeBytes        BigInt               @map("size_bytes")
+  sha256           String?              @db.Char(64)
+  uploadedById     String               @map("uploaded_by_id") @db.Uuid
+  deletedAt        DateTime?            @map("deleted_at") @db.Timestamptz(6)
+  createdAt        DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  uploadedBy   User         @relation("CustomerDocumentUploadedBy", fields: [uploadedById], references: [id])
+
+  @@unique([organizationId, storageKey])
+  @@index([organizationId, customerId, documentType, createdAt])
+  @@map("customer_documents")
 }
 
 model Reseller {
@@ -618,6 +1022,7 @@ model TaxCode {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   products     Product[]
+  customers    Customer[]   @relation("CustomerDefaultTaxCode")
 
   @@unique([organizationId, code])
   @@map("tax_codes")
