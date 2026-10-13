@@ -984,21 +984,18 @@ model UnitOfMeasure {
 }
 
 model ProductCategory {
-  id                 String              @id @default(uuid()) @db.Uuid
-  organizationId     String              @map("organization_id") @db.Uuid
-  parentId           String?             @map("parent_id") @db.Uuid
-  code               String              @db.VarChar(32)
-  name               String              @db.VarChar(120)
-  industry           String?             @db.VarChar(120)
-  leadSource         CustomerLeadSource? @map("lead_source")
-  assignedSalesRepId String?             @map("assigned_sales_rep_id") @db.Uuid
-  description        String?             @db.VarChar(500)
-  isActive           Boolean             @default(true) @map("is_active")
-  createdById        String              @map("created_by_id") @db.Uuid
-  updatedById        String              @map("updated_by_id") @db.Uuid
-  deletedAt          DateTime?           @map("deleted_at") @db.Timestamptz(6)
-  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  parentId       String?   @map("parent_id") @db.Uuid
+  code           String    @db.VarChar(32)
+  name           String    @db.VarChar(120)
+  description    String?   @db.VarChar(500)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdById    String    @map("created_by_id") @db.Uuid
+  updatedById    String    @map("updated_by_id") @db.Uuid
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization      @relation(fields: [organizationId], references: [id])
   parent       ProductCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
