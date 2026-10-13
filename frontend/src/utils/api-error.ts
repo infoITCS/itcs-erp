@@ -5,7 +5,10 @@ export function getApiErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const data = error.response?.data as ApiFailure | undefined;
     if (data && typeof data.message === "string") {
-      return data.message;
+      const details = Object.entries(data.errors ?? {})
+        .flatMap(([field, messages]) => messages.map((message) => `${field}: ${message}`))
+        .join("; ");
+      return details ? `${data.message}: ${details}` : data.message;
     }
   }
 

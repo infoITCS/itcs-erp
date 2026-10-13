@@ -14,7 +14,7 @@ export const PHASE1_PERMISSIONS = [
   { module: "customers", action: "read", description: "View customers and their contacts" },
   { module: "customers", action: "create", description: "Create customers" },
   { module: "customers", action: "update", description: "Update customers and addresses" },
-  { module: "customers", action: "delete", description: "Soft-delete customers" },
+  { module: "customers", action: "delete", description: "Delete customers and permanently remove deleted customers" },
   { module: "customers", action: "restore", description: "Restore soft-deleted customers" },
   { module: "contacts", action: "create", description: "Create contacts" },
   { module: "contacts", action: "update", description: "Update contacts and the primary contact" },

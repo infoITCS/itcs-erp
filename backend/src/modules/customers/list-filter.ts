@@ -4,8 +4,8 @@ import { createdAtRange } from "../../common/pagination/list-query";
 export interface CustomerListFilter {
   organizationId: string;
   q?: string;
-  status?: "ACTIVE" | "INACTIVE";
-  customerType?: "COMPANY" | "INDIVIDUAL";
+  status?: "ACTIVE" | "INACTIVE" | "HOLD";
+  customerType?: "COMPANY" | "INDIVIDUAL" | "B2B" | "B2C" | "WHOLESALE";
   country?: string;
   currency?: string;
   from?: string;
@@ -31,6 +31,7 @@ export function buildCustomerListWhere(filter: CustomerListFilter): Prisma.Custo
             { customerNumber: { contains: search, mode: "insensitive" } },
             { legalName: { contains: search, mode: "insensitive" } },
             { displayName: { contains: search, mode: "insensitive" } },
+            { taxNumber: { contains: search, mode: "insensitive" } },
             { email: { contains: search, mode: "insensitive" } },
             { phone: { contains: search, mode: "insensitive" } },
           ],

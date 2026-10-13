@@ -1,10 +1,10 @@
 import type { Prisma } from "@prisma/client";
-import { ForbiddenError, NotFoundError, ValidationFailedError } from "../../common/errors/app-error";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from "../../common/errors/app-error";
 import type { AuditWriter } from "../audit-logs/types";
 import type { RequestMeta } from "../auth/types";
 import type { CustomersRepository } from "./repository";
 import { toCustomerPage, type CustomerSort } from "./page";
-import type { AddressInput, CreateCustomerInput, CustomerListQuery, UpdateCustomerInput } from "./validation";
+import type { AddressInput, CreateAccountingCategoryInput, CreateCustomerInput, CreatePaymentTermInput, CustomerListQuery, UpdateCustomerInput } from "./validation";
 
 const CUSTOMERS = "customers";
 
@@ -47,11 +47,36 @@ export class CustomersService {
     return customer;
   }
 
+  async formOptions(organizationId: string) {
+    return this.repository.formOptions(organizationId);
+  }
+
+  async createPaymentTerm(organizationId: string, actorId: string, input: CreatePaymentTermInput, meta: RequestMeta) {
+    const term = await this.repository.createPaymentTerm(organizationId, input);
+    await this.record(organizationId, actorId, "customers.payment_term.created", "payment_term", term.id, meta, {
+      code: term.code,
+      name: term.name,
+      dueDays: term.dueDays,
+      requiresPrepayment: term.requiresPrepayment,
+    });
+    return term;
+  }
+
+  async createAccountingCategory(organizationId: string, actorId: string, input: CreateAccountingCategoryInput, meta: RequestMeta) {
+    const category = await this.repository.createAccountingCategory(organizationId, input);
+    await this.record(organizationId, actorId, "customers.accounting_category.created", "accounting_category", category.id, meta, {
+      code: category.code,
+      name: category.name,
+    });
+    return category;
+  }
+
   async create(organizationId: string, actorId: string, input: CreateCustomerInput, meta: RequestMeta) {
     await this.requireCurrency(input.currencyCode);
-    const possibleDuplicate = input.email
-      ? await this.repository.emailExists(organizationId, input.email)
-      : false;
+    await this.requireFormReferences(organizationId, input);
+    if (input.email && await this.repository.emailExists(organizationId, input.email)) {
+      throw new ConflictError("A customer with this email already exists");
+    }
     const customer = await this.repository.create(organizationId, actorId, input);
     await this.record(organizationId, actorId, "customers.created", "customer", customer.id, meta, {
       customerId: customer.id,
@@ -72,7 +97,7 @@ export class CustomersService {
         isPrimary: contact.isPrimary,
       });
     }
-    return { customer, possibleDuplicate };
+    return { customer, possibleDuplicate: false };
   }
 
   async update(
@@ -85,7 +110,11 @@ export class CustomersService {
     if (input.currencyCode) {
       await this.requireCurrency(input.currencyCode);
     }
+    await this.requireFormReferences(organizationId, input);
     const existing = await this.get(organizationId, id);
+    if (input.email && await this.repository.emailExists(organizationId, input.email, id)) {
+      throw new ConflictError("A customer with this email already exists");
+    }
     const updated = await this.repository.update(organizationId, id, actorId, input);
     if (!updated) {
       throw new NotFoundError("Customer not found");
@@ -104,6 +133,9 @@ export class CustomersService {
     }
     const otherFields = { ...input };
     delete otherFields.status;
+    if (otherFields.identityDocumentNumber !== undefined) {
+      otherFields.identityDocumentNumber = otherFields.identityDocumentNumber ? "[REDACTED]" : null;
+    }
     if (Object.values(otherFields).some((value) => value !== undefined)) {
       await this.record(organizationId, actorId, "customers.updated", "customer", id, meta, {
         customerId: id,
@@ -124,6 +156,19 @@ export class CustomersService {
       displayName: existing.displayName,
     });
     return { id, deletedAt: new Date().toISOString() };
+  }
+
+  async permanentlyRemove(organizationId: string, actorId: string, id: string, meta: RequestMeta) {
+    const removed = await this.repository.permanentlyDelete(organizationId, id);
+    if (!removed) {
+      throw new NotFoundError("Deleted customer not found");
+    }
+    await this.record(organizationId, actorId, "customers.permanently_deleted", "customer", id, meta, {
+      customerId: id,
+      customerNumber: removed.customerNumber,
+      displayName: removed.displayName,
+    });
+    return { id };
   }
 
   async restore(organizationId: string, actorId: string, id: string, meta: RequestMeta) {
@@ -206,6 +251,35 @@ export class CustomersService {
   private async requireCurrency(code: string) {
     if (!(await this.repository.currencyIsActive(code))) {
       throw new ValidationFailedError({ currencyCode: ["Choose an active currency"] });
+    }
+  }
+
+  private async requireFormReferences(
+    organizationId: string,
+    input: { assignedSalesRepId?: string | null; paymentTermId?: string | null; pricingGroupId?: string | null; defaultTaxCodeId?: string | null; accountingCategoryId?: string | null },
+  ) {
+    if (!input.assignedSalesRepId && !input.paymentTermId && !input.pricingGroupId && !input.defaultTaxCodeId && !input.accountingCategoryId) {
+      return;
+    }
+    const options = await this.repository.formOptions(organizationId);
+    const errors: Record<string, string[]> = {};
+    if (input.assignedSalesRepId && !options.salesReps.some((user) => user.id === input.assignedSalesRepId)) {
+      errors.assignedSalesRepId = ["Choose an active sales representative in this organization"];
+    }
+    if (input.paymentTermId && !options.paymentTerms.some((term) => term.id === input.paymentTermId)) {
+      errors.paymentTermId = ["Choose an active payment term"];
+    }
+    if (input.pricingGroupId && !options.pricingGroups.some((group) => group.id === input.pricingGroupId)) {
+      errors.pricingGroupId = ["Choose an active pricing group"];
+    }
+    if (input.defaultTaxCodeId && !options.taxCodes.some((taxCode) => taxCode.id === input.defaultTaxCodeId)) {
+      errors.defaultTaxCodeId = ["Choose an active tax code in this organization"];
+    }
+    if (input.accountingCategoryId && !options.accountingCategories.some((category) => category.id === input.accountingCategoryId)) {
+      errors.accountingCategoryId = ["Choose an active accounting category in this organization"];
+    }
+    if (Object.keys(errors).length) {
+      throw new ValidationFailedError(errors);
     }
   }
 
