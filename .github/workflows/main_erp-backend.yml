@@ -52,7 +52,7 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: |
           mkdir -p deploy
-          cp backend/package.json backend/package-lock.json backend/prisma.config.ts deploy/
+          cp backend/package.json backend/package-lock.json backend/prisma.config.ts backend/.deployment deploy/
           cp -r backend/dist backend/node_modules backend/prisma deploy/
 
       - name: Upload artifact for deployment job
