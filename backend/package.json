@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "prisma generate && node dist/server.js",
+    "start": "node ./node_modules/prisma/build/index.js generate && node dist/server.js",
     "lint": "eslint src tests",
     "format": "prettier --write .",
     "test": "tsx --test tests/api.test.ts tests/auth.test.ts tests/auth-service.test.ts tests/audit.test.ts tests/currency.test.ts tests/customers.test.ts tests/products.test.ts tests/resellers.test.ts tests/opportunities.test.ts tests/document-number.test.ts tests/pagination.test.ts",

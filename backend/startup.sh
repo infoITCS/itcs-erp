@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Azure Linux startup entrypoint (must use LF line endings)
+# Azure Linux startup entrypoint (LF line endings required)
 set -euo pipefail
 cd /home/site/wwwroot
 
@@ -12,13 +12,13 @@ if [ -L node_modules ] || [ ! -d node_modules/.prisma ]; then
   fi
 fi
 
-rm -f node_modules.tar.zst
+rm -f node_modules.tar.zst oryx-manifest.toml
 
 if [ ! -d node_modules ]; then
   echo "ERROR: node_modules missing in /home/site/wwwroot" >&2
   exit 1
 fi
 
-export PATH="$PWD/node_modules/.bin:$PATH"
-prisma generate
+# Call prisma via node to avoid missing .bin shims / exit 127
+node ./node_modules/prisma/build/index.js generate
 exec node dist/server.js
