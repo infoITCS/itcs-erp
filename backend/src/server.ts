@@ -5,7 +5,8 @@ import { env } from "./config/env";
 
 const app = createApp();
 
-const server = app.listen(env.PORT, () => {
+// Azure App Service expects the process to listen on 0.0.0.0:$PORT
+const server = app.listen(env.PORT, "0.0.0.0", () => {
   logger.info({ port: env.PORT }, "ERP API listening");
 });
 
