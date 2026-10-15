@@ -30,6 +30,11 @@ export const PHASE1_PERMISSIONS = [
   { module: "resellers", action: "update", description: "Update resellers, addresses, contacts, and customer assignments" },
   { module: "resellers", action: "delete", description: "Soft-delete resellers" },
   { module: "resellers", action: "restore", description: "Restore soft-deleted resellers" },
+  { module: "opportunities", action: "read", description: "View opportunities and product interests" },
+  { module: "opportunities", action: "create", description: "Create opportunities" },
+  { module: "opportunities", action: "update", description: "Update opportunities, stages, conversion, and product interests" },
+  { module: "opportunities", action: "delete", description: "Soft-delete opportunities" },
+  { module: "opportunities", action: "restore", description: "Restore soft-deleted opportunities" },
 ] as const;
 
 export const PHASE1_PERMISSION_CODES = PHASE1_PERMISSIONS.map((permission) =>

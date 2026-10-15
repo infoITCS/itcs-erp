@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Inventory"
       description="Stock by warehouse. Movements are an append-only ledger."
+      group="Supply"
     />
   );
 }

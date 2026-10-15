@@ -1,5 +1,5 @@
-// Phase 1 plus customers/contacts, products/services, and resellers.
-// Opportunities, sales, purchasing, inventory, accounting, and tender tables are not in this schema.
+// Phase 1 plus customers/contacts, products/services, resellers, and opportunities.
+// Quotes, orders, invoices, purchasing, inventory, accounting, and tender tables are not in this schema.
 //
 // Finalized financial documents (invoices, payments, bills, journals) will be
 // append-only after posting. A correction is a new reversing document.
@@ -41,8 +41,34 @@ enum DocumentType {
   CUSTOMER
   PRODUCT
   RESELLER
+  OPPORTUNITY
 
   @@map("document_type")
+}
+
+enum OpportunityStage {
+  NEW
+  QUALIFICATION
+  NEEDS_ANALYSIS
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+
+  @@map("opportunity_stage")
+}
+
+enum OpportunityLostReason {
+  PRICE
+  COMPETITOR
+  NO_BUDGET
+  NO_DECISION
+  TIMING
+  SCOPE_MISMATCH
+  INTERNAL
+  OTHER
+
+  @@map("opportunity_lost_reason")
 }
 
 enum CustomerType {
@@ -307,6 +333,8 @@ model Organization {
   customerActivities     CustomerActivity[]
   customerSupportTickets CustomerSupportTicket[]
   customerDocuments      CustomerDocument[]
+  opportunities          Opportunity[]
+  opportunityInterests   OpportunityProductInterest[]
 
   @@index([status])
   @@map("organizations")
@@ -357,6 +385,10 @@ model User {
   customerTicketsCreated    CustomerSupportTicket[] @relation("CustomerTicketCreatedBy")
   customerTicketsUpdated    CustomerSupportTicket[] @relation("CustomerTicketUpdatedBy")
   customerDocumentsUploaded CustomerDocument[]      @relation("CustomerDocumentUploadedBy")
+  opportunitiesOwned        Opportunity[]           @relation("OpportunityOwner")
+  opportunitiesCreated      Opportunity[]           @relation("OpportunityCreatedBy")
+  opportunitiesUpdated      Opportunity[]           @relation("OpportunityUpdatedBy")
+  opportunityInterestsCreated OpportunityProductInterest[] @relation("OpportunityInterestCreatedBy")
 
   @@index([status])
   @@map("users")
@@ -507,6 +539,7 @@ model Currency {
   customers     Customer[]
   resellers     Reseller[]
   productPrices ProductPrice[]
+  opportunities Opportunity[]
   baseRates     ExchangeRate[] @relation("ExchangeRateBase")
   quoteRates    ExchangeRate[] @relation("ExchangeRateQuote")
 
@@ -613,7 +646,7 @@ model AccountingCategory {
   @@map("accounting_categories")
 }
 
-/// Commercial party. Prospect status belongs to a future Opportunities module.
+/// Commercial party. Prospects stay on Opportunity until conversion links a customer.
 /// Soft-deleted rows stay so later documents can still reference the id.
 model Customer {
   id                 String              @id @default(uuid()) @db.Uuid
@@ -684,6 +717,7 @@ model Customer {
   activities       CustomerActivity[]
   supportTickets   CustomerSupportTicket[]
   documents        CustomerDocument[]
+  opportunities    Opportunity[]
 
   @@index([organizationId, createdAt, id])
   @@index([organizationId, status, createdAt])
@@ -757,6 +791,7 @@ model Contact {
 
   customer        Customer                        @relation(fields: [customerId], references: [id])
   roleAssignments CustomerContactRoleAssignment[]
+  opportunities   Opportunity[]
   createdBy       User                            @relation("ContactCreatedBy", fields: [createdById], references: [id])
   updatedBy       User                            @relation("ContactUpdatedBy", fields: [updatedById], references: [id])
 
@@ -894,13 +929,14 @@ model Reseller {
   createdAt                DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization      @relation(fields: [organizationId], references: [id])
-  currency     Currency          @relation(fields: [currencyCode], references: [code])
-  createdBy    User              @relation("ResellerCreatedBy", fields: [createdById], references: [id])
-  updatedBy    User              @relation("ResellerUpdatedBy", fields: [updatedById], references: [id])
-  addresses    ResellerAddress[]
-  contacts     ResellerContact[]
-  customers    Customer[]
+  organization  Organization      @relation(fields: [organizationId], references: [id])
+  currency      Currency          @relation(fields: [currencyCode], references: [code])
+  createdBy     User              @relation("ResellerCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User              @relation("ResellerUpdatedBy", fields: [updatedById], references: [id])
+  addresses     ResellerAddress[]
+  contacts      ResellerContact[]
+  customers     Customer[]
+  opportunities Opportunity[]
 
   @@index([organizationId, createdAt, id])
   @@index([organizationId, status, createdAt])
@@ -1054,6 +1090,7 @@ model Product {
   createdBy     User             @relation("ProductCreatedBy", fields: [createdById], references: [id])
   updatedBy     User             @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
   prices        ProductPrice[]
+  opportunityInterests OpportunityProductInterest[]
 
   @@index([organizationId, createdAt, id])
   @@index([organizationId, status, createdAt])
@@ -1089,4 +1126,91 @@ model ProductPrice {
   @@index([organizationId, productId, priceType, effectiveDate])
   @@index([organizationId, priceListCode, currencyCode])
   @@map("product_prices")
+}
+
+/// CRM pipeline record. Prospects live here until converted to a Customer.
+model Opportunity {
+  id                   String                 @id @default(uuid()) @db.Uuid
+  organizationId       String                 @map("organization_id") @db.Uuid
+  opportunityNumber    String                 @map("opportunity_number") @db.VarChar(32)
+  title                String                 @db.VarChar(200)
+  description          String?                @db.VarChar(4000)
+  stage                OpportunityStage       @default(NEW)
+  customerId           String?                @map("customer_id") @db.Uuid
+  contactId            String?                @map("contact_id") @db.Uuid
+  resellerId           String?                @map("reseller_id") @db.Uuid
+  ownerUserId          String                 @map("owner_user_id") @db.Uuid
+  leadSource           CustomerLeadSource?    @map("lead_source")
+  estimatedValue       Decimal                @default(0) @map("estimated_value") @db.Decimal(19, 4)
+  currencyCode         String                 @map("currency_code") @db.Char(3)
+  exchangeRateToBase   Decimal?               @map("exchange_rate_to_base") @db.Decimal(19, 8)
+  estimatedValueBase   Decimal?               @map("estimated_value_base") @db.Decimal(19, 4)
+  baseCurrencyCode     String?                @map("base_currency_code") @db.Char(3)
+  probabilityPercent   Int                    @default(10) @map("probability_percent")
+  expectedCloseDate    DateTime?              @map("expected_close_date") @db.Date
+  nextAction           String?                @map("next_action") @db.VarChar(500)
+  nextActionDueAt      DateTime?              @map("next_action_due_at") @db.Timestamptz(6)
+  lostReason           OpportunityLostReason? @map("lost_reason")
+  lostReasonDetail     String?                @map("lost_reason_detail") @db.VarChar(500)
+  competitorName       String?                @map("competitor_name") @db.VarChar(200)
+  wonAt                DateTime?              @map("won_at") @db.Timestamptz(6)
+  lostAt               DateTime?              @map("lost_at") @db.Timestamptz(6)
+  closedAt             DateTime?              @map("closed_at") @db.Timestamptz(6)
+  reopenedAt           DateTime?              @map("reopened_at") @db.Timestamptz(6)
+  prospectDisplayName  String?                @map("prospect_display_name") @db.VarChar(200)
+  prospectLegalName    String?                @map("prospect_legal_name") @db.VarChar(200)
+  prospectEmail        String?                @map("prospect_email") @db.VarChar(320)
+  prospectPhone        String?                @map("prospect_phone") @db.VarChar(40)
+  prospectCountryCode  String?                @map("prospect_country_code") @db.Char(2)
+  notes                String?                @db.VarChar(4000)
+  createdById          String                 @map("created_by_id") @db.Uuid
+  updatedById          String                 @map("updated_by_id") @db.Uuid
+  deletedAt            DateTime?              @map("deleted_at") @db.Timestamptz(6)
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization                 @relation(fields: [organizationId], references: [id])
+  customer     Customer?                    @relation(fields: [customerId], references: [id])
+  contact      Contact?                     @relation(fields: [contactId], references: [id])
+  reseller     Reseller?                    @relation(fields: [resellerId], references: [id])
+  owner        User                         @relation("OpportunityOwner", fields: [ownerUserId], references: [id])
+  currency     Currency                     @relation(fields: [currencyCode], references: [code])
+  createdBy    User                         @relation("OpportunityCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User                         @relation("OpportunityUpdatedBy", fields: [updatedById], references: [id])
+  productInterests OpportunityProductInterest[]
+
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, stage, expectedCloseDate])
+  @@index([organizationId, ownerUserId, stage])
+  @@index([organizationId, customerId, createdAt])
+  @@index([organizationId, resellerId, createdAt])
+  @@index([organizationId, leadSource, createdAt])
+  @@index([organizationId, expectedCloseDate])
+  @@map("opportunities")
+}
+
+/// Product interest on an opportunity — not a quote line.
+model OpportunityProductInterest {
+  id                   String   @id @default(uuid()) @db.Uuid
+  organizationId       String   @map("organization_id") @db.Uuid
+  opportunityId        String   @map("opportunity_id") @db.Uuid
+  productId            String   @map("product_id") @db.Uuid
+  quantity             Decimal  @default(1) @db.Decimal(19, 4)
+  estimatedUnitAmount  Decimal? @map("estimated_unit_amount") @db.Decimal(19, 4)
+  productCode          String   @map("product_code") @db.VarChar(64)
+  productName          String   @map("product_name") @db.VarChar(200)
+  notes                String?  @db.VarChar(1000)
+  sortOrder            Int      @default(0) @map("sort_order")
+  createdById          String   @map("created_by_id") @db.Uuid
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  opportunity  Opportunity  @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id])
+  createdBy    User         @relation("OpportunityInterestCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([opportunityId, productId])
+  @@index([organizationId, opportunityId, sortOrder])
+  @@map("opportunity_product_interests")
 }

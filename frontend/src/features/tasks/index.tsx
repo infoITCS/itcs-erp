@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Tasks"
       description="Work items, including renewal follow-ups."
+      group="Delivery"
     />
   );
 }

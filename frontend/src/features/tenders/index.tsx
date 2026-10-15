@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Tenders"
       description="Tender lifecycle from identification through won or lost."
+      group="CRM"
     />
   );
 }

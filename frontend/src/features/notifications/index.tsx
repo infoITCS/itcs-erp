@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Notifications"
       description="Reminders and workflow notices. Delivery can move to a job queue later."
+      group="System"
     />
   );
 }

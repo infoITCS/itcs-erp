@@ -71,9 +71,39 @@ export class CustomersService {
     return category;
   }
 
-  async create(organizationId: string, actorId: string, input: CreateCustomerInput, meta: RequestMeta) {
+  /**
+   * Same reference checks as {@link create}, without writing a row.
+   * Callers that insert inside their own transaction (prospect conversion) run this first,
+   * then {@link createWithin}.
+   */
+  async validateCreate(organizationId: string, input: CreateCustomerInput) {
     await this.requireCurrency(input.currencyCode);
     await this.requireFormReferences(organizationId, input);
+  }
+
+  async emailTaken(
+    organizationId: string,
+    email: string,
+    client?: Prisma.TransactionClient,
+  ): Promise<boolean> {
+    return this.repository.emailExists(organizationId, email, undefined, client);
+  }
+
+  /** Inserts a customer on the caller's transaction, including document-number allocation. */
+  async createWithin(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    actorId: string,
+    input: CreateCustomerInput,
+  ) {
+    if (input.email && (await this.repository.emailExists(organizationId, input.email, undefined, tx))) {
+      throw new ConflictError("A customer with this email already exists");
+    }
+    return this.repository.createIn(tx, organizationId, actorId, input);
+  }
+
+  async create(organizationId: string, actorId: string, input: CreateCustomerInput, meta: RequestMeta) {
+    await this.validateCreate(organizationId, input);
     if (input.email && await this.repository.emailExists(organizationId, input.email)) {
       throw new ConflictError("A customer with this email already exists");
     }

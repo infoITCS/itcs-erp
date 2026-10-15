@@ -86,55 +86,93 @@ export default function ResellerDetailPage() {
   }
 
   return (
-    <section className="flex flex-col gap-6">
+    <section className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       {reseller.isPending ? <p className="text-sm text-slate-500">Loading reseller…</p> : null}
-      {reseller.isError ? <p className="text-sm text-red-700">{getApiErrorMessage(reseller.error)}</p> : null}
+      {reseller.isError ? (
+        <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          {getApiErrorMessage(reseller.error)}
+        </p>
+      ) : null}
       {reseller.data ? (
         <>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-sm text-slate-500">{reseller.data.resellerNumber}</p>
-              <h1 className="text-2xl font-semibold text-slate-900">{reseller.data.displayName}</h1>
-              <p className="mt-1 text-sm text-slate-600">
-                {reseller.data.legalName} · {reseller.data.status} · {reseller.data.countryCode} · {reseller.data.currencyCode} ·{" "}
-                {reseller.data.priceListCode}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Link to={`/resellers/${id}/edit`} className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-sm">
-                Edit
-              </Link>
-              <Button variant="secondary" onClick={() => setPendingDelete({ kind: "reseller" })}>
-                Delete
-              </Button>
-            </div>
-          </div>
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-slate-500">
+            <Link to="/resellers" className="hover:text-slate-900">
+              Resellers
+            </Link>
+            <span aria-hidden="true">/</span>
+            <span className="font-medium text-slate-700">{reseller.data.resellerNumber}</span>
+          </nav>
 
-          <section className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold text-slate-900">Overview</h2>
-            <p className="text-sm text-slate-700">
-              {[reseller.data.email, reseller.data.phone, reseller.data.website, reseller.data.taxNumber, reseller.data.notes]
-                .filter(Boolean)
-                .join(" · ") || "No additional overview details."}
-            </p>
+          <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-5 p-5 md:p-7">
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-teal-800">CRM / Channel</p>
+                <p className="mt-2 font-mono text-xs text-slate-500">{reseller.data.resellerNumber}</p>
+                <h1 className="mt-1 break-words text-2xl font-semibold text-slate-950 md:text-3xl">{reseller.data.displayName}</h1>
+                {reseller.data.legalName !== reseller.data.displayName ? (
+                  <p className="mt-1 text-sm text-slate-600">{reseller.data.legalName}</p>
+                ) : null}
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${
+                      reseller.data.status === "ACTIVE"
+                        ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
+                        : reseller.data.status === "SUSPENDED"
+                          ? "bg-amber-50 text-amber-800 ring-amber-200"
+                          : "bg-slate-100 text-slate-700 ring-slate-200"
+                    }`}
+                  >
+                    {reseller.data.status === "ACTIVE" ? "Active" : reseller.data.status === "SUSPENDED" ? "Suspended" : "Inactive"}
+                  </span>
+                  <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                    {reseller.data.countryCode} · {reseller.data.currencyCode}
+                  </span>
+                  <span className="rounded-md bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">
+                    List {reseller.data.priceListCode}
+                  </span>
+                </div>
+              </div>
+              <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+                <Link
+                  to={`/resellers/${id}/edit`}
+                  className="inline-flex h-10 flex-1 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 sm:flex-none"
+                >
+                  Edit
+                </Link>
+                <Button
+                  variant="secondary"
+                  className="h-10 flex-1 text-red-700 hover:bg-red-50 sm:flex-none"
+                  onClick={() => setPendingDelete({ kind: "reseller" })}
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+            <div className="grid gap-3 border-t border-slate-100 px-5 py-4 text-sm sm:grid-cols-3 md:px-7">
+              <div>
+                <p className="text-xs text-slate-500">Contact</p>
+                <p className="mt-0.5 text-slate-800">{[reseller.data.email, reseller.data.phone].filter(Boolean).join(" · ") || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Website / tax</p>
+                <p className="mt-0.5 text-slate-800">{[reseller.data.website, reseller.data.taxNumber].filter(Boolean).join(" · ") || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Pricing defaults</p>
+                <p className="mt-0.5 text-slate-800">
+                  {[reseller.data.defaultDiscountPercent ? `Discount ${reseller.data.defaultDiscountPercent}%` : null, reseller.data.defaultCommissionPercent ? `Commission ${reseller.data.defaultCommissionPercent}%` : null]
+                    .filter(Boolean)
+                    .join(" · ") || "No defaults"}
+                </p>
+              </div>
+            </div>
+            {reseller.data.notes ? <p className="border-t border-slate-100 px-5 py-3 text-sm text-slate-600 md:px-7">{reseller.data.notes}</p> : null}
           </section>
 
-          <section className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Pricing</h2>
-            </div>
-            <p className="text-sm text-slate-700">
-              List {reseller.data.priceListCode}
-              {reseller.data.defaultDiscountPercent ? ` · Discount ${reseller.data.defaultDiscountPercent}%` : ""}
-              {reseller.data.defaultCommissionPercent ? ` · Commission ${reseller.data.defaultCommissionPercent}%` : ""}
-            </p>
-            <p className="text-sm text-slate-500">Quote and order price resolution will use this list later. No document pricing is calculated here.</p>
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Addresses</h2>
-              <Button variant="secondary" onClick={() => setAddressOpen(true)}>
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">Addresses</h2>
+              <Button variant="secondary" className="h-9" onClick={() => setAddressOpen(true)}>
                 Add address
               </Button>
             </div>
@@ -167,10 +205,10 @@ export default function ResellerDetailPage() {
             </ul>
           </section>
 
-          <section className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Contacts</h2>
-              <Button variant="secondary" onClick={() => setContactOpen(true)}>
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">Contacts</h2>
+              <Button variant="secondary" className="h-9" onClick={() => setContactOpen(true)}>
                 Add contact
               </Button>
             </div>
@@ -203,10 +241,10 @@ export default function ResellerDetailPage() {
             </ul>
           </section>
 
-          <section className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">Customers</h2>
-              <Button variant="secondary" onClick={() => setCustomerOpen(true)} disabled={reseller.data.status !== "ACTIVE"}>
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900">Customers</h2>
+              <Button variant="secondary" className="h-9" onClick={() => setCustomerOpen(true)} disabled={reseller.data.status !== "ACTIVE"}>
                 Assign customer
               </Button>
             </div>
@@ -235,13 +273,13 @@ export default function ResellerDetailPage() {
             </ul>
           </section>
 
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-semibold text-slate-900">Performance</h2>
-            <p className="text-sm text-slate-500">Sales, invoices, and renewals will appear here after those modules ship.</p>
+          <section className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+            <h2 className="text-sm font-semibold text-slate-900">Performance</h2>
+            <p className="mt-1 text-sm text-slate-500">Sales, invoices, and renewals will appear here after those modules ship.</p>
           </section>
 
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-semibold text-slate-900">Activity</h2>
+          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <h2 className="mb-3 text-sm font-semibold text-slate-900">Activity</h2>
             {(audit.data?.items ?? []).length === 0 ? <p className="text-sm text-slate-500">No audit events yet.</p> : null}
             <ul className="flex flex-col gap-1 text-sm text-slate-700">
               {(audit.data?.items ?? []).map((event) => (

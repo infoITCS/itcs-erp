@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Payments"
       description="Customer receipts allocated to invoices inside a transaction."
+      group="Sales"
     />
   );
 }

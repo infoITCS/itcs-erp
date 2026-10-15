@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Vendors"
       description="Vendor master data used by purchasing."
+      group="Supply"
     />
   );
 }

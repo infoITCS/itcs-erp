@@ -77,8 +77,12 @@ export default function ResellerFormPage() {
 
   return (
     <section className="mx-auto flex max-w-2xl flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">{id ? "Edit reseller" : "New reseller"}</h1>
+      <div className="border-b border-slate-200 pb-4">
+        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
+          <span className="h-2 w-2 rounded-full bg-teal-600" />
+          CRM / Channel
+        </p>
+        <h1 className="text-3xl font-semibold text-slate-950">{id ? "Edit reseller" : "New reseller"}</h1>
         <p className="mt-1 text-sm text-slate-600">The reseller number is assigned by the server.</p>
       </div>
       {existing.isError ? <p className="text-sm text-red-700">{getApiErrorMessage(existing.error)}</p> : null}

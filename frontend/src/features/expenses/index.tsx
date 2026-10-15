@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Expenses"
       description="Expense claims that will post to the ledger when approved."
+      group="Finance"
     />
   );
 }

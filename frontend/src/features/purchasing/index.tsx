@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Purchasing"
       description="Purchase requests, orders, receipts, and vendor bills."
+      group="Supply"
     />
   );
 }

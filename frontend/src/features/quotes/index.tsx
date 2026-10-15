@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Quotes"
       description="Quote headers and lines. Acceptance will create a sales order inside a transaction."
+      group="Sales"
     />
   );
 }

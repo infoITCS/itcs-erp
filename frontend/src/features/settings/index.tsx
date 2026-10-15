@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Settings"
       description="Company settings. Secrets stay in the API environment, not in this bundle."
+      group="System"
     />
   );
 }

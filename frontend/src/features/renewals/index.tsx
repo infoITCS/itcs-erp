@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Renewals"
       description="Contracts and licenses tracked through expiry, reminder, and renewal."
+      group="Delivery"
     />
   );
 }

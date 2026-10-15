@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Projects"
       description="Delivery projects linked to customers and orders."
+      group="Delivery"
     />
   );
 }

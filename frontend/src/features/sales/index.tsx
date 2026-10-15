@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Sales"
       description="Sales workspace that will open the quote, order, delivery, invoice, and payment chain."
+      group="Sales"
     />
   );
 }

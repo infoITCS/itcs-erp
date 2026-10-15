@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Invoices"
       description="Customer invoices. Posted invoices are corrected by reversal, not by silent edits."
+      group="Sales"
     />
   );
 }

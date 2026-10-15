@@ -11,14 +11,14 @@ This document is the current project brief for status reviews and demos — writ
 | Item | Status |
 |---|---|
 | Approach | Modular monolith — one frontend, one API, one database |
-| Live and tested | Identity / platform · Customers · Contacts · Products & Services · Resellers |
-| Recently added | Confirmation popups before every Delete / Remove / Unassign |
-| Next build candidates | Opportunities / Tenders, then Quotes → Orders → Invoices |
-| Not started | Opportunities, tenders, quotes, sales, invoices, payments, purchasing, inventory, accounting, renewals |
+| Live and tested | Identity / platform · Customers · Contacts · Products & Services · Resellers · Opportunities |
+| Recently added | Opportunities & lead management (pipeline, prospect conversion, product interests) |
+| Next build candidates | Tenders, then Quotes → Orders → Invoices |
+| Not started | Tenders, quotes, sales, invoices, payments, purchasing, inventory, accounting, renewals |
 | Code repository | https://github.com/infoITCS/itcs-erp |
 | Local demo | Web http://localhost:5173 · API http://localhost:4000 |
 
-**Bottom line:** The foundation and four business areas are working: Customers, Contacts, Products & Services, and Resellers. You can manage master data end to end. Selling and invoicing still need Quotes / Orders / Invoices (next after pipeline work).
+**Bottom line:** The foundation and five business areas are working: Customers, Contacts, Products & Services, Resellers, and Opportunities. Master data and the sales pipeline are live. Selling and invoicing still need Quotes / Orders / Invoices.
 
 ---
 
@@ -98,14 +98,26 @@ Reseller partner master data. Built, migrated, seeded, and verified.
 
 Every Delete, Remove, and Unassign button opens a confirmation popup before anything is changed. Cancel leaves data untouched; confirm runs the soft-delete (or unassign) as before.
 
-### 3.6 What you can demonstrate in a meeting
+### 3.6 Opportunities
+
+Sales pipeline. Built, migrated, seeded, and verified.
+
+- Single opportunity entity (no separate Lead table); prospects stored on the opportunity until conversion
+- Stages: New → Qualification → Needs analysis → Proposal → Negotiation → Won / Lost
+- Optional Customer / Contact / Reseller / owner; product interests (not quote lines)
+- Estimated value with currency and org-base snapshot for weighted pipeline forecasting
+- Convert prospect → link existing customer or create customer in one transaction
+- Soft delete/restore; audit trail for stage, win/loss, reopen, convert
+
+### 3.7 What you can demonstrate in a meeting
 
 1. Sign in as administrator  
 2. **Customers** — list, search, create, addresses, contacts, audit  
 3. **Contacts** — org-wide list and remove (with confirm)  
 4. **Products** — create product/service, categories, dated prices, delete with confirm  
 5. **Resellers** — create reseller, addresses/contacts, assign a customer, unassign with confirm  
-6. Show that money uses proper decimals (currencies / product prices)
+6. **Opportunities** — create prospect deal, advance stage, convert to customer, mark won/lost  
+7. Show that money uses proper decimals (currencies / product prices / opportunity value)
 
 ---
 
@@ -132,8 +144,8 @@ After Products + Customers + Resellers, the sales flow becomes: Customer (+ opti
 2. **Done** — Customers & Contacts  
 3. **Done** — Products & Services  
 4. **Done** — Resellers (master data + customer link)  
-5. **Next** — Opportunities / Tenders  
-6. Quotes → Sales Orders → Deliveries  
+5. **Done** — Opportunities & Lead Management  
+6. **Next** — Tenders (optional) then Quotes → Sales Orders → Deliveries  
 7. Invoices → Payments  
 8. Purchasing & Vendors  
 9. Inventory  

@@ -11,6 +11,8 @@ const ProductFormPage = lazy(() => import("@/features/products/form-page.tsx"));
 const ProductDetailPage = lazy(() => import("@/features/products/detail-page.tsx"));
 const ResellerFormPage = lazy(() => import("@/features/resellers/form-page.tsx"));
 const ResellerDetailPage = lazy(() => import("@/features/resellers/detail-page.tsx"));
+const OpportunityFormPage = lazy(() => import("@/features/opportunities/form-page.tsx"));
+const OpportunityDetailPage = lazy(() => import("@/features/opportunities/detail-page.tsx"));
 
 function PageLoading() {
   return <p className="text-sm text-slate-500">Loading page…</p>;
@@ -95,6 +97,30 @@ export function AppRouter() {
               element={
                 <Suspense fallback={<PageLoading />}>
                   <ProductDetailPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/opportunities/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <OpportunityFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/opportunities/:id/edit"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <OpportunityFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/opportunities/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <OpportunityDetailPage />
                 </Suspense>
               }
             />

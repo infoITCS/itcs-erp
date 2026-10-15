@@ -1,11 +1,34 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { navItems } from "@/app/router/nav.tsx";
+import { Button } from "@/components/ui/Button.tsx";
 import { tokenStore } from "@/lib/token-store.ts";
+import { logout } from "@/services/auth.ts";
 
 export function AppLayout() {
+  const navigate = useNavigate();
   const signedInEmail = tokenStore.getEmail();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    if (signingOut) {
+      return;
+    }
+    setSigningOut(true);
+    const refreshToken = tokenStore.getRefreshToken();
+    try {
+      if (refreshToken) {
+        await logout(refreshToken);
+      }
+    } catch {
+      // Always clear the local session even if the API call fails.
+    } finally {
+      tokenStore.clear();
+      setMobileMenuOpen(false);
+      navigate("/login", { replace: true });
+    }
+  }
   const groups: string[] = [];
   for (const item of navItems) {
     if (!groups.includes(item.group)) {
@@ -61,27 +84,42 @@ export function AppLayout() {
             </button>
             <p className="hidden truncate text-sm font-medium text-slate-600 sm:block">ITCS ERP</p>
           </div>
-          <p className="min-w-0 max-w-[60%] shrink truncate pl-3 text-right text-xs font-medium text-slate-700 sm:max-w-none sm:text-sm">{signedInEmail}</p>
+          <div className="flex min-w-0 items-center gap-2 pl-3">
+            <p className="min-w-0 max-w-[45vw] truncate text-right text-xs font-medium text-slate-700 sm:max-w-none sm:text-sm">
+              {signedInEmail}
+            </p>
+            <Button variant="secondary" className="h-8 shrink-0 px-2.5" onClick={handleSignOut} disabled={signingOut}>
+              {signingOut ? "Signing out…" : "Sign out"}
+            </Button>
+          </div>
           {mobileMenuOpen ? (
-            <nav id="mobile-navigation" aria-label="Main navigation" className="absolute left-0 right-0 top-full max-h-[calc(100vh-3.5rem)] overflow-y-auto border-b border-slate-700 bg-slate-950 px-3 pb-4 text-slate-200 shadow-lg lg:hidden">
+            <nav
+              id="mobile-navigation"
+              aria-label="Main navigation"
+              className="absolute left-0 right-0 top-full max-h-[calc(100vh-3.5rem)] overflow-y-auto border-b border-slate-700 bg-slate-950 px-3 pb-4 text-slate-200 shadow-lg lg:hidden"
+            >
               {groups.map((group) => (
                 <div key={group} className="mt-4">
                   <p className="px-2 pb-1 text-xs font-medium text-slate-500">{group}</p>
                   <ul className="grid grid-cols-2 gap-1 sm:grid-cols-3">
-                    {navItems.filter((item) => item.group === group).map((item) => (
-                      <li key={item.path}>
-                        <NavLink
-                          to={item.path}
-                          end={item.path === "/"}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className={({ isActive }) => isActive
-                            ? "block rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white"
-                            : "block rounded-md px-3 py-2 text-sm text-slate-300 hover:bg-slate-900"}
-                        >
-                          {item.label}
-                        </NavLink>
-                      </li>
-                    ))}
+                    {navItems
+                      .filter((item) => item.group === group)
+                      .map((item) => (
+                        <li key={item.path}>
+                          <NavLink
+                            to={item.path}
+                            end={item.path === "/"}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={({ isActive }) =>
+                              isActive
+                                ? "block rounded-md bg-slate-800 px-3 py-2 text-sm font-medium text-white"
+                                : "block rounded-md px-3 py-2 text-sm text-slate-300 hover:bg-slate-900"
+                            }
+                          >
+                            {item.label}
+                          </NavLink>
+                        </li>
+                      ))}
                   </ul>
                 </div>
               ))}

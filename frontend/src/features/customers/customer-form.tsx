@@ -367,9 +367,9 @@ export default function CustomerFormPage() {
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div className="flex min-w-0 flex-col gap-2">
-          <p className="flex items-center gap-2 text-xs font-semibold uppercase text-teal-800"><span className="h-2 w-2 rounded-full bg-teal-600" />Customer workspace</p>
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800"><span className="h-2 w-2 rounded-full bg-teal-600" />CRM / Directory</p>
           <div>
-            <h1 className="text-xl font-semibold text-slate-950 sm:text-2xl">{id ? "Edit customer" : "New customer"}</h1>
+            <h1 className="text-3xl font-semibold text-slate-950">{id ? "Edit customer" : "New customer"}</h1>
             <p className="mt-1 text-sm text-slate-600">Customer number is assigned automatically when submitted.</p>
           </div>
         </div>

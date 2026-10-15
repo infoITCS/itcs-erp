@@ -5,6 +5,7 @@ export default function Page() {
     <ModuleScaffold
       title="Sales orders"
       description="Confirmed orders created from quotes. Lines stay normalized."
+      group="Sales"
     />
   );
 }

@@ -10,7 +10,7 @@
     "start": "node dist/server.js",
     "lint": "eslint src tests",
     "format": "prettier --write .",
-    "test": "tsx --test tests/api.test.ts tests/auth.test.ts tests/auth-service.test.ts tests/audit.test.ts tests/currency.test.ts tests/customers.test.ts tests/products.test.ts tests/resellers.test.ts tests/document-number.test.ts tests/pagination.test.ts",
+    "test": "tsx --test tests/api.test.ts tests/auth.test.ts tests/auth-service.test.ts tests/audit.test.ts tests/currency.test.ts tests/customers.test.ts tests/products.test.ts tests/resellers.test.ts tests/opportunities.test.ts tests/document-number.test.ts tests/pagination.test.ts",
     "prisma:seed": "tsx prisma/seed.ts",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",

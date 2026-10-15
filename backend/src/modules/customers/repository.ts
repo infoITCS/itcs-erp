@@ -153,8 +153,13 @@ export class CustomersRepository extends BaseRepository {
     });
   }
 
-  async emailExists(organizationId: string, email: string, exceptId?: string): Promise<boolean> {
-    const row = await this.db.customer.findFirst({
+  async emailExists(
+    organizationId: string,
+    email: string,
+    exceptId?: string,
+    client: PrismaClient | Prisma.TransactionClient = this.db,
+  ): Promise<boolean> {
+    const row = await client.customer.findFirst({
       where: {
         organizationId,
         email: { equals: email, mode: "insensitive" },
@@ -231,83 +236,7 @@ export class CustomersRepository extends BaseRepository {
 
   async create(organizationId: string, actorId: string, input: CreateCustomerInput) {
     try {
-      return await this.transaction(async (tx) => {
-        const customerNumber = await allocateDocumentNumberIn(tx, organizationId, "CUSTOMER");
-        const contacts = input.contacts?.length
-          ? input.contacts
-          : input.primaryContact
-            ? [{
-                ...input.primaryContact,
-                role: undefined,
-                isPrimary: true,
-                emailOptIn: false,
-                phoneOptIn: false,
-                smsOptIn: false,
-                whatsappOptIn: false,
-              }]
-            : [];
-        return tx.customer.create({
-          data: {
-            organizationId,
-            customerNumber,
-            customerCode: input.customerCode ?? null,
-            entityType: input.entityType,
-            customerType: input.customerType,
-            customerCategory: input.customerCategory ?? null,
-            industry: input.industry ?? null,
-            employeeCount: input.employeeCount ?? null,
-            incorporationStatus: input.incorporationStatus ?? null,
-            businessRegistrationDate: input.businessRegistrationDate ? new Date(input.businessRegistrationDate) : null,
-            registrationNumber: input.registrationNumber ?? null,
-            rating: input.rating ?? null,
-            priority: input.priority,
-            sameAsBilling: input.sameAsBilling,
-            leadSource: input.leadSource ?? null,
-            assignedSalesRepId: input.assignedSalesRepId ?? null,
-            legalName: input.legalName,
-            displayName: input.displayName,
-            middleName: input.middleName ?? null,
-            email: input.email ?? null,
-            phone: input.phone ?? null,
-            website: input.website ?? null,
-            countryCode: input.countryCode,
-            currencyCode: input.currencyCode,
-            taxNumber: input.taxNumber ?? null,
-            taxIdType: input.taxIdType ?? null,
-            taxExemptionCode: input.taxExemptionCode ?? null,
-            defaultTaxCodeId: input.defaultTaxCodeId ?? null,
-            identityDocumentType: input.identityDocumentType ?? null,
-            identityDocumentNumber: input.identityDocumentNumber ?? null,
-            taxExempt: input.taxExempt,
-            pricesIncludeTax: input.pricesIncludeTax,
-            emailMarketingOptIn: input.emailMarketingOptIn,
-            creditHold: input.creditHold,
-            status: input.status ?? "ACTIVE",
-            creditLimit: input.creditLimit ?? "0",
-            preferredPaymentMethod: input.preferredPaymentMethod ?? null,
-            preferredCommunicationChannel: input.preferredCommunicationChannel ?? null,
-            paymentTermId: input.paymentTermId ?? null,
-            pricingGroupId: input.pricingGroupId ?? null,
-            accountingCategoryId: input.accountingCategoryId ?? null,
-            openingBalance: input.openingBalance ?? "0",
-            openingBalanceDate: input.openingBalanceDate ? new Date(input.openingBalanceDate) : null,
-            notes: input.notes ?? null,
-            createdById: actorId,
-            updatedById: actorId,
-            addresses: input.addresses?.length
-              ? {
-                  create: input.addresses.map((address) => addressData(organizationId, actorId, address)),
-                }
-              : undefined,
-            contacts: contacts.length
-              ? {
-                  create: contacts.map((contact) => customerContactData(organizationId, actorId, contact)),
-                }
-              : undefined,
-          },
-          select: customerDetailSelect,
-        });
-      });
+      return await this.transaction((tx) => this.createIn(tx, organizationId, actorId, input));
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         if (input.email && await this.emailExists(organizationId, input.email)) {
@@ -317,6 +246,88 @@ export class CustomersRepository extends BaseRepository {
       }
       throw mapConflict(error, "A customer with this number already exists");
     }
+  }
+
+  /**
+   * Creates a customer using the caller's transaction client so other modules (e.g. opportunities
+   * converting a prospect) can create a customer and link it to their own row atomically.
+   */
+  async createIn(tx: Prisma.TransactionClient, organizationId: string, actorId: string, input: CreateCustomerInput) {
+    const customerNumber = await allocateDocumentNumberIn(tx, organizationId, "CUSTOMER");
+    const contacts = input.contacts?.length
+      ? input.contacts
+      : input.primaryContact
+        ? [{
+            ...input.primaryContact,
+            role: undefined,
+            isPrimary: true,
+            emailOptIn: false,
+            phoneOptIn: false,
+            smsOptIn: false,
+            whatsappOptIn: false,
+          }]
+        : [];
+    return tx.customer.create({
+      data: {
+        organizationId,
+        customerNumber,
+        customerCode: input.customerCode ?? null,
+        entityType: input.entityType,
+        customerType: input.customerType,
+        customerCategory: input.customerCategory ?? null,
+        industry: input.industry ?? null,
+        employeeCount: input.employeeCount ?? null,
+        incorporationStatus: input.incorporationStatus ?? null,
+        businessRegistrationDate: input.businessRegistrationDate ? new Date(input.businessRegistrationDate) : null,
+        registrationNumber: input.registrationNumber ?? null,
+        rating: input.rating ?? null,
+        priority: input.priority,
+        sameAsBilling: input.sameAsBilling,
+        leadSource: input.leadSource ?? null,
+        assignedSalesRepId: input.assignedSalesRepId ?? null,
+        legalName: input.legalName,
+        displayName: input.displayName,
+        middleName: input.middleName ?? null,
+        email: input.email ?? null,
+        phone: input.phone ?? null,
+        website: input.website ?? null,
+        countryCode: input.countryCode,
+        currencyCode: input.currencyCode,
+        taxNumber: input.taxNumber ?? null,
+        taxIdType: input.taxIdType ?? null,
+        taxExemptionCode: input.taxExemptionCode ?? null,
+        defaultTaxCodeId: input.defaultTaxCodeId ?? null,
+        identityDocumentType: input.identityDocumentType ?? null,
+        identityDocumentNumber: input.identityDocumentNumber ?? null,
+        taxExempt: input.taxExempt,
+        pricesIncludeTax: input.pricesIncludeTax,
+        emailMarketingOptIn: input.emailMarketingOptIn,
+        creditHold: input.creditHold,
+        status: input.status ?? "ACTIVE",
+        creditLimit: input.creditLimit ?? "0",
+        preferredPaymentMethod: input.preferredPaymentMethod ?? null,
+        preferredCommunicationChannel: input.preferredCommunicationChannel ?? null,
+        paymentTermId: input.paymentTermId ?? null,
+        pricingGroupId: input.pricingGroupId ?? null,
+        accountingCategoryId: input.accountingCategoryId ?? null,
+        openingBalance: input.openingBalance ?? "0",
+        openingBalanceDate: input.openingBalanceDate ? new Date(input.openingBalanceDate) : null,
+        notes: input.notes ?? null,
+        createdById: actorId,
+        updatedById: actorId,
+        addresses: input.addresses?.length
+          ? {
+              create: input.addresses.map((address) => addressData(organizationId, actorId, address)),
+            }
+          : undefined,
+        contacts: contacts.length
+          ? {
+              create: contacts.map((contact) => customerContactData(organizationId, actorId, contact)),
+            }
+          : undefined,
+      },
+      select: customerDetailSelect,
+    });
   }
 
   async update(organizationId: string, id: string, actorId: string, input: UpdateCustomerInput) {
