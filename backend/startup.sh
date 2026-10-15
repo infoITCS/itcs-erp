@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Azure Linux startup entrypoint (must use LF line endings)
 set -euo pipefail
 cd /home/site/wwwroot
 
