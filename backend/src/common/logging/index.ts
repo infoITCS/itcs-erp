@@ -1,2 +1,2 @@
 export { logger } from "./logger";
-export { requestLogger } from "./request-logger";
+export { redactRequestUrl, requestLogger } from "./request-logger";

@@ -71,6 +71,17 @@ enum OpportunityLostReason {
   @@map("opportunity_lost_reason")
 }
 
+enum TenderStatus {
+  DRAFT
+  OPEN
+  SUBMITTED
+  WON
+  LOST
+  CANCELLED
+
+  @@map("tender_status")
+}
+
 enum CustomerType {
   COMPANY
   INDIVIDUAL
@@ -335,6 +346,7 @@ model Organization {
   customerDocuments      CustomerDocument[]
   opportunities          Opportunity[]
   opportunityInterests   OpportunityProductInterest[]
+  tenders                Tender[]
 
   @@index([status])
   @@map("organizations")
@@ -389,6 +401,9 @@ model User {
   opportunitiesCreated      Opportunity[]           @relation("OpportunityCreatedBy")
   opportunitiesUpdated      Opportunity[]           @relation("OpportunityUpdatedBy")
   opportunityInterestsCreated OpportunityProductInterest[] @relation("OpportunityInterestCreatedBy")
+  tendersOwned              Tender[]                @relation("TenderOwner")
+  tendersCreated            Tender[]                @relation("TenderCreatedBy")
+  tendersUpdated            Tender[]                @relation("TenderUpdatedBy")
 
   @@index([status])
   @@map("users")
@@ -540,6 +555,7 @@ model Currency {
   resellers     Reseller[]
   productPrices ProductPrice[]
   opportunities Opportunity[]
+  tenders       Tender[]
   baseRates     ExchangeRate[] @relation("ExchangeRateBase")
   quoteRates    ExchangeRate[] @relation("ExchangeRateQuote")
 
@@ -718,6 +734,7 @@ model Customer {
   supportTickets   CustomerSupportTicket[]
   documents        CustomerDocument[]
   opportunities    Opportunity[]
+  tenders          Tender[]
 
   @@index([organizationId, createdAt, id])
   @@index([organizationId, status, createdAt])
@@ -792,6 +809,7 @@ model Contact {
   customer        Customer                        @relation(fields: [customerId], references: [id])
   roleAssignments CustomerContactRoleAssignment[]
   opportunities   Opportunity[]
+  tenders         Tender[]
   createdBy       User                            @relation("ContactCreatedBy", fields: [createdById], references: [id])
   updatedBy       User                            @relation("ContactUpdatedBy", fields: [updatedById], references: [id])
 
@@ -1126,6 +1144,49 @@ model ProductPrice {
   @@index([organizationId, productId, priceType, effectiveDate])
   @@index([organizationId, priceListCode, currencyCode])
   @@map("product_prices")
+}
+
+/// Formal bid or tender submitted to a customer. The buyer's own reference is
+/// kept separately from the internal TND document number.
+model Tender {
+  id                   String       @id @default(uuid()) @db.Uuid
+  organizationId       String       @map("organization_id") @db.Uuid
+  tenderNumber         String       @map("tender_number") @db.VarChar(32)
+  title                String       @db.VarChar(200)
+  description          String?      @db.VarChar(4000)
+  referenceNumber      String?      @map("reference_number") @db.VarChar(120)
+  status               TenderStatus @default(DRAFT)
+  customerId           String       @map("customer_id") @db.Uuid
+  contactId            String?      @map("contact_id") @db.Uuid
+  ownerUserId          String       @map("owner_user_id") @db.Uuid
+  estimatedValue       Decimal      @default(0) @map("estimated_value") @db.Decimal(19, 4)
+  currencyCode         String       @map("currency_code") @db.Char(3)
+  exchangeRateToBase   Decimal?     @map("exchange_rate_to_base") @db.Decimal(19, 8)
+  estimatedValueBase   Decimal?     @map("estimated_value_base") @db.Decimal(19, 4)
+  baseCurrencyCode     String?      @map("base_currency_code") @db.Char(3)
+  submissionDeadline   DateTime?    @map("submission_deadline") @db.Timestamptz(6)
+  expectedAwardDate    DateTime?    @map("expected_award_date") @db.Date
+  notes                String?      @db.VarChar(4000)
+  createdById          String       @map("created_by_id") @db.Uuid
+  updatedById          String       @map("updated_by_id") @db.Uuid
+  deletedAt            DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  contact      Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  owner        User         @relation("TenderOwner", fields: [ownerUserId], references: [id])
+  currency     Currency     @relation(fields: [currencyCode], references: [code])
+  createdBy    User         @relation("TenderCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User         @relation("TenderUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, status, submissionDeadline])
+  @@index([organizationId, customerId, createdAt])
+  @@index([organizationId, ownerUserId, status])
+  @@index([organizationId, submissionDeadline])
+  @@map("tenders")
 }
 
 /// CRM pipeline record. Prospects live here until converted to a Customer.

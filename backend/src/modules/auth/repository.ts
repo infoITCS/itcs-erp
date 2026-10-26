@@ -13,6 +13,9 @@ export type AuthStore = Pick<
   | "savePasswordReset"
   | "findPasswordReset"
   | "completePasswordReset"
+  | "updatePassword"
+  | "revokeAllRefreshTokens"
+  | "findOrProvisionMicrosoftUser"
 >;
 
 export interface AuthUserRecord {
@@ -48,6 +51,15 @@ export interface NewRefreshToken {
   expiresAt: Date;
   ipAddress: string | null;
   userAgent: string | null;
+}
+
+export interface MicrosoftProvisionInput {
+  email: string;
+  firstName: string;
+  lastName: string;
+  passwordHash: string;
+  organizationCode: string;
+  defaultRoleCode: string;
 }
 
 export class AuthRepository extends BaseRepository {
@@ -227,5 +239,104 @@ export class AuthRepository extends BaseRepository {
         data: { revokedAt: now },
       });
     });
+  }
+
+  async updatePassword(userId: string, passwordHash: string): Promise<void> {
+    const now = new Date();
+    await this.transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          passwordHash,
+          passwordChangedAt: now,
+          failedLoginCount: 0,
+        },
+      });
+      await tx.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: now },
+      });
+    });
+  }
+
+  async findOrProvisionMicrosoftUser(input: MicrosoftProvisionInput): Promise<AuthUserRecord | null> {
+    await this.transaction(async (tx) => {
+      const organization = await tx.organization.findUnique({
+        where: { code: input.organizationCode },
+        select: { id: true, status: true },
+      });
+      if (!organization || organization.status !== "ACTIVE") {
+        throw new Error("Organization is not available for Microsoft sign-in");
+      }
+
+      const role = await tx.role.findUnique({
+        where: {
+          organizationId_code: {
+            organizationId: organization.id,
+            code: input.defaultRoleCode,
+          },
+        },
+        select: { id: true },
+      });
+      if (!role) {
+        throw new Error("Microsoft default role is not configured");
+      }
+
+      const existing = await tx.user.findUnique({
+        where: { email: input.email },
+        select: { id: true, status: true },
+      });
+
+      if (!existing) {
+        await tx.user.create({
+          data: {
+            email: input.email,
+            passwordHash: input.passwordHash,
+            firstName: input.firstName,
+            lastName: input.lastName,
+            status: AccountStatus.ACTIVE,
+            memberships: {
+              create: { organizationId: organization.id, status: AccountStatus.ACTIVE },
+            },
+            userRoles: { create: [{ roleId: role.id }] },
+          },
+        });
+        return;
+      }
+
+      const membership = await tx.organizationMember.findUnique({
+        where: {
+          organizationId_userId: {
+            organizationId: organization.id,
+            userId: existing.id,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (!membership) {
+        await tx.organizationMember.create({
+          data: {
+            organizationId: organization.id,
+            userId: existing.id,
+            status:
+              existing.status === AccountStatus.ACTIVE
+                ? AccountStatus.ACTIVE
+                : AccountStatus.INACTIVE,
+          },
+        });
+        const existingRole = await tx.userRole.findFirst({
+          where: { userId: existing.id, role: { organizationId: organization.id } },
+          select: { userId: true },
+        });
+        if (!existingRole) {
+          await tx.userRole.create({
+            data: { userId: existing.id, roleId: role.id },
+          });
+        }
+      }
+    });
+
+    return this.findByEmail(input.email);
   }
 }

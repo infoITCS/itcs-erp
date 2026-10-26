@@ -23,6 +23,7 @@ export interface AuthSessionUser {
   lastName: string;
   organizationId: string;
   roles: string[];
+  permissions: string[];
 }
 
 export interface LoginResult {

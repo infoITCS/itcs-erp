@@ -1,7 +1,9 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "@/components/layouts/AppLayout.tsx";
 import { LoginPage } from "@/features/auth/index.tsx";
+import { MicrosoftCallbackPage } from "@/features/auth/callback.tsx";
+import { useHasPermission } from "@/hooks/useSession.ts";
 import { GuestOnly, RequireAuth } from "./RequireAuth.tsx";
 import { navItems } from "./nav.tsx";
 
@@ -13,9 +15,19 @@ const ResellerFormPage = lazy(() => import("@/features/resellers/form-page.tsx")
 const ResellerDetailPage = lazy(() => import("@/features/resellers/detail-page.tsx"));
 const OpportunityFormPage = lazy(() => import("@/features/opportunities/form-page.tsx"));
 const OpportunityDetailPage = lazy(() => import("@/features/opportunities/detail-page.tsx"));
+const TenderFormPage = lazy(() => import("@/features/tenders/form-page.tsx"));
+const TenderDetailPage = lazy(() => import("@/features/tenders/detail-page.tsx"));
 
 function PageLoading() {
   return <p className="text-sm text-slate-500">Loading page…</p>;
+}
+
+function RequirePermission({ permission, children }: { permission: string; children: ReactNode }) {
+  const allowed = useHasPermission(permission);
+  if (!allowed) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
 }
 
 function NotFoundPage() {
@@ -31,6 +43,7 @@ export function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/auth/callback" element={<MicrosoftCallbackPage />} />
         <Route
           path="/login"
           element={
@@ -47,7 +60,13 @@ export function AppRouter() {
                 path={item.path}
                 element={
                   <Suspense fallback={<PageLoading />}>
-                    <item.page />
+                    {item.permission ? (
+                      <RequirePermission permission={item.permission}>
+                        <item.page />
+                      </RequirePermission>
+                    ) : (
+                      <item.page />
+                    )}
                   </Suspense>
                 }
               />
@@ -121,6 +140,30 @@ export function AppRouter() {
               element={
                 <Suspense fallback={<PageLoading />}>
                   <OpportunityDetailPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/tenders/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <TenderFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/tenders/:id/edit"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <TenderFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/tenders/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <TenderDetailPage />
                 </Suspense>
               }
             />

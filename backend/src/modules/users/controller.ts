@@ -1,10 +1,9 @@
 import type { Request, Response } from "express";
-import type { ListQuery } from "../../common/pagination/list-query";
 import { asyncHandler } from "../../common/utils/async-handler";
 import { sendSuccess } from "../../common/utils/api-response";
 import { UnauthorizedError } from "../../common/errors/app-error";
 import type { RequestMeta } from "../auth/types";
-import type { CreateUserInput, UsersService } from "./service";
+import type { CreateUserInput, UpdateUserInput, UserListInput, UsersService } from "./service";
 import type { AccountStatus } from "@prisma/client";
 
 function meta(req: Request): RequestMeta {
@@ -25,9 +24,14 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   list = asyncHandler(async (req: Request, res: Response) => {
-    const query = req.validated?.query as ListQuery;
-    const page = await this.usersService.list(organizationId(req), query.limit, query.cursor);
+    const query = req.validated?.query as UserListInput;
+    const page = await this.usersService.list(organizationId(req), query);
     sendSuccess(res, { message: "Users", data: page });
+  });
+
+  stats = asyncHandler(async (req: Request, res: Response) => {
+    const stats = await this.usersService.stats(organizationId(req));
+    sendSuccess(res, { message: "User statistics", data: stats });
   });
 
   get = asyncHandler(async (req: Request, res: Response) => {
@@ -42,6 +46,19 @@ export class UsersController {
     sendSuccess(res, { message: "User created", data: user }, 201);
   });
 
+  update = asyncHandler(async (req: Request, res: Response) => {
+    const params = req.validated?.params as { id: string };
+    const body = req.validated?.body as UpdateUserInput;
+    const user = await this.usersService.update(
+      organizationId(req),
+      req.auth?.userId ?? "",
+      params.id,
+      body,
+      meta(req),
+    );
+    sendSuccess(res, { message: "User updated", data: user });
+  });
+
   updateStatus = asyncHandler(async (req: Request, res: Response) => {
     const params = req.validated?.params as { id: string };
     const body = req.validated?.body as { status: AccountStatus };
@@ -53,5 +70,29 @@ export class UsersController {
       meta(req),
     );
     sendSuccess(res, { message: "User status updated", data: user });
+  });
+
+  deactivate = asyncHandler(async (req: Request, res: Response) => {
+    const params = req.validated?.params as { id: string };
+    await this.usersService.deactivate(
+      organizationId(req),
+      req.auth?.userId ?? "",
+      params.id,
+      meta(req),
+    );
+    sendSuccess(res, { message: "User access removed" });
+  });
+
+  resetPassword = asyncHandler(async (req: Request, res: Response) => {
+    const params = req.validated?.params as { id: string };
+    const body = req.validated?.body as { newPassword: string };
+    const user = await this.usersService.resetPassword(
+      organizationId(req),
+      req.auth?.userId ?? "",
+      params.id,
+      body.newPassword,
+      meta(req),
+    );
+    sendSuccess(res, { message: "Password reset", data: user });
   });
 }

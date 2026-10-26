@@ -1,0 +1,55 @@
+name: ITCS ERP AI Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  qa-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Backend CI (Prisma, Lint, Test)
+        run: |
+          cd backend
+          npm install
+          npx prisma generate
+          npm run lint
+          npm test
+
+      - name: Frontend CI (Types, Lint)
+        run: |
+          cd frontend
+          npm install
+          npm run lint
+          npx tsc -b
+
+  codeql:
+    name: CodeQL Security Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:javascript-typescript

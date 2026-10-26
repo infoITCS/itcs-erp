@@ -58,6 +58,35 @@ describe("authentication service", () => {
     assert.equal(JSON.stringify(audits[0]?.newValues).includes("wrong-password"), false);
   });
 
+  it("does not complete a password reset for an inactive account", async () => {
+    const audits: AuditEntry[] = [];
+    let completed = false;
+    const service = new AuthService(
+      fakeStore(user({ status: AccountStatus.INACTIVE }), {
+        async findPasswordReset() {
+          return {
+            id: "reset-id",
+            userId: "6f0b9c3e-1c0a-4f0a-9c1e-6d5b2a9e8f11",
+            expiresAt: new Date(Date.now() + 60_000),
+            usedAt: null,
+          };
+        },
+        async completePasswordReset() {
+          completed = true;
+        },
+      }),
+      recorder(audits),
+    );
+
+    await assert.rejects(() =>
+      service.confirmPasswordReset(
+        { token: "reset-token", password: "another-long-password" },
+        meta,
+      ),
+    );
+    assert.equal(completed, false);
+  });
+
   it("returns an access token and records last-login success", async () => {
     const passwordHash = await hashPassword("correct-horse");
     const audits: AuditEntry[] = [];
@@ -122,6 +151,15 @@ function fakeStore(
     },
     async completePasswordReset() {
       return undefined;
+    },
+    async updatePassword() {
+      return undefined;
+    },
+    async revokeAllRefreshTokens() {
+      return undefined;
+    },
+    async findOrProvisionMicrosoftUser() {
+      return record;
     },
     ...overrides,
   };

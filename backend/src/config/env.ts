@@ -16,10 +16,20 @@ const envSchema = z.object({
   JWT_REFRESH_TTL: z.string().min(1).default("7d"),
   BCRYPT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
   CORS_ORIGIN: z.string().min(1).default("http://localhost:5173"),
+  FRONTEND_URL: z.string().url().default("http://localhost:5173"),
+  API_PUBLIC_URL: z.string().url().default("http://localhost:4000"),
+  DEFAULT_ORGANIZATION_CODE: z.string().trim().min(1).max(32).default("ITCS"),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(900_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(300),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
   TRUST_PROXY: z.enum(["true", "false"]).default("false"),
+  MICROSOFT_TENANT_ID: z.string().trim().min(1).optional(),
+  MICROSOFT_CLIENT_ID: z.string().trim().min(1).optional(),
+  MICROSOFT_CLIENT_SECRET: z.string().trim().min(1).optional(),
+  MICROSOFT_REDIRECT_URI: z.string().url().optional(),
+  MICROSOFT_ALLOWED_DOMAIN: z.string().trim().min(1).default("itcs.com.pk"),
+  MICROSOFT_AUTO_PROVISION: z.enum(["true", "false"]).default("true"),
+  MICROSOFT_DEFAULT_ROLE: z.string().trim().min(1).max(64).default("viewer"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -34,6 +44,15 @@ export const env = {
   ...parsed.data,
   isProduction: parsed.data.NODE_ENV === "production",
   trustProxy: parsed.data.TRUST_PROXY === "true",
+  microsoftConfigured: Boolean(
+    parsed.data.MICROSOFT_TENANT_ID &&
+      parsed.data.MICROSOFT_CLIENT_ID &&
+      parsed.data.MICROSOFT_CLIENT_SECRET,
+  ),
+  microsoftRedirectUri:
+    parsed.data.MICROSOFT_REDIRECT_URI ??
+    `${parsed.data.API_PUBLIC_URL}/api/v1/auth/microsoft/callback`,
+  microsoftAutoProvision: parsed.data.MICROSOFT_AUTO_PROVISION === "true",
 };
 
 export type AppEnv = typeof env;

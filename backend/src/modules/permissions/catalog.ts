@@ -4,7 +4,8 @@ export const PHASE1_PERMISSIONS = [
   { module: "organizations", action: "read", description: "View organizations" },
   { module: "users", action: "read", description: "View users" },
   { module: "users", action: "create", description: "Create users" },
-  { module: "users", action: "update", description: "Update users and account status" },
+  { module: "users", action: "update", description: "Update users, roles, account status, and passwords" },
+  { module: "users", action: "delete", description: "Remove a user's access to the organization" },
   { module: "roles", action: "read", description: "View roles" },
   { module: "permissions", action: "read", description: "View the permission catalog" },
   { module: "audit-logs", action: "read", description: "View the audit log" },
@@ -35,6 +36,11 @@ export const PHASE1_PERMISSIONS = [
   { module: "opportunities", action: "update", description: "Update opportunities, stages, conversion, and product interests" },
   { module: "opportunities", action: "delete", description: "Soft-delete opportunities" },
   { module: "opportunities", action: "restore", description: "Restore soft-deleted opportunities" },
+  { module: "tenders", action: "read", description: "View tenders" },
+  { module: "tenders", action: "create", description: "Create tenders" },
+  { module: "tenders", action: "update", description: "Update tenders" },
+  { module: "tenders", action: "delete", description: "Soft-delete tenders" },
+  { module: "tenders", action: "restore", description: "Restore soft-deleted tenders" },
 ] as const;
 
 export const PHASE1_PERMISSION_CODES = PHASE1_PERMISSIONS.map((permission) =>

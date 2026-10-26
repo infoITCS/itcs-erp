@@ -13,7 +13,6 @@ import type {
   RequestMeta,
 } from "./types";
 import { env } from "../../config/env";
-import { logger } from "../../common/logging/logger";
 
 const INVALID_LOGIN = "Invalid email or password";
 
@@ -58,7 +57,7 @@ export class AuthService {
     }
 
     await this.repository.recordSuccessfulLogin(user.id);
-    const session = await this.issueSession(
+    const session = await this.issueSessionForUser(
       {
         id: user.id,
         email: user.email,
@@ -90,7 +89,7 @@ export class AuthService {
     }
 
     await this.repository.revokeRefreshToken(stored.id);
-    return this.issueSession(
+    return this.issueSessionForUser(
       {
         id: user.id,
         email: user.email,
@@ -111,6 +110,32 @@ export class AuthService {
     }
   }
 
+  async logoutAll(userId: string): Promise<void> {
+    await this.repository.revokeAllRefreshTokens(userId);
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    meta: RequestMeta,
+  ): Promise<void> {
+    const user = await this.repository.findById(userId);
+    if (!user) {
+      throw new UnauthorizedError();
+    }
+
+    const matches = await verifyPassword(currentPassword, user.passwordHash);
+    if (!matches) {
+      throw new ValidationFailedError({ currentPassword: ["Current password is incorrect"] });
+    }
+
+    await this.repository.updatePassword(user.id, await hashPassword(newPassword));
+    await this.audit.record(
+      this.loginAudit(user.organizationId, user.id, "auth.password.changed", meta, {}),
+    );
+  }
+
   async requestPasswordReset(email: string, meta: RequestMeta): Promise<void> {
     const user = await this.repository.findByEmail(email.toLowerCase());
     if (!user || user.status === AccountStatus.INACTIVE) {
@@ -123,9 +148,6 @@ export class AuthService {
       hashOpaqueToken(token),
       new Date(Date.now() + PASSWORD_RESET_TTL_MS),
     );
-    if (!env.isProduction) {
-      logger.info({ email: user.email, resetToken: token }, "password reset token issued");
-    }
     await this.audit.record(
       this.loginAudit(user.organizationId, user.id, "auth.password-reset.requested", meta, {}),
     );
@@ -136,6 +158,10 @@ export class AuthService {
     if (!stored || stored.usedAt || stored.expiresAt.getTime() <= Date.now()) {
       throw new ValidationFailedError({ token: ["Reset token is invalid or expired"] });
     }
+    const user = await this.repository.findById(stored.userId);
+    if (!user || user.status === AccountStatus.INACTIVE) {
+      throw new ValidationFailedError({ token: ["Reset token is invalid or expired"] });
+    }
 
     const passwordHash = await hashPassword(input.password);
     await this.repository.completePasswordReset(stored.userId, stored.id, passwordHash);
@@ -144,7 +170,7 @@ export class AuthService {
     );
   }
 
-  private async issueSession(
+  async issueSessionForUser(
     user: AuthUserRecordActive,
     meta: RequestMeta,
   ): Promise<LoginResult> {
@@ -173,6 +199,7 @@ export class AuthService {
         lastName: user.lastName,
         organizationId: user.organizationId,
         roles: user.roles,
+        permissions: user.permissions,
       },
     };
   }

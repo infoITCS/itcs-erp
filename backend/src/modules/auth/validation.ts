@@ -17,3 +17,17 @@ export const passwordResetConfirmSchema = z.object({
   token: z.string().min(20).max(512),
   password: z.string().min(12).max(128),
 });
+
+export const microsoftExchangeSchema = z.object({
+  ticket: z.string().min(20).max(512),
+});
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(8).max(128),
+    newPassword: z.string().min(12).max(128),
+  })
+  .refine((value) => value.currentPassword !== value.newPassword, {
+    path: ["newPassword"],
+    message: "Use a password that is different from the current one",
+  });
