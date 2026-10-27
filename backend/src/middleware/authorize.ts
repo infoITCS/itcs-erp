@@ -17,3 +17,20 @@ export function requirePermission(...required: string[]) {
     next();
   };
 }
+
+export function requireAnyPermission(...required: string[]) {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    if (!req.auth) {
+      next(new UnauthorizedError());
+      return;
+    }
+
+    const allowed = required.some((code) => req.auth?.permissions.includes(code));
+    if (!allowed) {
+      next(new ForbiddenError());
+      return;
+    }
+
+    next();
+  };
+}

@@ -4,12 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { DOCUMENT_PREFIX, DOCUMENT_TYPES } from "../src/common/numbering/format";
 import { hashPassword } from "../src/modules/auth/password";
-import {
-  PHASE1_PERMISSION_CODES,
-  PHASE1_PERMISSIONS,
-  VIEWER_PERMISSION_CODES,
-} from "../src/modules/permissions/catalog";
-import { permissionCode } from "../src/modules/permissions/types";
+import { syncRbacCatalog } from "../src/modules/permissions/bootstrap";
 import { CUSTOMER_PAYMENT_TERMS } from "../src/modules/customers/payment-terms";
 
 const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
@@ -99,47 +94,11 @@ async function main(): Promise<void> {
     });
   }
 
-  for (const permission of PHASE1_PERMISSIONS) {
-    const code = permissionCode(permission.module, permission.action);
-    await prisma.permission.upsert({
-      where: { code },
-      update: { description: permission.description, module: permission.module, action: permission.action },
-      create: { code, module: permission.module, action: permission.action, description: permission.description },
-    });
-  }
+  await syncRbacCatalog(prisma);
 
-  const permissionRows = await prisma.permission.findMany({
-    where: { code: { in: [...PHASE1_PERMISSION_CODES] } },
-    select: { id: true, code: true },
-  });
-  const permissionId = new Map(permissionRows.map((row) => [row.code, row.id]));
-
-  const adminRole = await prisma.role.upsert({
+  const adminRole = await prisma.role.findUniqueOrThrow({
     where: { organizationId_code: { organizationId: organization.id, code: "admin" } },
-    update: { name: "Administrator", description: "Full access to Phase 1 modules", isSystem: true },
-    create: {
-      organizationId: organization.id,
-      code: "admin",
-      name: "Administrator",
-      description: "Full access to Phase 1 modules",
-      isSystem: true,
-    },
   });
-
-  const viewerRole = await prisma.role.upsert({
-    where: { organizationId_code: { organizationId: organization.id, code: "viewer" } },
-    update: { name: "Viewer", description: "Read-only access to Phase 1 modules", isSystem: true },
-    create: {
-      organizationId: organization.id,
-      code: "viewer",
-      name: "Viewer",
-      description: "Read-only access to Phase 1 modules",
-      isSystem: true,
-    },
-  });
-
-  await replaceRolePermissions(adminRole.id, PHASE1_PERMISSION_CODES, permissionId);
-  await replaceRolePermissions(viewerRole.id, VIEWER_PERMISSION_CODES, permissionId);
 
   const passwordHash = await hashPassword(adminPassword);
   const admin = await prisma.user.upsert({
@@ -255,20 +214,6 @@ async function main(): Promise<void> {
       },
     });
   }
-}
-
-async function replaceRolePermissions(
-  roleId: string,
-  codes: readonly string[],
-  permissionId: Map<string, string>,
-): Promise<void> {
-  await prisma.rolePermission.deleteMany({ where: { roleId } });
-  await prisma.rolePermission.createMany({
-    data: codes.map((code) => ({
-      roleId,
-      permissionId: permissionId.get(code) as string,
-    })),
-  });
 }
 
 main()

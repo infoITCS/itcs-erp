@@ -115,8 +115,11 @@ function RolePicker({
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-sm font-medium text-slate-700">Roles</p>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-slate-700">Roles</p>
+        <span className="text-[11px] text-slate-500">{selected.length} selected</span>
+      </div>
+      <div className="grid max-h-64 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
         {roles.map((role) => {
           const checked = selected.includes(role.code);
           return (
@@ -140,6 +143,11 @@ function RolePicker({
                 <span className="block text-sm font-medium text-slate-800">{role.name}</span>
                 <span className="mt-0.5 block text-[11px] leading-relaxed text-slate-500">
                   {role.description ?? role.code}
+                </span>
+                <span className="mt-1 flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+                  <span>{role.isSystem ? "System" : "Custom"}</span>
+                  <span className="h-0.5 w-0.5 rounded-full bg-slate-400" />
+                  <span>{role.permissions.length} permissions</span>
                 </span>
               </span>
             </label>

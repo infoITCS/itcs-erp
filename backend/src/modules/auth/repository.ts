@@ -1,5 +1,6 @@
 import { AccountStatus, type PrismaClient } from "@prisma/client";
 import { BaseRepository } from "../../common/database/base-repository";
+import { ADMIN_PERMISSION_CODES } from "../permissions/catalog";
 
 export type AuthStore = Pick<
   AuthRepository,
@@ -141,13 +142,15 @@ export class AuthRepository extends BaseRepository {
     });
 
     const roles = assignments.map((assignment) => assignment.role.code);
-    const permissions = [
-      ...new Set(
-        assignments.flatMap((assignment) =>
-          assignment.role.rolePermissions.map((link) => link.permission.code),
-        ),
-      ),
-    ];
+    const permissions = roles.includes("admin")
+      ? [...ADMIN_PERMISSION_CODES]
+      : [
+          ...new Set(
+            assignments.flatMap((assignment) =>
+              assignment.role.rolePermissions.map((link) => link.permission.code),
+            ),
+          ),
+        ];
 
     return { roles, permissions };
   }
