@@ -37,6 +37,12 @@ export const PERMISSION_MODULES = {
     description: "Company performance and operational summaries",
     sortOrder: 10,
   },
+  leads: {
+    name: "Leads",
+    group: "CRM",
+    description: "Lead capture, qualification, conversion, and source analytics",
+    sortOrder: 19,
+  },
   customers: {
     name: "Customers",
     group: "CRM",
@@ -246,6 +252,7 @@ const documentActions = ["read", "create", "update", "delete", "restore", "appro
 
 export const ERP_PERMISSIONS: PermissionDefinition[] = [
   ...definePermissions("dashboard", ["read"]),
+  ...definePermissions("leads", standardActions),
   ...definePermissions("customers", standardActions),
   ...definePermissions("contacts", standardActions),
   ...definePermissions("opportunities", standardActions),
@@ -309,6 +316,7 @@ function codesFor(
 }
 
 const crmBasic = codesFor({
+  leads: ["read", "create", "update"],
   customers: ["read", "create", "update"],
   contacts: ["read", "create", "update"],
   opportunities: ["read", "create", "update"],
@@ -354,6 +362,7 @@ export const ROLE_PRESETS: RolePreset[] = [
     permissions: uniqueCodes([
       ...READ_PERMISSION_CODES,
       ...codesFor({
+        leads: standardActions,
         customers: standardActions,
         contacts: standardActions,
         opportunities: standardActions,
@@ -381,6 +390,7 @@ export const ROLE_PRESETS: RolePreset[] = [
     description: "Manages the sales pipeline, quotations, orders, and customer relationships.",
     permissions: uniqueCodes([
       ...codesFor({
+        leads: standardActions,
         customers: standardActions,
         contacts: standardActions,
         opportunities: standardActions,
@@ -409,6 +419,7 @@ export const ROLE_PRESETS: RolePreset[] = [
     description: "Develops customer relationships, opportunities, resellers, and tenders.",
     permissions: uniqueCodes([
       ...codesFor({
+        leads: ["read", "create", "update"],
         customers: ["read", "create", "update"],
         contacts: ["read", "create", "update"],
         opportunities: ["read", "create", "update"],
@@ -426,6 +437,7 @@ export const ROLE_PRESETS: RolePreset[] = [
     description: "Owns tender submissions, bid deadlines, and related customer records.",
     permissions: uniqueCodes([
       ...codesFor({
+        leads: ["read", "create", "update"],
         customers: ["read"],
         contacts: ["read"],
         products: ["read"],
@@ -537,6 +549,7 @@ export const ROLE_PRESETS: RolePreset[] = [
     description: "Supports customers with contact updates, tasks, and notifications.",
     permissions: uniqueCodes([
       ...codesFor({
+        leads: ["read", "update"],
         customers: ["read", "update"],
         contacts: ["read", "create", "update"],
         tasks: ["read", "create", "update"],

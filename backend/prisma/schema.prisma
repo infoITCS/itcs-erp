@@ -42,8 +42,20 @@ enum DocumentType {
   PRODUCT
   RESELLER
   OPPORTUNITY
+  LEAD
 
   @@map("document_type")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  UNQUALIFIED
+  CONVERTED
+  WON
+
+  @@map("lead_status")
 }
 
 enum OpportunityStage {
@@ -347,6 +359,7 @@ model Organization {
   opportunities          Opportunity[]
   opportunityInterests   OpportunityProductInterest[]
   tenders                Tender[]
+  leads                  Lead[]
 
   @@index([status])
   @@map("organizations")
@@ -404,6 +417,9 @@ model User {
   tendersOwned              Tender[]                @relation("TenderOwner")
   tendersCreated            Tender[]                @relation("TenderCreatedBy")
   tendersUpdated            Tender[]                @relation("TenderUpdatedBy")
+  leadsOwned                Lead[]                  @relation("LeadOwner")
+  leadsCreated              Lead[]                  @relation("LeadCreatedBy")
+  leadsUpdated              Lead[]                  @relation("LeadUpdatedBy")
 
   @@index([status])
   @@map("users")
@@ -556,6 +572,7 @@ model Currency {
   productPrices ProductPrice[]
   opportunities Opportunity[]
   tenders       Tender[]
+  leads         Lead[]
   baseRates     ExchangeRate[] @relation("ExchangeRateBase")
   quoteRates    ExchangeRate[] @relation("ExchangeRateQuote")
 
@@ -735,6 +752,7 @@ model Customer {
   documents        CustomerDocument[]
   opportunities    Opportunity[]
   tenders          Tender[]
+  convertedLeads   Lead[]                  @relation("LeadConvertedCustomer")
 
   @@index([organizationId, createdAt, id])
   @@index([organizationId, status, createdAt])
@@ -810,6 +828,7 @@ model Contact {
   roleAssignments CustomerContactRoleAssignment[]
   opportunities   Opportunity[]
   tenders         Tender[]
+  convertedLeads  Lead[]                          @relation("LeadConvertedContact")
   createdBy       User                            @relation("ContactCreatedBy", fields: [createdById], references: [id])
   updatedBy       User                            @relation("ContactUpdatedBy", fields: [updatedById], references: [id])
 
@@ -1189,6 +1208,62 @@ model Tender {
   @@map("tenders")
 }
 
+/// Early-stage enquiry. A qualified lead converts into a customer account,
+/// contact, and opportunity; the conversion keeps the original lead reference.
+model Lead {
+  id                 String             @id @default(uuid()) @db.Uuid
+  organizationId     String             @map("organization_id") @db.Uuid
+  leadNumber         String             @map("lead_number") @db.VarChar(32)
+  firstName          String             @map("first_name") @db.VarChar(100)
+  lastName           String             @map("last_name") @db.VarChar(100)
+  displayName        String             @map("display_name") @db.VarChar(200)
+  companyName        String?            @map("company_name") @db.VarChar(200)
+  jobTitle           String?            @map("job_title") @db.VarChar(120)
+  email              String?            @db.VarChar(320)
+  phone              String?            @db.VarChar(40)
+  website            String?            @db.VarChar(200)
+  countryCode        String             @map("country_code") @db.Char(2)
+  currencyCode       String             @map("currency_code") @db.Char(3)
+  source             CustomerLeadSource @map("source")
+  status             LeadStatus         @default(NEW)
+  priority           CustomerPriority   @default(NORMAL)
+  estimatedValue     Decimal            @default(0) @map("estimated_value") @db.Decimal(19, 4)
+  ownerUserId        String             @map("owner_user_id") @db.Uuid
+  nextAction         String?            @map("next_action") @db.VarChar(500)
+  nextActionDueAt    DateTime?          @map("next_action_due_at") @db.Timestamptz(6)
+  description        String?            @db.VarChar(4000)
+  notes              String?            @db.VarChar(4000)
+  qualifiedAt        DateTime?          @map("qualified_at") @db.Timestamptz(6)
+  unqualifiedAt      DateTime?          @map("unqualified_at") @db.Timestamptz(6)
+  unqualifiedReason  String?            @map("unqualified_reason") @db.VarChar(500)
+  convertedAt        DateTime?          @map("converted_at") @db.Timestamptz(6)
+  wonAt              DateTime?          @map("won_at") @db.Timestamptz(6)
+  convertedCustomerId String?           @map("converted_customer_id") @db.Uuid
+  convertedContactId String?            @map("converted_contact_id") @db.Uuid
+  createdById        String             @map("created_by_id") @db.Uuid
+  updatedById        String             @map("updated_by_id") @db.Uuid
+  deletedAt          DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  currency          Currency     @relation(fields: [currencyCode], references: [code])
+  owner             User         @relation("LeadOwner", fields: [ownerUserId], references: [id])
+  convertedCustomer Customer?    @relation("LeadConvertedCustomer", fields: [convertedCustomerId], references: [id], onDelete: SetNull)
+  convertedContact  Contact?     @relation("LeadConvertedContact", fields: [convertedContactId], references: [id], onDelete: SetNull)
+  createdBy         User         @relation("LeadCreatedBy", fields: [createdById], references: [id])
+  updatedBy         User         @relation("LeadUpdatedBy", fields: [updatedById], references: [id])
+  opportunity       Opportunity?
+
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, source, createdAt])
+  @@index([organizationId, ownerUserId, status])
+  @@index([organizationId, email])
+  @@index([organizationId, nextActionDueAt])
+  @@map("leads")
+}
+
 /// CRM pipeline record. Prospects live here until converted to a Customer.
 model Opportunity {
   id                   String                 @id @default(uuid()) @db.Uuid
@@ -1200,6 +1275,7 @@ model Opportunity {
   customerId           String?                @map("customer_id") @db.Uuid
   contactId            String?                @map("contact_id") @db.Uuid
   resellerId           String?                @map("reseller_id") @db.Uuid
+  leadId               String?                @unique @map("lead_id") @db.Uuid
   ownerUserId          String                 @map("owner_user_id") @db.Uuid
   leadSource           CustomerLeadSource?    @map("lead_source")
   estimatedValue       Decimal                @default(0) @map("estimated_value") @db.Decimal(19, 4)
@@ -1234,6 +1310,7 @@ model Opportunity {
   customer     Customer?                    @relation(fields: [customerId], references: [id])
   contact      Contact?                     @relation(fields: [contactId], references: [id])
   reseller     Reseller?                    @relation(fields: [resellerId], references: [id])
+  lead         Lead?                        @relation(fields: [leadId], references: [id], onDelete: SetNull)
   owner        User                         @relation("OpportunityOwner", fields: [ownerUserId], references: [id])
   currency     Currency                     @relation(fields: [currencyCode], references: [code])
   createdBy    User                         @relation("OpportunityCreatedBy", fields: [createdById], references: [id])

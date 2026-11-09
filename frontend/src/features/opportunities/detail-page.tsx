@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import { listCustomers } from "@/features/customers/api.ts";
+import { leadStatusLabel } from "@/features/leads/api.ts";
 import { listProducts } from "@/features/products/api.ts";
 import { stageLabel } from "./index.tsx";
 import {
@@ -360,6 +361,20 @@ export default function OpportunityDetailPage() {
                   )}
                 </dd>
               </div>
+              {data.lead ? (
+                <div>
+                  <dt className="text-xs text-slate-500">Lead reference</dt>
+                  <dd className="mt-0.5 text-sm text-slate-800">
+                    <Link className="font-medium text-teal-800 underline-offset-2 hover:underline" to={`/leads/${data.lead.id}`}>
+                      {data.lead.leadNumber}
+                    </Link>
+                    <span className="text-slate-500">
+                      {" "}
+                      · {data.lead.displayName} · {leadStatusLabel(data.lead.status)}
+                    </span>
+                  </dd>
+                </div>
+              ) : null}
               {data.contact ? (
                 <div>
                   <dt className="text-xs text-slate-500">Contact</dt>

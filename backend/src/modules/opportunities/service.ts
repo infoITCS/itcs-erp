@@ -249,6 +249,9 @@ export class OpportunitiesService {
     if (!updated) {
       throw new NotFoundError("Opportunity not found");
     }
+    if (existing.leadId) {
+      await this.repository.syncLeadWon(organizationId, existing.leadId, actorId, true);
+    }
     await this.record(
       organizationId,
       actorId,
@@ -311,6 +314,9 @@ export class OpportunitiesService {
     const updated = await this.repository.reopen(organizationId, id, actorId, stage, probabilityPercent);
     if (!updated) {
       throw new NotFoundError("Opportunity not found");
+    }
+    if (existing.leadId) {
+      await this.repository.syncLeadWon(organizationId, existing.leadId, actorId, false);
     }
     await this.record(
       organizationId,

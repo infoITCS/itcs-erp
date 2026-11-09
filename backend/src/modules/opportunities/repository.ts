@@ -19,6 +19,7 @@ const opportunitySelect = {
   customerId: true,
   contactId: true,
   resellerId: true,
+  leadId: true,
   ownerUserId: true,
   leadSource: true,
   estimatedValue: true,
@@ -51,6 +52,7 @@ const opportunitySelect = {
   customer: { select: { id: true, customerNumber: true, displayName: true, status: true, email: true } },
   contact: { select: { id: true, displayName: true, email: true } },
   reseller: { select: { id: true, displayName: true } },
+  lead: { select: { id: true, leadNumber: true, displayName: true, status: true, source: true } },
   owner: { select: { id: true, firstName: true, lastName: true, email: true } },
 } satisfies Prisma.OpportunitySelect;
 
@@ -182,44 +184,53 @@ export class OpportunitiesRepository extends BaseRepository {
   }
 
   async create(organizationId: string, actorId: string, input: OpportunityCreateData) {
-    const id = await this.transaction(async (tx) => {
-      const opportunityNumber = await allocateDocumentNumberIn(tx, organizationId, "OPPORTUNITY");
-      const created = await tx.opportunity.create({
-        data: {
-          organizationId,
-          opportunityNumber,
-          title: input.title,
-          description: input.description ?? null,
-          stage: "NEW",
-          customerId: input.customerId ?? null,
-          contactId: input.contactId ?? null,
-          resellerId: input.resellerId ?? null,
-          ownerUserId: input.ownerUserId,
-          leadSource: (input.leadSource as CustomerLeadSource | undefined) ?? null,
-          estimatedValue: input.estimatedValue,
-          currencyCode: input.currencyCode,
-          exchangeRateToBase: input.exchangeRateToBase,
-          estimatedValueBase: input.estimatedValueBase,
-          baseCurrencyCode: input.baseCurrencyCode,
-          probabilityPercent: input.probabilityPercent,
-          expectedCloseDate: input.expectedCloseDate ? dateOnly(input.expectedCloseDate) : null,
-          nextAction: input.nextAction ?? null,
-          nextActionDueAt: input.nextActionDueAt ? new Date(input.nextActionDueAt) : null,
-          competitorName: input.competitorName ?? null,
-          prospectDisplayName: input.prospectDisplayName ?? null,
-          prospectLegalName: input.prospectLegalName ?? null,
-          prospectEmail: input.prospectEmail ?? null,
-          prospectPhone: input.prospectPhone ?? null,
-          prospectCountryCode: input.prospectCountryCode ?? null,
-          notes: input.notes ?? null,
-          createdById: actorId,
-          updatedById: actorId,
-        },
-        select: { id: true },
-      });
-      return created.id;
-    });
+    const id = await this.transaction((tx) => this.createIn(tx, organizationId, actorId, input));
     return this.findById(organizationId, id);
+  }
+
+  /** Creates an opportunity on the caller's transaction. Used by lead conversion. */
+  async createIn(
+    tx: Prisma.TransactionClient,
+    organizationId: string,
+    actorId: string,
+    input: OpportunityCreateData,
+  ): Promise<string> {
+    const opportunityNumber = await allocateDocumentNumberIn(tx, organizationId, "OPPORTUNITY");
+    const created = await tx.opportunity.create({
+      data: {
+        organizationId,
+        opportunityNumber,
+        title: input.title,
+        description: input.description ?? null,
+        stage: "NEW",
+        customerId: input.customerId ?? null,
+        contactId: input.contactId ?? null,
+        resellerId: input.resellerId ?? null,
+        leadId: input.leadId ?? null,
+        ownerUserId: input.ownerUserId,
+        leadSource: (input.leadSource as CustomerLeadSource | undefined) ?? null,
+        estimatedValue: input.estimatedValue,
+        currencyCode: input.currencyCode,
+        exchangeRateToBase: input.exchangeRateToBase,
+        estimatedValueBase: input.estimatedValueBase,
+        baseCurrencyCode: input.baseCurrencyCode,
+        probabilityPercent: input.probabilityPercent,
+        expectedCloseDate: input.expectedCloseDate ? dateOnly(input.expectedCloseDate) : null,
+        nextAction: input.nextAction ?? null,
+        nextActionDueAt: input.nextActionDueAt ? new Date(input.nextActionDueAt) : null,
+        competitorName: input.competitorName ?? null,
+        prospectDisplayName: input.prospectDisplayName ?? null,
+        prospectLegalName: input.prospectLegalName ?? null,
+        prospectEmail: input.prospectEmail ?? null,
+        prospectPhone: input.prospectPhone ?? null,
+        prospectCountryCode: input.prospectCountryCode ?? null,
+        notes: input.notes ?? null,
+        createdById: actorId,
+        updatedById: actorId,
+      },
+      select: { id: true },
+    });
+    return created.id;
   }
 
   async update(organizationId: string, id: string, actorId: string, input: OpportunityUpdateData) {
@@ -356,6 +367,20 @@ export class OpportunitiesRepository extends BaseRepository {
     return result.count === 1 ? this.findById(organizationId, id) : null;
   }
 
+  async syncLeadWon(organizationId: string, leadId: string, actorId: string, won: boolean) {
+    if (won) {
+      await this.db.lead.updateMany({
+        where: { id: leadId, organizationId, deletedAt: null },
+        data: { status: "WON", wonAt: new Date(), updatedById: actorId },
+      });
+      return;
+    }
+    await this.db.lead.updateMany({
+      where: { id: leadId, organizationId, deletedAt: null, status: "WON" },
+      data: { status: "CONVERTED", wonAt: null, updatedById: actorId },
+    });
+  }
+
   async linkExistingCustomer(organizationId: string, id: string, customerId: string, actorId: string) {
     const result = await this.db.opportunity.updateMany({
       where: { id, organizationId, deletedAt: null },
@@ -484,6 +509,7 @@ export interface OpportunityCreateData {
   customerId?: string;
   contactId?: string;
   resellerId?: string;
+  leadId?: string;
   ownerUserId: string;
   leadSource?: string;
   estimatedValue: string;

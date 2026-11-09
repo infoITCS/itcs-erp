@@ -82,6 +82,14 @@ export interface OpportunityOwnerRef {
   email: string;
 }
 
+export interface OpportunityLeadRef {
+  id: string;
+  leadNumber: string;
+  displayName: string;
+  status: string;
+  source: string;
+}
+
 export interface Opportunity {
   id: string;
   opportunityNumber: string;
@@ -91,6 +99,7 @@ export interface Opportunity {
   customerId: string | null;
   contactId: string | null;
   resellerId: string | null;
+  leadId: string | null;
   ownerUserId: string;
   leadSource: OpportunityLeadSource | null;
   estimatedValue: string;
@@ -123,6 +132,7 @@ export interface Opportunity {
   customer: OpportunityCustomerRef | null;
   contact: OpportunityContactRef | null;
   reseller: OpportunityResellerRef | null;
+  lead: OpportunityLeadRef | null;
   owner: OpportunityOwnerRef | null;
 }
 

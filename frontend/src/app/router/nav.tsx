@@ -30,6 +30,13 @@ export const navItems: NavItem[] = [
     page: lazy(() => import("@/features/contacts/index.tsx")),
   },
   {
+    path: "/leads",
+    label: "Leads",
+    group: "CRM",
+    permission: "leads:read",
+    page: lazy(() => import("@/features/leads/index.tsx")),
+  },
+  {
     path: "/opportunities",
     label: "Opportunities",
     group: "CRM",

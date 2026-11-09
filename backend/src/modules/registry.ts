@@ -5,6 +5,7 @@ import { createRolesModule } from "./roles";
 import { createPermissionsModule } from "./permissions";
 import { createCustomersModule } from "./customers";
 import { createContactsModule } from "./contacts";
+import { createLeadsModule } from "./leads";
 import { createProductsModules } from "./products";
 import { createResellersModules } from "./resellers";
 import { createOpportunitiesModule } from "./opportunities";
@@ -37,6 +38,7 @@ export function createModules(deps: ModuleDependencies): AppModule[] {
     createPermissionsModule(deps),
     createCustomersModule(deps),
     createContactsModule(deps),
+    createLeadsModule(deps),
     ...createProductsModules(deps),
     ...createResellersModules(deps),
     createOpportunitiesModule(deps),
