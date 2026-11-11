@@ -360,6 +360,13 @@ model Organization {
   opportunityInterests   OpportunityProductInterest[]
   tenders                Tender[]
   leads                  Lead[]
+  quotes                 Quote[]
+  salesOrders            SalesOrder[]
+  invoices               Invoice[]
+  payments               Payment[]
+  quoteLines             QuoteLine[]
+  salesOrderLines        SalesOrderLine[]
+  invoiceLines           InvoiceLine[]
 
   @@index([status])
   @@map("organizations")
@@ -420,6 +427,17 @@ model User {
   leadsOwned                Lead[]                  @relation("LeadOwner")
   leadsCreated              Lead[]                  @relation("LeadCreatedBy")
   leadsUpdated              Lead[]                  @relation("LeadUpdatedBy")
+  quotesOwned               Quote[]                 @relation("QuoteOwner")
+  quotesCreated             Quote[]                 @relation("QuoteCreatedBy")
+  quotesUpdated             Quote[]                 @relation("QuoteUpdatedBy")
+  salesOrdersOwned          SalesOrder[]            @relation("SalesOrderOwner")
+  salesOrdersCreated        SalesOrder[]            @relation("SalesOrderCreatedBy")
+  salesOrdersUpdated        SalesOrder[]            @relation("SalesOrderUpdatedBy")
+  invoicesOwned            Invoice[]               @relation("InvoiceOwner")
+  invoicesCreated          Invoice[]               @relation("InvoiceCreatedBy")
+  invoicesUpdated          Invoice[]               @relation("InvoiceUpdatedBy")
+  paymentsCreated          Payment[]               @relation("PaymentCreatedBy")
+  paymentsUpdated          Payment[]               @relation("PaymentUpdatedBy")
 
   @@index([status])
   @@map("users")
@@ -573,6 +591,10 @@ model Currency {
   opportunities Opportunity[]
   tenders       Tender[]
   leads         Lead[]
+  quotes        Quote[]
+  salesOrders   SalesOrder[]
+  invoices      Invoice[]
+  payments      Payment[]
   baseRates     ExchangeRate[] @relation("ExchangeRateBase")
   quoteRates    ExchangeRate[] @relation("ExchangeRateQuote")
 
@@ -595,6 +617,9 @@ model PaymentTerm {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   customers    Customer[]
+  quotes       Quote[]
+  salesOrders  SalesOrder[]
+  invoices     Invoice[]
 
   @@unique([organizationId, code])
   @@index([organizationId, isActive])
@@ -753,6 +778,10 @@ model Customer {
   opportunities    Opportunity[]
   tenders          Tender[]
   convertedLeads   Lead[]                  @relation("LeadConvertedCustomer")
+  quotes           Quote[]
+  salesOrders      SalesOrder[]
+  invoices         Invoice[]
+  payments         Payment[]
 
   @@index([organizationId, createdAt, id])
   @@index([organizationId, status, createdAt])
@@ -829,6 +858,9 @@ model Contact {
   opportunities   Opportunity[]
   tenders         Tender[]
   convertedLeads  Lead[]                          @relation("LeadConvertedContact")
+  quotes          Quote[]
+  salesOrders     SalesOrder[]
+  invoices        Invoice[]
   createdBy       User                            @relation("ContactCreatedBy", fields: [createdById], references: [id])
   updatedBy       User                            @relation("ContactUpdatedBy", fields: [updatedById], references: [id])
 
@@ -1096,6 +1128,9 @@ model TaxCode {
   organization Organization @relation(fields: [organizationId], references: [id])
   products     Product[]
   customers    Customer[]   @relation("CustomerDefaultTaxCode")
+  quoteLines        QuoteLine[]
+  salesOrderLines   SalesOrderLine[]
+  invoiceLines      InvoiceLine[]
 
   @@unique([organizationId, code])
   @@map("tax_codes")
@@ -1128,6 +1163,9 @@ model Product {
   updatedBy     User             @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
   prices        ProductPrice[]
   opportunityInterests OpportunityProductInterest[]
+  quoteLines        QuoteLine[]
+  salesOrderLines   SalesOrderLine[]
+  invoiceLines      InvoiceLine[]
 
   @@index([organizationId, createdAt, id])
   @@index([organizationId, status, createdAt])
@@ -1316,6 +1354,9 @@ model Opportunity {
   createdBy    User                         @relation("OpportunityCreatedBy", fields: [createdById], references: [id])
   updatedBy    User                         @relation("OpportunityUpdatedBy", fields: [updatedById], references: [id])
   productInterests OpportunityProductInterest[]
+  quotes       Quote[]
+  salesOrders  SalesOrder[]
+  invoices     Invoice[]
 
   @@index([organizationId, createdAt, id])
   @@index([organizationId, stage, expectedCloseDate])
@@ -1351,4 +1392,330 @@ model OpportunityProductInterest {
   @@unique([opportunityId, productId])
   @@index([organizationId, opportunityId, sortOrder])
   @@map("opportunity_product_interests")
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum SalesOrderStatus {
+  DRAFT
+  CONFIRMED
+  PROCESSING
+  FULFILLED
+  CLOSED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  VOID
+}
+
+model Quote {
+  id                 String      @id @default(uuid()) @db.Uuid
+  organizationId     String      @map("organization_id") @db.Uuid
+  quoteNumber        String      @map("quote_number") @db.VarChar(32)
+  customerId         String      @map("customer_id") @db.Uuid
+  contactId          String?     @map("contact_id") @db.Uuid
+  opportunityId      String?     @map("opportunity_id") @db.Uuid
+  ownerUserId        String      @map("owner_user_id") @db.Uuid
+  status             QuoteStatus @default(DRAFT)
+  issueDate          DateTime    @map("issue_date") @db.Date
+  validUntil         DateTime?   @map("valid_until") @db.Date
+  customerReference  String?     @map("customer_reference") @db.VarChar(120)
+  currencyCode       String      @map("currency_code") @db.Char(3)
+  exchangeRateToBase Decimal?    @map("exchange_rate_to_base") @db.Decimal(19, 8)
+  baseCurrencyCode   String?     @map("base_currency_code") @db.Char(3)
+  paymentTermId      String?     @map("payment_term_id") @db.Uuid
+  subtotal           Decimal     @default(0) @db.Decimal(19, 4)
+  discountTotal      Decimal     @default(0) @map("discount_total") @db.Decimal(19, 4)
+  taxTotal           Decimal     @default(0) @map("tax_total") @db.Decimal(19, 4)
+  total              Decimal     @default(0) @db.Decimal(19, 4)
+  totalBase          Decimal?    @map("total_base") @db.Decimal(19, 4)
+  notes              String?     @db.VarChar(4000)
+  terms              String?     @db.VarChar(4000)
+  sentAt             DateTime?   @map("sent_at") @db.Timestamptz(6)
+  acceptedAt         DateTime?   @map("accepted_at") @db.Timestamptz(6)
+  rejectedAt         DateTime?   @map("rejected_at") @db.Timestamptz(6)
+  cancelledAt        DateTime?   @map("cancelled_at") @db.Timestamptz(6)
+  createdById        String      @map("created_by_id") @db.Uuid
+  updatedById        String      @map("updated_by_id") @db.Uuid
+  deletedAt          DateTime?   @map("deleted_at") @db.Timestamptz(6)
+  createdAt          DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  contact      Contact?     @relation(fields: [contactId], references: [id])
+  opportunity  Opportunity? @relation(fields: [opportunityId], references: [id])
+  owner        User         @relation("QuoteOwner", fields: [ownerUserId], references: [id])
+  currency     Currency     @relation(fields: [currencyCode], references: [code])
+  paymentTerm  PaymentTerm? @relation(fields: [paymentTermId], references: [id])
+  createdBy    User         @relation("QuoteCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User         @relation("QuoteUpdatedBy", fields: [updatedById], references: [id])
+  lines        QuoteLine[]
+  salesOrders  SalesOrder[] @relation("QuoteSalesOrders")
+
+  @@unique([organizationId, quoteNumber])
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, customerId, createdAt])
+  @@index([organizationId, ownerUserId, status])
+  @@index([organizationId, issueDate])
+  @@map("quotes")
+}
+
+model QuoteLine {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  quoteId         String   @map("quote_id") @db.Uuid
+  productId       String?  @map("product_id") @db.Uuid
+  productCode     String?  @map("product_code") @db.VarChar(64)
+  productName     String   @map("product_name") @db.VarChar(200)
+  description     String?  @db.VarChar(1000)
+  unitOfMeasure   String?  @map("unit_of_measure") @db.VarChar(32)
+  quantity        Decimal  @default(1) @db.Decimal(19, 4)
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(19, 4)
+  discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(7, 4)
+  taxCodeId       String?  @map("tax_code_id") @db.Uuid
+  taxCode         String?  @map("tax_code") @db.VarChar(32)
+  taxRate         Decimal  @default(0) @map("tax_rate") @db.Decimal(7, 4)
+  lineSubtotal    Decimal  @map("line_subtotal") @db.Decimal(19, 4)
+  lineDiscount    Decimal  @map("line_discount") @db.Decimal(19, 4)
+  lineTax         Decimal  @map("line_tax") @db.Decimal(19, 4)
+  lineTotal       Decimal  @map("line_total") @db.Decimal(19, 4)
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  quote        Quote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product      Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  taxCodeRef   TaxCode?     @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, quoteId, sortOrder])
+  @@map("quote_lines")
+}
+
+model SalesOrder {
+  id                  String           @id @default(uuid()) @db.Uuid
+  organizationId      String           @map("organization_id") @db.Uuid
+  salesOrderNumber    String           @map("sales_order_number") @db.VarChar(32)
+  sourceQuoteId       String?          @map("source_quote_id") @db.Uuid
+  customerId          String           @map("customer_id") @db.Uuid
+  contactId           String?          @map("contact_id") @db.Uuid
+  opportunityId       String?          @map("opportunity_id") @db.Uuid
+  ownerUserId         String           @map("owner_user_id") @db.Uuid
+  status              SalesOrderStatus @default(DRAFT)
+  orderDate           DateTime         @map("order_date") @db.Date
+  expectedDeliveryDate DateTime?       @map("expected_delivery_date") @db.Date
+  customerReference   String?          @map("customer_reference") @db.VarChar(120)
+  currencyCode        String           @map("currency_code") @db.Char(3)
+  exchangeRateToBase  Decimal?         @map("exchange_rate_to_base") @db.Decimal(19, 8)
+  baseCurrencyCode    String?          @map("base_currency_code") @db.Char(3)
+  paymentTermId       String?          @map("payment_term_id") @db.Uuid
+  subtotal            Decimal          @default(0) @db.Decimal(19, 4)
+  discountTotal       Decimal          @default(0) @map("discount_total") @db.Decimal(19, 4)
+  taxTotal            Decimal          @default(0) @map("tax_total") @db.Decimal(19, 4)
+  total               Decimal          @default(0) @db.Decimal(19, 4)
+  totalBase           Decimal?         @map("total_base") @db.Decimal(19, 4)
+  notes               String?          @db.VarChar(4000)
+  terms               String?          @db.VarChar(4000)
+  confirmedAt         DateTime?        @map("confirmed_at") @db.Timestamptz(6)
+  fulfilledAt         DateTime?        @map("fulfilled_at") @db.Timestamptz(6)
+  cancelledAt         DateTime?        @map("cancelled_at") @db.Timestamptz(6)
+  closedAt            DateTime?        @map("closed_at") @db.Timestamptz(6)
+  createdById         String           @map("created_by_id") @db.Uuid
+  updatedById         String           @map("updated_by_id") @db.Uuid
+  deletedAt           DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  createdAt           DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  sourceQuote   Quote?       @relation("QuoteSalesOrders", fields: [sourceQuoteId], references: [id])
+  customer      Customer     @relation(fields: [customerId], references: [id])
+  contact       Contact?     @relation(fields: [contactId], references: [id])
+  opportunity   Opportunity? @relation(fields: [opportunityId], references: [id])
+  owner         User         @relation("SalesOrderOwner", fields: [ownerUserId], references: [id])
+  currency      Currency     @relation(fields: [currencyCode], references: [code])
+  paymentTerm   PaymentTerm? @relation(fields: [paymentTermId], references: [id])
+  createdBy     User         @relation("SalesOrderCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User         @relation("SalesOrderUpdatedBy", fields: [updatedById], references: [id])
+  lines         SalesOrderLine[]
+  invoices      Invoice[]    @relation("OrderInvoices")
+
+  @@unique([organizationId, salesOrderNumber])
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, customerId, createdAt])
+  @@index([organizationId, ownerUserId, status])
+  @@index([organizationId, orderDate])
+  @@index([organizationId, sourceQuoteId])
+  @@map("sales_orders")
+}
+
+model SalesOrderLine {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  salesOrderId    String   @map("sales_order_id") @db.Uuid
+  productId       String?  @map("product_id") @db.Uuid
+  productCode     String?  @map("product_code") @db.VarChar(64)
+  productName     String   @map("product_name") @db.VarChar(200)
+  description     String?  @db.VarChar(1000)
+  unitOfMeasure   String?  @map("unit_of_measure") @db.VarChar(32)
+  quantity        Decimal  @default(1) @db.Decimal(19, 4)
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(19, 4)
+  discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(7, 4)
+  taxCodeId       String?  @map("tax_code_id") @db.Uuid
+  taxCode         String?  @map("tax_code") @db.VarChar(32)
+  taxRate         Decimal  @default(0) @map("tax_rate") @db.Decimal(7, 4)
+  lineSubtotal    Decimal  @map("line_subtotal") @db.Decimal(19, 4)
+  lineDiscount    Decimal  @map("line_discount") @db.Decimal(19, 4)
+  lineTax         Decimal  @map("line_tax") @db.Decimal(19, 4)
+  lineTotal       Decimal  @map("line_total") @db.Decimal(19, 4)
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  salesOrder   SalesOrder   @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product      Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  taxCodeRef   TaxCode?     @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, salesOrderId, sortOrder])
+  @@map("sales_order_lines")
+}
+
+model Invoice {
+  id                  String        @id @default(uuid()) @db.Uuid
+  organizationId      String        @map("organization_id") @db.Uuid
+  invoiceNumber       String        @map("invoice_number") @db.VarChar(32)
+  sourceSalesOrderId  String?       @map("source_sales_order_id") @db.Uuid
+  customerId          String        @map("customer_id") @db.Uuid
+  contactId           String?       @map("contact_id") @db.Uuid
+  opportunityId       String?       @map("opportunity_id") @db.Uuid
+  ownerUserId         String        @map("owner_user_id") @db.Uuid
+  status              InvoiceStatus @default(DRAFT)
+  issueDate           DateTime      @map("issue_date") @db.Date
+  dueDate             DateTime?     @map("due_date") @db.Date
+  customerReference   String?       @map("customer_reference") @db.VarChar(120)
+  currencyCode        String        @map("currency_code") @db.Char(3)
+  exchangeRateToBase  Decimal?      @map("exchange_rate_to_base") @db.Decimal(19, 8)
+  baseCurrencyCode    String?       @map("base_currency_code") @db.Char(3)
+  paymentTermId       String?       @map("payment_term_id") @db.Uuid
+  subtotal            Decimal       @default(0) @db.Decimal(19, 4)
+  discountTotal       Decimal       @default(0) @map("discount_total") @db.Decimal(19, 4)
+  taxTotal            Decimal       @default(0) @map("tax_total") @db.Decimal(19, 4)
+  total               Decimal       @default(0) @db.Decimal(19, 4)
+  totalBase           Decimal?      @map("total_base") @db.Decimal(19, 4)
+  amountPaid          Decimal       @default(0) @map("amount_paid") @db.Decimal(19, 4)
+  notes               String?       @db.VarChar(4000)
+  terms               String?       @db.VarChar(4000)
+  sentAt              DateTime?     @map("sent_at") @db.Timestamptz(6)
+  paidAt              DateTime?     @map("paid_at") @db.Timestamptz(6)
+  voidedAt            DateTime?     @map("voided_at") @db.Timestamptz(6)
+  createdById         String        @map("created_by_id") @db.Uuid
+  updatedById         String        @map("updated_by_id") @db.Uuid
+  deletedAt           DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  sourceSalesOrder SalesOrder?  @relation("OrderInvoices", fields: [sourceSalesOrderId], references: [id])
+  customer         Customer     @relation(fields: [customerId], references: [id])
+  contact          Contact?     @relation(fields: [contactId], references: [id])
+  opportunity      Opportunity? @relation(fields: [opportunityId], references: [id])
+  owner            User         @relation("InvoiceOwner", fields: [ownerUserId], references: [id])
+  currency         Currency     @relation(fields: [currencyCode], references: [code])
+  paymentTerm      PaymentTerm? @relation(fields: [paymentTermId], references: [id])
+  createdBy        User         @relation("InvoiceCreatedBy", fields: [createdById], references: [id])
+  updatedBy        User         @relation("InvoiceUpdatedBy", fields: [updatedById], references: [id])
+  lines            InvoiceLine[]
+  payments         Payment[]
+
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, status, createdAt])
+  @@index([organizationId, customerId, createdAt])
+  @@index([organizationId, ownerUserId, status])
+  @@index([organizationId, issueDate])
+  @@index([organizationId, dueDate])
+  @@index([organizationId, sourceSalesOrderId])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  invoiceId       String   @map("invoice_id") @db.Uuid
+  productId       String?  @map("product_id") @db.Uuid
+  productCode     String?  @map("product_code") @db.VarChar(64)
+  productName     String   @map("product_name") @db.VarChar(200)
+  description     String?  @db.VarChar(1000)
+  unitOfMeasure   String?  @map("unit_of_measure") @db.VarChar(32)
+  quantity        Decimal  @default(1) @db.Decimal(19, 4)
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(19, 4)
+  discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(7, 4)
+  taxCodeId       String?  @map("tax_code_id") @db.Uuid
+  taxCode         String?  @map("tax_code") @db.VarChar(32)
+  taxRate         Decimal  @default(0) @map("tax_rate") @db.Decimal(7, 4)
+  lineSubtotal    Decimal  @map("line_subtotal") @db.Decimal(19, 4)
+  lineDiscount    Decimal  @map("line_discount") @db.Decimal(19, 4)
+  lineTax         Decimal  @map("line_tax") @db.Decimal(19, 4)
+  lineTotal       Decimal  @map("line_total") @db.Decimal(19, 4)
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  invoice      Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product      Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  taxCodeRef   TaxCode?     @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, invoiceId, sortOrder])
+  @@map("invoice_lines")
+}
+
+model Payment {
+  id             String                @id @default(uuid()) @db.Uuid
+  organizationId String                @map("organization_id") @db.Uuid
+  paymentNumber  String                @map("payment_number") @db.VarChar(32)
+  invoiceId      String                @map("invoice_id") @db.Uuid
+  customerId     String                @map("customer_id") @db.Uuid
+  receivedDate   DateTime              @map("received_date") @db.Date
+  method         CustomerPaymentMethod
+  amount         Decimal               @db.Decimal(19, 4)
+  currencyCode   String                @map("currency_code") @db.Char(3)
+  reference      String?               @db.VarChar(120)
+  notes          String?               @db.VarChar(4000)
+  createdById    String                @map("created_by_id") @db.Uuid
+  updatedById    String                @map("updated_by_id") @db.Uuid
+  deletedAt      DateTime?             @map("deleted_at") @db.Timestamptz(6)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  invoice      Invoice      @relation(fields: [invoiceId], references: [id])
+  customer     Customer     @relation(fields: [customerId], references: [id])
+  currency     Currency     @relation(fields: [currencyCode], references: [code])
+  createdBy    User         @relation("PaymentCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User         @relation("PaymentUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([organizationId, paymentNumber])
+  @@index([organizationId, createdAt, id])
+  @@index([organizationId, invoiceId, createdAt])
+  @@index([organizationId, customerId, receivedDate])
+  @@index([organizationId, receivedDate])
+  @@index([organizationId, method, receivedDate])
+  @@map("payments")
 }

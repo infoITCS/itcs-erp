@@ -1,6 +1,5 @@
 import { DocumentType, type Prisma, type PrismaClient } from "@prisma/client";
-import { NotFoundError } from "../errors/app-error";
-import { formatDocumentNumber } from "./format";
+import { DOCUMENT_PREFIX, formatDocumentNumber } from "./format";
 
 type SequenceClient = PrismaClient | Prisma.TransactionClient;
 
@@ -20,18 +19,37 @@ export async function allocateDocumentNumberIn(
   documentType: DocumentType,
   year = new Date().getUTCFullYear(),
 ): Promise<string> {
-  const locked = await tx.$queryRaw<Array<{ id: string }>>`
-    SELECT id
-    FROM document_sequences
-    WHERE organization_id = ${organizationId}::uuid
-      AND document_type = ${documentType}::document_type
-      AND year = ${year}
-    FOR UPDATE
-  `;
+  const lockRow = () =>
+    tx.$queryRaw<Array<{ id: string }>>`
+      SELECT id
+      FROM document_sequences
+      WHERE organization_id = ${organizationId}::uuid
+        AND document_type = ${documentType}::document_type
+        AND year = ${year}
+      FOR UPDATE
+    `;
+
+  let locked = await lockRow();
+
+  if (!locked[0]) {
+    await tx.documentSequence.upsert({
+      where: { organizationId_documentType_year: { organizationId, documentType, year } },
+      update: {},
+      create: {
+        organizationId,
+        documentType,
+        prefix: DOCUMENT_PREFIX[documentType],
+        nextNumber: 1,
+        padding: 5,
+        year,
+      },
+    });
+    locked = await lockRow();
+  }
 
   const rowId = locked[0]?.id;
   if (!rowId) {
-    throw new NotFoundError("Document sequence is not configured for this year");
+    throw new Error("Failed to initialize the document sequence");
   }
 
   const updated = await tx.documentSequence.update({

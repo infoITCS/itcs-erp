@@ -19,6 +19,14 @@ const OpportunityFormPage = lazy(() => import("@/features/opportunities/form-pag
 const OpportunityDetailPage = lazy(() => import("@/features/opportunities/detail-page.tsx"));
 const TenderFormPage = lazy(() => import("@/features/tenders/form-page.tsx"));
 const TenderDetailPage = lazy(() => import("@/features/tenders/detail-page.tsx"));
+const QuoteFormPage = lazy(() => import("@/features/quotes/form-page.tsx"));
+const QuoteDetailPage = lazy(() => import("@/features/quotes/detail-page.tsx"));
+const SalesOrderFormPage = lazy(() => import("@/features/sales-orders/form-page.tsx"));
+const SalesOrderDetailPage = lazy(() => import("@/features/sales-orders/detail-page.tsx"));
+const InvoiceFormPage = lazy(() => import("@/features/invoices/form-page.tsx"));
+const InvoiceDetailPage = lazy(() => import("@/features/invoices/detail-page.tsx"));
+const PaymentFormPage = lazy(() => import("@/features/payments/form-page.tsx"));
+const PaymentDetailPage = lazy(() => import("@/features/payments/detail-page.tsx"));
 
 function PageLoading() {
   return <p className="text-sm text-slate-500">Loading page…</p>;
@@ -214,6 +222,102 @@ export function AppRouter() {
               element={
                 <Suspense fallback={<PageLoading />}>
                   <ResellerDetailPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/quotes/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <QuoteFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/quotes/:id/edit"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <QuoteFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/quotes/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <QuoteDetailPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/sales-orders/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <SalesOrderFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/sales-orders/:id/edit"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <SalesOrderFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/sales-orders/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <SalesOrderDetailPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/invoices/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <InvoiceFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/invoices/:id/edit"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <InvoiceFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/invoices/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <InvoiceDetailPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/payments/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <PaymentFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/payments/:id/edit"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <PaymentFormPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/payments/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <PaymentDetailPage />
                 </Suspense>
               }
             />
