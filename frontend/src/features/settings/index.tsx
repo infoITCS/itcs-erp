@@ -5,22 +5,15 @@ import { ProfilePanel } from "@/features/profile/index.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
 import { getProviders } from "@/services/auth.ts";
 import { listAuditLogs } from "@/services/audit-logs.ts";
-import { listRoles } from "@/services/roles.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 
-type SettingsTab = "profile" | "roles" | "audit" | "sign-in";
+type SettingsTab = "profile" | "audit" | "sign-in";
 
 const tabs: Array<{ id: SettingsTab; label: string; description: string; permission?: string }> = [
   {
     id: "profile",
     label: "Profile",
     description: "Your account details, security, organization, and access",
-  },
-  {
-    id: "roles",
-    label: "Roles & permissions",
-    description: "Roles available in this organization",
-    permission: "roles:read",
   },
   {
     id: "audit",
@@ -54,61 +47,6 @@ function Card({
       </div>
       <div className="p-4 sm:p-5">{children}</div>
     </section>
-  );
-}
-
-function RolesTab() {
-  const roles = useQuery({ queryKey: ["roles"], queryFn: listRoles, staleTime: 5 * 60 * 1000 });
-
-  return (
-    <div className="flex flex-col gap-5">
-      <Card title="Roles" description="Role assignments are managed from the Users page.">
-        {roles.isPending ? <p className="text-sm text-slate-500">Loading roles…</p> : null}
-        {roles.isError ? (
-          <p className="text-sm text-red-700">{getApiErrorMessage(roles.error)}</p>
-        ) : null}
-        {roles.data?.length === 0 ? (
-          <p className="text-sm text-slate-500">No roles are configured.</p>
-        ) : null}
-        <div className="flex flex-col gap-3">
-          {roles.data?.map((role) => (
-            <article key={role.id} className="rounded-xl border border-slate-200 p-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-slate-900">{role.name}</h3>
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-600">
-                      {role.code}
-                    </span>
-                    {role.isSystem ? (
-                      <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-brand-800">
-                        System
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {role.description ?? "No description"}
-                  </p>
-                </div>
-                <span className="text-xs font-medium text-slate-500">
-                  {role.permissions.length} permission{role.permissions.length === 1 ? "" : "s"}
-                </span>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-1">
-                {role.permissions.map((permission) => (
-                  <span
-                    key={permission}
-                    className="rounded bg-slate-50 px-2 py-0.5 font-mono text-[10px] text-slate-600 ring-1 ring-inset ring-slate-200"
-                  >
-                    {permission}
-                  </span>
-                ))}
-              </div>
-            </article>
-          ))}
-        </div>
-      </Card>
-    </div>
   );
 }
 
@@ -261,12 +199,8 @@ function SignInTab() {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
-  const canReadRoles = useHasPermission("roles:read");
   const canReadAudit = useHasPermission("audit-logs:read");
   const visibleTabs = tabs.filter((tab) => {
-    if (tab.permission === "roles:read") {
-      return canReadRoles;
-    }
     if (tab.permission === "audit-logs:read") {
       return canReadAudit;
     }
@@ -288,10 +222,10 @@ export default function SettingsPage() {
         </p>
       </header>
 
-      <div className="flex min-w-0 flex-col gap-5">
+      <div className="flex min-w-0 flex-col gap-6">
         <nav
           aria-label="Settings sections"
-          className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm"
         >
           {visibleTabs.map((tab) => (
             <button
@@ -301,8 +235,8 @@ export default function SettingsPage() {
               onClick={() => setActiveTab(tab.id)}
               className={
                 current === tab.id
-                  ? "shrink-0 rounded-lg bg-brand-800 px-3.5 py-2 text-sm font-semibold text-white shadow-sm"
-                  : "shrink-0 rounded-lg px-3.5 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+                  ? "rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm"
+                  : "rounded-lg px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900"
               }
             >
               {tab.label}
@@ -312,11 +246,10 @@ export default function SettingsPage() {
 
         <div className="min-w-0">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold text-slate-950">{currentTab.label}</h2>
-            <p className="text-sm text-slate-500">{currentTab.description}</p>
+            <h2 className="text-base font-semibold text-slate-900">{currentTab.label}</h2>
+            <p className="text-xs text-slate-500">{currentTab.description}</p>
           </div>
           {current === "profile" ? <ProfilePanel /> : null}
-          {current === "roles" ? <RolesTab /> : null}
           {current === "audit" ? <AuditTab /> : null}
           {current === "sign-in" ? <SignInTab /> : null}
         </div>

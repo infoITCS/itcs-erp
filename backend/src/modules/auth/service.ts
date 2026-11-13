@@ -172,6 +172,55 @@ export class AuthService {
     );
   }
 
+  async impersonate(
+    adminUserId: string,
+    adminOrganizationId: string,
+    targetUserId: string,
+    meta: RequestMeta,
+  ): Promise<{ accessToken: string; user: { id: string; email: string; firstName: string; lastName: string; avatarUrl: string | null; roles: string[]; permissions: string[] } }> {
+    const target = await this.repository.findById(targetUserId);
+    if (!target || target.organizationId !== adminOrganizationId) {
+      throw new ValidationFailedError({ userId: ["User not found in this organization"] });
+    }
+
+    // Issue a short-lived access token (30 minutes) for the target user
+    const accessToken = signAccessToken(
+      {
+        userId: target.id,
+        email: target.email,
+        organizationId: target.organizationId!,
+        roles: target.roles,
+        permissions: target.permissions,
+      },
+      "30m",
+    );
+
+    await this.audit.record({
+      organizationId: adminOrganizationId,
+      userId: adminUserId,
+      action: "auth.impersonate",
+      module: "auth",
+      entityType: "user",
+      entityId: targetUserId,
+      newValues: { targetEmail: target.email, targetUserId },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    });
+
+    return {
+      accessToken,
+      user: {
+        id: target.id,
+        email: target.email,
+        firstName: target.firstName,
+        lastName: target.lastName,
+        avatarUrl: target.avatarUrl ?? null,
+        roles: target.roles,
+        permissions: target.permissions,
+      },
+    };
+  }
+
   async issueSessionForUser(
     user: AuthUserRecordActive,
     meta: RequestMeta,

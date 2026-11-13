@@ -13,6 +13,11 @@ export interface LoginResult {
   user: SessionUser;
 }
 
+export interface ImpersonateResult {
+  accessToken: string;
+  user: Omit<SessionUser, "organizationId">;
+}
+
 export interface AuthProviders {
   password: boolean;
   microsoft: boolean;
@@ -53,5 +58,11 @@ export function getProviders(): Promise<ApiSuccess<AuthProviders>> {
 export function exchangeMicrosoftTicket(ticket: string): Promise<ApiSuccess<LoginResult>> {
   return http
     .post<ApiSuccess<LoginResult>>("/api/v1/auth/microsoft/exchange", { ticket })
+    .then((response) => response.data);
+}
+
+export function impersonateUser(userId: string): Promise<ApiSuccess<ImpersonateResult>> {
+  return http
+    .post<ApiSuccess<ImpersonateResult>>("/api/v1/auth/impersonate", { userId })
     .then((response) => response.data);
 }

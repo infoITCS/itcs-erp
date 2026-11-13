@@ -231,16 +231,16 @@ function Card({
 }) {
   return (
     <section
-      className={`overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm shadow-slate-900/[0.03] ${className ?? ""}`}
+      className={`overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm transition hover:shadow-md ${className ?? ""}`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/50 px-6 py-4">
         <div>
-          <h2 className="text-sm font-semibold tracking-tight text-slate-950">{title}</h2>
+          <h2 className="text-sm font-semibold tracking-tight text-slate-900">{title}</h2>
           {description ? <p className="mt-0.5 text-xs text-slate-500">{description}</p> : null}
         </div>
         {action}
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-6">{children}</div>
     </section>
   );
 }
@@ -255,11 +255,15 @@ function Detail({
   wide?: boolean;
 }) {
   return (
-    <div className={wide ? "sm:col-span-2" : ""}>
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+    <div
+      className={`rounded-xl border border-slate-100 bg-slate-50/60 p-3.5 transition hover:bg-slate-50 hover:border-slate-200 ${
+        wide ? "sm:col-span-2" : ""
+      }`}
+    >
+      <dt className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
         {label}
       </dt>
-      <dd className="mt-1.5 text-sm font-medium text-slate-800">{value}</dd>
+      <dd className="mt-1 text-sm font-semibold text-slate-800">{value}</dd>
     </div>
   );
 }
@@ -356,13 +360,13 @@ function SecuritySection({
 
   return (
     <section className="flex flex-col gap-5 border-t border-slate-200 pt-6">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200">
           <svg
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth={1.7}
+            strokeWidth={1.8}
             className="h-5 w-5"
           >
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
@@ -370,9 +374,9 @@ function SecuritySection({
           </svg>
         </div>
         <div>
-          <h2 className="text-base font-semibold text-slate-900">Security</h2>
-          <p className="mt-0.5 text-sm text-slate-500">
-            Manage your password and the sessions connected to this account.
+          <h2 className="text-base font-bold tracking-tight text-slate-900">Security Credentials & Active Sessions</h2>
+          <p className="text-xs text-slate-500">
+            Protect your account credentials and manage enterprise access sessions.
           </p>
         </div>
       </div>
@@ -625,16 +629,15 @@ function OrganizationSection({
           </div>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="truncate text-sm font-semibold tracking-tight text-slate-950">
+              <h2 className="truncate text-sm font-bold tracking-tight text-slate-900">
                 {organization.name}
               </h2>
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-inset ring-emerald-200">
+              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-inset ring-emerald-200">
                 {humanize(organization.status)}
               </span>
             </div>
             <p className="mt-0.5 text-xs text-slate-500">
-              Organization workspace <span className="text-slate-300">/</span>{" "}
-              <span className="font-mono uppercase">{organization.code}</span>
+              Workspace identifier · <span className="font-mono font-semibold uppercase text-slate-700">{organization.code}</span>
             </p>
           </div>
         </div>
@@ -1034,42 +1037,31 @@ export function ProfilePanel() {
             </div>
 
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
                   {profile.firstName} {profile.lastName}
                 </h1>
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">
                   {humanize(profile.status)}
                 </span>
               </div>
-              <p className="mt-1.5 text-sm font-medium text-slate-600">
-                {profile.jobTitle || "Add your job title"}
-                {profile.department ? ` - ${profile.department}` : ""}
+              <p className="mt-1 text-sm text-slate-600">
+                {profile.jobTitle || "No job title"}
+                {profile.department ? ` · ${profile.department}` : ""}
               </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 ring-1 ring-inset ring-slate-200">
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={1.7}
-                    className="h-3.5 w-3.5"
-                  >
-                    <rect x="3" y="5" width="18" height="14" rx="2" />
-                    <path d="m4 7 8 6 8-6" />
-                  </svg>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                <span className="rounded-md bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
                   {profile.email}
                 </span>
                 {profile.organization ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
+                  <span className="rounded-md bg-slate-100 px-2 py-0.5 font-medium text-slate-700">
                     {profile.organization.name}
                   </span>
                 ) : null}
                 {profile.roles.map((role) => (
                   <span
                     key={role.code}
-                    className="rounded-full bg-slate-800 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-white"
+                    className="rounded-md bg-brand-50 px-2 py-0.5 font-semibold uppercase tracking-wide text-brand-800 ring-1 ring-inset ring-brand-100"
                   >
                     {role.name}
                   </span>
@@ -1077,7 +1069,7 @@ export function ProfilePanel() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2 sm:max-w-[220px] sm:justify-end">
+            <div className="flex flex-wrap gap-2 sm:self-start">
               <Button
                 variant="secondary"
                 onClick={() => fileInputRef.current?.click()}

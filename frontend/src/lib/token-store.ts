@@ -15,6 +15,14 @@ export interface Session {
   user: SessionUser;
 }
 
+export interface ImpersonationInfo {
+  /** The access token for the impersonated user (short-lived, never stored to sessionStorage) */
+  accessToken: string;
+  user: SessionUser;
+  /** Display name of the admin who started the impersonation session */
+  adminName: string;
+}
+
 const STORAGE_KEY = "itcs-erp-session";
 
 interface StoredSession {
@@ -65,6 +73,7 @@ const initial = typeof window === "undefined" ? null : readStored();
 let accessToken: string | null = null;
 let refreshToken: string | null = initial?.refreshToken ?? null;
 let user: SessionUser | null = initial?.user ?? null;
+let impersonation: ImpersonationInfo | null = null;
 const listeners = new Set<() => void>();
 
 function notify(): void {
@@ -75,6 +84,10 @@ function notify(): void {
 
 export const tokenStore = {
   get(): string | null {
+    // If impersonating, the impersonation access token is used by the http interceptor
+    return impersonation ? impersonation.accessToken : accessToken;
+  },
+  getRealAccessToken(): string | null {
     return accessToken;
   },
   getRefreshToken(): string | null {
@@ -84,7 +97,17 @@ export const tokenStore = {
     return user?.email ?? null;
   },
   getUser(): SessionUser | null {
+    // Return the impersonated user's view when impersonating
+    return impersonation ? impersonation.user : user;
+  },
+  getRealUser(): SessionUser | null {
     return user;
+  },
+  getImpersonation(): ImpersonationInfo | null {
+    return impersonation;
+  },
+  isImpersonating(): boolean {
+    return impersonation !== null;
   },
   hasPermission(code: string): boolean {
     return user?.permissions.includes(code) ?? false;
@@ -96,6 +119,7 @@ export const tokenStore = {
     accessToken = session.accessToken;
     refreshToken = session.refreshToken;
     user = session.user;
+    impersonation = null;
     writeStored({ refreshToken: session.refreshToken, user: session.user });
     notify();
   },
@@ -106,10 +130,19 @@ export const tokenStore = {
     }
     notify();
   },
+  startImpersonation(info: ImpersonationInfo): void {
+    impersonation = info;
+    notify();
+  },
+  stopImpersonation(): void {
+    impersonation = null;
+    notify();
+  },
   clear(): void {
     accessToken = null;
     refreshToken = null;
     user = null;
+    impersonation = null;
     writeStored(null);
     notify();
   },
@@ -120,6 +153,6 @@ export const tokenStore = {
     };
   },
   getSnapshot(): string | null {
-    return accessToken;
+    return impersonation ? impersonation.accessToken : accessToken;
   },
 };

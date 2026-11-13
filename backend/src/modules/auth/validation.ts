@@ -31,3 +31,7 @@ export const changePasswordSchema = z
     path: ["newPassword"],
     message: "Use a password that is different from the current one",
   });
+
+export const impersonateSchema = z.object({
+  userId: z.string().uuid(),
+});

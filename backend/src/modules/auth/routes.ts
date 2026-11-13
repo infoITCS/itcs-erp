@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { validate } from "../../common/validation/validate";
 import { authenticate } from "../../middleware/authenticate";
+import { requirePermission } from "../../middleware/authorize";
 import type { AuthController } from "./controller";
 import {
   changePasswordSchema,
+  impersonateSchema,
   loginSchema,
   microsoftExchangeSchema,
   passwordResetConfirmSchema,
@@ -46,6 +48,14 @@ export function createAuthRouter(controller: AuthController): Router {
     "/password-reset/confirm",
     validate({ body: passwordResetConfirmSchema }),
     controller.confirmPasswordReset,
+  );
+  // Admin-only: impersonate another user (requires users:read at minimum, enforced as admin role)
+  router.post(
+    "/impersonate",
+    authenticate,
+    requirePermission("users:read"),
+    validate({ body: impersonateSchema }),
+    controller.impersonate,
   );
   return router;
 }

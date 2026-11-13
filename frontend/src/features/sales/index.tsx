@@ -8,22 +8,34 @@ import { StatusPill, formatDate, formatMoney } from "@/features/sales/shared.tsx
 import { useHasPermission } from "@/hooks/useSession.ts";
 
 export default function SalesDashboardPage() {
+  const canReadQuotes = useHasPermission("quotes:read");
+  const canReadOrders = useHasPermission("sales-orders:read");
+  const canReadInvoices = useHasPermission("invoices:read");
+  const canReadPayments = useHasPermission("payments:read");
+
+  const canCreateQuote = useHasPermission("quotes:create");
+  const canCreateOrder = useHasPermission("sales-orders:create");
   const canCreatePayment = useHasPermission("payments:create");
+
   const quotes = useQuery({
     queryKey: ["quotes", "list", { recent: true }],
     queryFn: () => listQuotes({ limit: 5 }),
+    enabled: canReadQuotes,
   });
   const orders = useQuery({
     queryKey: ["sales-orders", "list", { recent: true }],
     queryFn: () => listSalesOrders({ limit: 5 }),
+    enabled: canReadOrders,
   });
   const invoices = useQuery({
     queryKey: ["invoices", "list", { recent: true }],
     queryFn: () => listInvoices({ limit: 5 }),
+    enabled: canReadInvoices,
   });
   const payments = useQuery({
     queryKey: ["payments", "list", { recent: true }],
     queryFn: () => listPayments({ limit: 5 }),
+    enabled: canReadPayments,
   });
 
   const quoteRows = quotes.data?.items ?? [];
@@ -53,99 +65,121 @@ export default function SalesDashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link className="inline-flex h-10 items-center rounded-md border border-slate-300 px-4 text-sm text-slate-700 transition hover:bg-slate-50" to="/quotes/new">
-            New quote
-          </Link>
+          {canCreateQuote ? (
+            <Link className="inline-flex h-10 items-center rounded-md border border-slate-300 px-4 text-sm text-slate-700 transition hover:bg-slate-50" to="/quotes/new">
+              New quote
+            </Link>
+          ) : null}
           {canCreatePayment ? (
             <Link className="inline-flex h-10 items-center rounded-md border border-slate-300 px-4 text-sm text-slate-700 transition hover:bg-slate-50" to="/payments/new">
               Record payment
             </Link>
           ) : null}
-          <Link className="inline-flex h-10 items-center rounded-md bg-brand-800 px-4 text-sm font-medium text-white transition hover:bg-brand-900" to="/sales-orders/new">
-            New order
-          </Link>
+          {canCreateOrder ? (
+            <Link className="inline-flex h-10 items-center rounded-md bg-brand-800 px-4 text-sm font-medium text-white transition hover:bg-brand-900" to="/sales-orders/new">
+              New order
+            </Link>
+          ) : null}
         </div>
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <SummaryCard label="Recent quotes" value={String(quoteRows.length)} href="/quotes" note="Latest quotations in the pipeline" />
-        <SummaryCard label="Recent orders" value={String(orderRows.length)} href="/sales-orders" note="Newest confirmed and draft orders" />
-        <SummaryCard label="Recent invoices" value={String(invoiceRows.length)} href="/invoices" note="Latest invoices issued" />
-        <SummaryCard
-          label="Outstanding (recent)"
-          value={formatMoney(outstanding, currency)}
-          href="/invoices"
-          note="Balance across the five most recent invoices"
-        />
-        <SummaryCard
-          label="Received (recent)"
-          value={formatMoney(received, currency)}
-          href="/payments"
-          note="Value across the five most recent receipts"
-        />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {canReadQuotes ? (
+          <SummaryCard label="Recent quotes" value={String(quoteRows.length)} href="/quotes" note="Latest quotations in the pipeline" />
+        ) : null}
+        {canReadOrders ? (
+          <SummaryCard label="Recent orders" value={String(orderRows.length)} href="/sales-orders" note="Newest confirmed and draft orders" />
+        ) : null}
+        {canReadInvoices ? (
+          <>
+            <SummaryCard label="Recent invoices" value={String(invoiceRows.length)} href="/invoices" note="Latest invoices issued" />
+            <SummaryCard
+              label="Outstanding (recent)"
+              value={formatMoney(outstanding, currency)}
+              href="/invoices"
+              note="Balance across recent invoices"
+            />
+          </>
+        ) : null}
+        {canReadPayments ? (
+          <SummaryCard
+            label="Received (recent)"
+            value={formatMoney(received, currency)}
+            href="/payments"
+            note="Value across recent receipts"
+          />
+        ) : null}
       </div>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <RecentPanel
-          title="Quotes"
-          href="/quotes"
-          loading={quotes.isPending}
-          empty="No quotes yet."
-          rows={quoteRows.map((quote) => ({
-            id: quote.id,
-            href: `/quotes/${quote.id}`,
-            number: quote.quoteNumber,
-            name: quote.customer?.displayName ?? "—",
-            status: quote.status,
-            date: quote.issueDate,
-            total: formatMoney(quote.total, quote.currencyCode),
-          }))}
-        />
-        <RecentPanel
-          title="Sales orders"
-          href="/sales-orders"
-          loading={orders.isPending}
-          empty="No sales orders yet."
-          rows={orderRows.map((order) => ({
-            id: order.id,
-            href: `/sales-orders/${order.id}`,
-            number: order.salesOrderNumber,
-            name: order.customer?.displayName ?? "—",
-            status: order.status,
-            date: order.orderDate,
-            total: formatMoney(order.total, order.currencyCode),
-          }))}
-        />
-        <RecentPanel
-          title="Invoices"
-          href="/invoices"
-          loading={invoices.isPending}
-          empty="No invoices yet."
-          rows={invoiceRows.map((invoice) => ({
-            id: invoice.id,
-            href: `/invoices/${invoice.id}`,
-            number: invoice.invoiceNumber,
-            name: invoice.customer?.displayName ?? "—",
-            status: invoice.status,
-            date: invoice.issueDate,
-            total: formatMoney(invoice.total, invoice.currencyCode),
-          }))}
-        />
-        <RecentPanel
-          title="Payments"
-          href="/payments"
-          loading={payments.isPending}
-          empty="No payments recorded yet."
-          rows={paymentRows.map((payment) => ({
-            id: payment.id,
-            href: `/payments/${payment.id}`,
-            number: payment.paymentNumber,
-            name: payment.customer?.displayName ?? "—",
-            status: "RECEIVED",
-            date: payment.receivedDate,
-            total: formatMoney(payment.amount, payment.currencyCode),
-          }))}
-        />
+        {canReadQuotes ? (
+          <RecentPanel
+            title="Quotes"
+            href="/quotes"
+            loading={quotes.isPending}
+            empty="No quotes yet."
+            rows={quoteRows.map((quote) => ({
+              id: quote.id,
+              href: `/quotes/${quote.id}`,
+              number: quote.quoteNumber,
+              name: quote.customer?.displayName ?? "—",
+              status: quote.status,
+              date: quote.issueDate,
+              total: formatMoney(quote.total, quote.currencyCode),
+            }))}
+          />
+        ) : null}
+        {canReadOrders ? (
+          <RecentPanel
+            title="Sales orders"
+            href="/sales-orders"
+            loading={orders.isPending}
+            empty="No sales orders yet."
+            rows={orderRows.map((order) => ({
+              id: order.id,
+              href: `/sales-orders/${order.id}`,
+              number: order.salesOrderNumber,
+              name: order.customer?.displayName ?? "—",
+              status: order.status,
+              date: order.orderDate,
+              total: formatMoney(order.total, order.currencyCode),
+            }))}
+          />
+        ) : null}
+        {canReadInvoices ? (
+          <RecentPanel
+            title="Invoices"
+            href="/invoices"
+            loading={invoices.isPending}
+            empty="No invoices yet."
+            rows={invoiceRows.map((invoice) => ({
+              id: invoice.id,
+              href: `/invoices/${invoice.id}`,
+              number: invoice.invoiceNumber,
+              name: invoice.customer?.displayName ?? "—",
+              status: invoice.status,
+              date: invoice.issueDate,
+              total: formatMoney(invoice.total, invoice.currencyCode),
+            }))}
+          />
+        ) : null}
+        {canReadPayments ? (
+          <RecentPanel
+            title="Payments"
+            href="/payments"
+            loading={payments.isPending}
+            empty="No payments recorded yet."
+            rows={paymentRows.map((payment) => ({
+              id: payment.id,
+              href: `/payments/${payment.id}`,
+              number: payment.paymentNumber,
+              name: payment.customer?.displayName ?? "—",
+              status: "RECEIVED",
+              date: payment.receivedDate,
+              total: formatMoney(payment.amount, payment.currencyCode),
+            }))}
+          />
+        ) : null}
       </div>
     </section>
   );

@@ -145,4 +145,18 @@ export class AuthController {
     await this.authService.confirmPasswordReset(body, meta(req));
     sendSuccess(res, { message: "Password updated" });
   });
+
+  impersonate = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.auth?.userId || !req.auth.organizationId) {
+      throw new UnauthorizedError();
+    }
+    const { userId } = req.validated?.body as { userId: string };
+    const result = await this.authService.impersonate(
+      req.auth.userId,
+      req.auth.organizationId,
+      userId,
+      meta(req),
+    );
+    sendSuccess(res, { message: "Impersonation token issued", data: result });
+  });
 }

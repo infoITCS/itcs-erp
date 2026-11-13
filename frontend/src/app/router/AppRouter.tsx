@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "@/components/layouts/AppLayout.tsx";
 import { LoginPage } from "@/features/auth/index.tsx";
 import { MicrosoftCallbackPage } from "@/features/auth/callback.tsx";
-import { useHasPermission } from "@/hooks/useSession.ts";
+import { hasPermission, useHasPermission, useSessionUser } from "@/hooks/useSession.ts";
 import { GuestOnly, RequireAuth } from "./RequireAuth.tsx";
 import { navItems } from "./nav.tsx";
 
@@ -32,10 +32,19 @@ function PageLoading() {
   return <p className="text-sm text-slate-500">Loading page…</p>;
 }
 
-function RequirePermission({ permission, children }: { permission: string; children: ReactNode }) {
+function RequirePermission({
+  permission,
+  children,
+}: {
+  permission: string | string[];
+  children: ReactNode;
+}) {
+  const user = useSessionUser();
   const allowed = useHasPermission(permission);
   if (!allowed) {
-    return <Navigate to="/" replace />;
+    const firstAllowed =
+      navItems.find((item) => hasPermission(user, item.permission))?.path ?? "/settings";
+    return <Navigate to={firstAllowed} replace />;
   }
   return <>{children}</>;
 }
@@ -85,7 +94,9 @@ export function AppRouter() {
               path="/customers/new"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <CustomerFormPage />
+                  <RequirePermission permission="customers:create">
+                    <CustomerFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -93,7 +104,9 @@ export function AppRouter() {
               path="/customers/:id/edit"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <CustomerFormPage />
+                  <RequirePermission permission="customers:update">
+                    <CustomerFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -101,7 +114,9 @@ export function AppRouter() {
               path="/customers/:id"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <CustomerDetailPage />
+                  <RequirePermission permission="customers:read">
+                    <CustomerDetailPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -109,7 +124,9 @@ export function AppRouter() {
               path="/products/new"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <ProductFormPage />
+                  <RequirePermission permission="products:create">
+                    <ProductFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -117,7 +134,9 @@ export function AppRouter() {
               path="/products/:id/edit"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <ProductFormPage />
+                  <RequirePermission permission="products:update">
+                    <ProductFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -125,7 +144,9 @@ export function AppRouter() {
               path="/products/:id"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <ProductDetailPage />
+                  <RequirePermission permission="products:read">
+                    <ProductDetailPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -133,7 +154,9 @@ export function AppRouter() {
               path="/leads/new"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <LeadFormPage />
+                  <RequirePermission permission="leads:create">
+                    <LeadFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -141,7 +164,9 @@ export function AppRouter() {
               path="/leads/:id/edit"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <LeadFormPage />
+                  <RequirePermission permission="leads:update">
+                    <LeadFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -149,7 +174,9 @@ export function AppRouter() {
               path="/leads/:id"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <LeadDetailPage />
+                  <RequirePermission permission="leads:read">
+                    <LeadDetailPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -157,7 +184,9 @@ export function AppRouter() {
               path="/opportunities/new"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <OpportunityFormPage />
+                  <RequirePermission permission="opportunities:create">
+                    <OpportunityFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -165,7 +194,9 @@ export function AppRouter() {
               path="/opportunities/:id/edit"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <OpportunityFormPage />
+                  <RequirePermission permission="opportunities:update">
+                    <OpportunityFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -173,7 +204,9 @@ export function AppRouter() {
               path="/opportunities/:id"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <OpportunityDetailPage />
+                  <RequirePermission permission="opportunities:read">
+                    <OpportunityDetailPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -181,7 +214,9 @@ export function AppRouter() {
               path="/tenders/new"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <TenderFormPage />
+                  <RequirePermission permission="tenders:create">
+                    <TenderFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -189,7 +224,9 @@ export function AppRouter() {
               path="/tenders/:id/edit"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <TenderFormPage />
+                  <RequirePermission permission="tenders:update">
+                    <TenderFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -197,7 +234,9 @@ export function AppRouter() {
               path="/tenders/:id"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <TenderDetailPage />
+                  <RequirePermission permission="tenders:read">
+                    <TenderDetailPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -205,7 +244,9 @@ export function AppRouter() {
               path="/resellers/new"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <ResellerFormPage />
+                  <RequirePermission permission="resellers:create">
+                    <ResellerFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -213,7 +254,9 @@ export function AppRouter() {
               path="/resellers/:id/edit"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <ResellerFormPage />
+                  <RequirePermission permission="resellers:update">
+                    <ResellerFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -221,7 +264,9 @@ export function AppRouter() {
               path="/resellers/:id"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <ResellerDetailPage />
+                  <RequirePermission permission="resellers:read">
+                    <ResellerDetailPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -229,7 +274,9 @@ export function AppRouter() {
               path="/quotes/new"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <QuoteFormPage />
+                  <RequirePermission permission="quotes:create">
+                    <QuoteFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -237,7 +284,9 @@ export function AppRouter() {
               path="/quotes/:id/edit"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <QuoteFormPage />
+                  <RequirePermission permission="quotes:update">
+                    <QuoteFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -245,7 +294,9 @@ export function AppRouter() {
               path="/quotes/:id"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <QuoteDetailPage />
+                  <RequirePermission permission="quotes:read">
+                    <QuoteDetailPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -253,7 +304,9 @@ export function AppRouter() {
               path="/sales-orders/new"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <SalesOrderFormPage />
+                  <RequirePermission permission="sales-orders:create">
+                    <SalesOrderFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -261,7 +314,9 @@ export function AppRouter() {
               path="/sales-orders/:id/edit"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <SalesOrderFormPage />
+                  <RequirePermission permission="sales-orders:update">
+                    <SalesOrderFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -269,7 +324,9 @@ export function AppRouter() {
               path="/sales-orders/:id"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <SalesOrderDetailPage />
+                  <RequirePermission permission="sales-orders:read">
+                    <SalesOrderDetailPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -277,7 +334,9 @@ export function AppRouter() {
               path="/invoices/new"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <InvoiceFormPage />
+                  <RequirePermission permission="invoices:create">
+                    <InvoiceFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -285,7 +344,9 @@ export function AppRouter() {
               path="/invoices/:id/edit"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <InvoiceFormPage />
+                  <RequirePermission permission="invoices:update">
+                    <InvoiceFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -293,7 +354,9 @@ export function AppRouter() {
               path="/invoices/:id"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <InvoiceDetailPage />
+                  <RequirePermission permission="invoices:read">
+                    <InvoiceDetailPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -301,7 +364,9 @@ export function AppRouter() {
               path="/payments/new"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <PaymentFormPage />
+                  <RequirePermission permission="payments:create">
+                    <PaymentFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -309,7 +374,9 @@ export function AppRouter() {
               path="/payments/:id/edit"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <PaymentFormPage />
+                  <RequirePermission permission="payments:update">
+                    <PaymentFormPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />
@@ -317,7 +384,9 @@ export function AppRouter() {
               path="/payments/:id"
               element={
                 <Suspense fallback={<PageLoading />}>
-                  <PaymentDetailPage />
+                  <RequirePermission permission="payments:read">
+                    <PaymentDetailPage />
+                  </RequirePermission>
                 </Suspense>
               }
             />

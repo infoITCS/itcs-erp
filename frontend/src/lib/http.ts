@@ -47,7 +47,10 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 http.interceptors.request.use((config) => {
-  const token = tokenStore.get();
+  // During impersonation, use the impersonation token for all API calls
+  const token = tokenStore.isImpersonating()
+    ? tokenStore.getImpersonation()?.accessToken
+    : tokenStore.getRealAccessToken();
   if (token) {
     config.headers.set("Authorization", `Bearer ${token}`);
   }
@@ -62,6 +65,12 @@ http.interceptors.response.use(
     const isLoginCall = url.includes("/api/v1/auth/login");
     const isRefreshCall = url.includes("/api/v1/auth/refresh");
     const isMicrosoftExchange = url.includes("/api/v1/auth/microsoft/exchange");
+
+    // During impersonation, a 401 means the impersonation token expired - just stop impersonation
+    if (error.response?.status === 401 && tokenStore.isImpersonating()) {
+      tokenStore.stopImpersonation();
+      return Promise.reject(error);
+    }
 
     if (
       error.response?.status === 401 &&

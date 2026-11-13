@@ -4,7 +4,7 @@ export interface NavItem {
   path: string;
   label: string;
   group: string;
-  permission?: string;
+  permission?: string | string[];
   page: LazyExoticComponent<ComponentType>;
 }
 
@@ -13,12 +13,14 @@ export const navItems: NavItem[] = [
     path: "/",
     label: "Dashboard",
     group: "Overview",
+    permission: "dashboard:read",
     page: lazy(() => import("@/features/dashboard/index.tsx")),
   },
   {
     path: "/analytics",
     label: "Analytics",
     group: "Overview",
+    permission: ["reports:read", "reports:export"],
     page: lazy(() => import("@/features/analytics/index.tsx")),
   },
   {
@@ -67,6 +69,7 @@ export const navItems: NavItem[] = [
     path: "/sales",
     label: "Sales",
     group: "Sales",
+    permission: ["quotes:read", "sales-orders:read", "invoices:read", "payments:read"],
     page: lazy(() => import("@/features/sales/index.tsx")),
   },
   {
