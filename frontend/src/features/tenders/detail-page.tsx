@@ -75,8 +75,8 @@ export default function TenderDetailPage() {
         <>
           <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-5">
             <div>
-              <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-teal-800">
-                <span className="h-2 w-2 rounded-full bg-teal-600" />
+              <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-brand-800">
+                <span className="h-2 w-2 rounded-full bg-brand-600" />
                 CRM / Tenders
               </p>
               <div className="flex flex-wrap items-center gap-2">
@@ -167,8 +167,8 @@ export default function TenderDetailPage() {
                     onClick={() => changeStatus.mutate(status)}
                     className={`rounded-md border px-3 py-2 text-left transition ${
                       isCurrent
-                        ? "border-teal-300 bg-teal-50 shadow-sm"
-                        : "border-slate-200 bg-white hover:border-teal-300 hover:bg-teal-50/40 disabled:cursor-not-allowed disabled:opacity-60"
+                        ? "border-brand-300 bg-brand-50 shadow-sm"
+                        : "border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/40 disabled:cursor-not-allowed disabled:opacity-60"
                     }`}
                   >
                     <span className="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">
@@ -195,7 +195,7 @@ export default function TenderDetailPage() {
               <Detail label="Customer">
                 {data.customer ? (
                   <Link
-                    className="font-medium text-teal-800 underline-offset-2 hover:underline"
+                    className="font-medium text-brand-800 underline-offset-2 hover:underline"
                     to={`/customers/${data.customer.id}`}
                   >
                     {data.customer.displayName} ({data.customer.customerNumber})

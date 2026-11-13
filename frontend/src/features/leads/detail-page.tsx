@@ -101,8 +101,8 @@ export default function LeadDetailPage() {
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <div className="border-b border-slate-200 pb-5">
-        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
-          <span className="h-2 w-2 rounded-full bg-teal-600" />
+        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
+          <span className="h-2 w-2 rounded-full bg-brand-600" />
           <Link className="hover:underline" to="/leads">
             CRM / Leads
           </Link>
@@ -143,7 +143,7 @@ export default function LeadDetailPage() {
                   </Button>
                 ) : null}
                 {canConvert ? (
-                  <Button className="bg-teal-800 hover:bg-teal-900" onClick={() => setConvertOpen(true)}>
+                  <Button className="bg-brand-800 hover:bg-brand-900" onClick={() => setConvertOpen(true)}>
                     Convert to opportunity
                   </Button>
                 ) : null}
@@ -214,7 +214,7 @@ export default function LeadDetailPage() {
                   <dt className="text-xs text-slate-500">Customer</dt>
                   <dd className="mt-0.5">
                     {row.convertedCustomer ? (
-                      <Link className="font-medium text-teal-800 hover:underline" to={`/customers/${row.convertedCustomer.id}`}>
+                      <Link className="font-medium text-brand-800 hover:underline" to={`/customers/${row.convertedCustomer.id}`}>
                         {row.convertedCustomer.displayName} ({row.convertedCustomer.customerNumber})
                       </Link>
                     ) : (
@@ -230,7 +230,7 @@ export default function LeadDetailPage() {
                   <dt className="text-xs text-slate-500">Opportunity</dt>
                   <dd className="mt-0.5">
                     {row.opportunity ? (
-                      <Link className="font-medium text-teal-800 hover:underline" to={`/opportunities/${row.opportunity.id}`}>
+                      <Link className="font-medium text-brand-800 hover:underline" to={`/opportunities/${row.opportunity.id}`}>
                         {row.opportunity.title} ({row.opportunity.opportunityNumber})
                       </Link>
                     ) : (
@@ -259,7 +259,7 @@ export default function LeadDetailPage() {
           <ol className="flex flex-col gap-3">
             {auditRows.map((event) => (
               <li key={event.id} className="flex gap-3">
-                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-teal-600" />
+                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-600" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-slate-800">{event.action.replaceAll(".", " ")}</p>
                   <p className="mt-0.5 text-xs text-slate-500">{new Date(event.createdAt).toLocaleString()}</p>
@@ -280,7 +280,7 @@ export default function LeadDetailPage() {
               Cancel
             </Button>
             <Button
-              className="bg-teal-800 hover:bg-teal-900"
+              className="bg-brand-800 hover:bg-brand-900"
               onClick={() => changeStatus.mutate()}
               disabled={changeStatus.isPending || !targetStatus}
             >
@@ -381,9 +381,9 @@ function StatusBadge({ status, deleted }: { status: LeadStatus; deleted: boolean
     status === "WON"
       ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
       : status === "CONVERTED"
-        ? "bg-teal-50 text-teal-800 ring-teal-200"
+        ? "bg-brand-50 text-brand-800 ring-brand-200"
         : status === "QUALIFIED"
-          ? "bg-cyan-50 text-cyan-800 ring-cyan-200"
+          ? "bg-sky-50 text-sky-800 ring-sky-200"
           : status === "UNQUALIFIED"
             ? "bg-amber-50 text-amber-800 ring-amber-200"
             : status === "CONTACTED"

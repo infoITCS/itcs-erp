@@ -43,8 +43,8 @@ export default function SalesDashboardPage() {
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <header className="flex flex-col items-start justify-between gap-5 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
         <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-teal-800">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-teal-600" />
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-brand-800">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-brand-600" />
             Sales / Overview
           </p>
           <h1 className="text-3xl font-semibold text-slate-950">Sales workspace</h1>
@@ -61,7 +61,7 @@ export default function SalesDashboardPage() {
               Record payment
             </Link>
           ) : null}
-          <Link className="inline-flex h-10 items-center rounded-md bg-teal-800 px-4 text-sm font-medium text-white transition hover:bg-teal-900" to="/sales-orders/new">
+          <Link className="inline-flex h-10 items-center rounded-md bg-brand-800 px-4 text-sm font-medium text-white transition hover:bg-brand-900" to="/sales-orders/new">
             New order
           </Link>
         </div>
@@ -155,7 +155,7 @@ function SummaryCard({ label, value, href, note }: { label: string; value: strin
   return (
     <Link
       to={href}
-      className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-teal-300 hover:shadow"
+      className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-brand-300 hover:shadow"
     >
       <p className="text-xs font-medium text-slate-500">{label}</p>
       <p className="mt-1 truncate text-2xl font-semibold tabular-nums text-slate-950" title={value}>
@@ -183,7 +183,7 @@ function RecentPanel({
     <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
         <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-        <Link className="text-xs font-medium text-teal-800 hover:underline" to={href}>
+        <Link className="text-xs font-medium text-brand-800 hover:underline" to={href}>
           View all
         </Link>
       </div>

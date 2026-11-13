@@ -99,8 +99,8 @@ export default function OpportunitiesPage() {
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <header className="flex flex-col items-start justify-between gap-5 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
         <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-teal-800">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-teal-600" />
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-brand-800">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-brand-600" />
             CRM / Pipeline
           </p>
           <h1 className="text-3xl font-semibold text-slate-950">Opportunities</h1>
@@ -108,7 +108,7 @@ export default function OpportunitiesPage() {
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <Link to="/opportunities/new">
-            <Button className="h-10 bg-teal-800 px-4 transition hover:bg-teal-900 hover:shadow-sm">Add New Opportunity</Button>
+            <Button className="h-10 bg-brand-800 px-4 transition hover:bg-brand-900 hover:shadow-sm">Add New Opportunity</Button>
           </Link>
         </div>
       </header>
@@ -127,14 +127,14 @@ export default function OpportunitiesPage() {
         <SummaryItem
           label="New"
           value={newCount.toString()}
-          tone="teal"
+          tone="brand"
           active={stage === "NEW"}
           onClick={() => setStageFilter("NEW")}
         />
         <SummaryItem
           label="Open"
           value={openCount.toString()}
-          tone="teal"
+          tone="brand"
           active={stage !== "" && (OPEN_STAGES as string[]).includes(stage) && stage !== "NEW"}
           hint="Use stage chips below"
           onClick={() => {
@@ -147,7 +147,7 @@ export default function OpportunitiesPage() {
         <SummaryItem
           label="Won"
           value={wonCount.toString()}
-          tone="teal"
+          tone="brand"
           active={stage === "WON"}
           onClick={() => setStageFilter("WON")}
         />
@@ -175,7 +175,7 @@ export default function OpportunitiesPage() {
           />
           <select
             aria-label="Filter by stage"
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={stage}
             onChange={(event) => {
               setStage(event.target.value);
@@ -191,7 +191,7 @@ export default function OpportunitiesPage() {
           </select>
           <select
             aria-label="Filter by owner"
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={ownerUserId}
             onChange={(event) => {
               setOwnerUserId(event.target.value);
@@ -212,7 +212,7 @@ export default function OpportunitiesPage() {
             type="button"
             onClick={() => setStageFilter("")}
             className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-              !stage ? "bg-teal-800 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              !stage ? "bg-brand-800 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
             All
@@ -228,7 +228,7 @@ export default function OpportunitiesPage() {
                     ? "bg-amber-700 text-white shadow-sm"
                     : value === "WON"
                       ? "bg-emerald-700 text-white shadow-sm"
-                      : "bg-teal-800 text-white shadow-sm"
+                      : "bg-brand-800 text-white shadow-sm"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
@@ -240,7 +240,7 @@ export default function OpportunitiesPage() {
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
           <label className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 text-sm text-slate-700 transition hover:bg-slate-50">
             <input
-              className="accent-teal-800"
+              className="accent-brand-800"
               type="checkbox"
               checked={includeDeleted}
               onChange={(event) => {
@@ -253,7 +253,7 @@ export default function OpportunitiesPage() {
           {filtersActive ? (
             <button
               type="button"
-              className="text-xs font-medium text-teal-800 underline-offset-2 transition hover:underline"
+              className="text-xs font-medium text-brand-800 underline-offset-2 transition hover:underline"
               onClick={clearFilters}
             >
               Clear filters
@@ -276,7 +276,7 @@ export default function OpportunitiesPage() {
               {rows.length}
             </span>
             {stage ? (
-              <span className="rounded-md bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-800 ring-1 ring-inset ring-teal-100">
+              <span className="rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-800 ring-1 ring-inset ring-brand-100">
                 {stageLabel(stage)}
               </span>
             ) : null}
@@ -343,7 +343,7 @@ export default function OpportunitiesPage() {
                       <tr
                         key={row.id}
                         className={`border-t border-slate-100 transition-colors ${
-                          row.deletedAt ? "opacity-70" : "cursor-pointer hover:bg-teal-50/40"
+                          row.deletedAt ? "opacity-70" : "cursor-pointer hover:bg-brand-50/40"
                         }`}
                         onClick={() => {
                           if (!row.deletedAt) {
@@ -451,24 +451,24 @@ function SummaryItem({
 }: {
   label: string;
   value: string;
-  tone: "slate" | "teal" | "amber";
+  tone: "slate" | "brand" | "amber";
   active?: boolean;
   hint?: string;
   onClick?: () => void;
 }) {
-  const valueColor = tone === "teal" ? "text-teal-800" : tone === "amber" ? "text-amber-800" : "text-slate-950";
+  const valueColor = tone === "brand" ? "text-brand-800" : tone === "amber" ? "text-amber-800" : "text-slate-950";
   return (
     <button
       type="button"
       onClick={onClick}
       title={hint}
       className={`flex min-h-[76px] w-full flex-col justify-center px-4 py-3 text-left transition first:pl-0 sm:pl-5 ${
-        active ? "bg-teal-50/70" : "hover:bg-slate-50"
+        active ? "bg-brand-50/70" : "hover:bg-slate-50"
       }`}
     >
       <p className="text-xs font-medium text-slate-500">{label}</p>
       <p className={`mt-1 text-2xl font-semibold tabular-nums transition ${valueColor}`}>{value}</p>
-      {active ? <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-teal-700">Filtered</p> : null}
+      {active ? <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-brand-700">Filtered</p> : null}
     </button>
   );
 }
@@ -493,7 +493,7 @@ function StageBadge({ stage, deleted }: { stage: OpportunityStage; deleted: bool
   }
   if (stage === "NEW") {
     return (
-      <span className="inline-flex whitespace-nowrap rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-800 ring-1 ring-inset ring-teal-200">
+      <span className="inline-flex whitespace-nowrap rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-800 ring-1 ring-inset ring-brand-200">
         New
       </span>
     );
@@ -511,7 +511,7 @@ function ProbabilityBar({ value }: { value: number }) {
       <span className="tabular-nums text-slate-700">{value}%</span>
       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
         <span
-          className="block h-full rounded-full bg-teal-600 transition-all duration-300"
+          className="block h-full rounded-full bg-brand-600 transition-all duration-300"
           style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
         />
       </span>
@@ -536,7 +536,7 @@ function EmptyState({ filtersActive, onClear }: { filtersActive: boolean; onClea
         </Button>
       ) : (
         <Link to="/opportunities/new">
-          <Button className="h-9 bg-teal-800 hover:bg-teal-900">Add New Opportunity</Button>
+          <Button className="h-9 bg-brand-800 hover:bg-brand-900">Add New Opportunity</Button>
         </Link>
       )}
     </div>
@@ -575,14 +575,14 @@ function OpportunityMobileCard({
 }) {
   const overdue = isOverdue(row.expectedCloseDate) && (OPEN_STAGES as string[]).includes(row.stage);
   return (
-    <article className="flex flex-col gap-3 p-4 transition hover:bg-teal-50/30">
+    <article className="flex flex-col gap-3 p-4 transition hover:bg-brand-50/30">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-mono text-xs text-slate-500">{row.opportunityNumber}</p>
           {row.deletedAt ? (
             <p className="mt-1 break-words font-semibold text-slate-500">{row.title}</p>
           ) : (
-            <Link className="mt-1 block break-words font-semibold text-slate-950 transition hover:text-teal-800" to={`/opportunities/${row.id}`}>
+            <Link className="mt-1 block break-words font-semibold text-slate-950 transition hover:text-brand-800" to={`/opportunities/${row.id}`}>
               {row.title}
             </Link>
           )}
@@ -622,10 +622,10 @@ function OpportunityMobileCard({
           </button>
         ) : (
           <>
-            <Link className="text-slate-700 transition hover:text-teal-800" to={`/opportunities/${row.id}`}>
+            <Link className="text-slate-700 transition hover:text-brand-800" to={`/opportunities/${row.id}`}>
               View
             </Link>
-            <Link className="text-slate-700 transition hover:text-teal-800" to={`/opportunities/${row.id}/edit`}>
+            <Link className="text-slate-700 transition hover:text-brand-800" to={`/opportunities/${row.id}/edit`}>
               Edit
             </Link>
           </>

@@ -14,7 +14,7 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 p-3 sm:p-4">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-ink-950/50 p-3 sm:p-4">
       <div
         role="dialog"
         aria-modal="true"

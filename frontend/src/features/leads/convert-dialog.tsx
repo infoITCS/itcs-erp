@@ -137,14 +137,14 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
           <Button variant="secondary" onClick={onClose} disabled={convert.isPending}>
             Cancel
           </Button>
-          <Button className="bg-teal-800 hover:bg-teal-900" onClick={submit} disabled={convert.isPending}>
+          <Button className="bg-brand-800 hover:bg-brand-900" onClick={submit} disabled={convert.isPending}>
             {convert.isPending ? "Converting…" : "Convert lead"}
           </Button>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="rounded-md border border-teal-100 bg-teal-50 px-3 py-2 text-sm text-teal-900">
+        <p className="rounded-md border border-brand-100 bg-brand-50 px-3 py-2 text-sm text-brand-900">
           A lead can only be converted once. The lead will be marked <strong>Converted</strong> and an opportunity is
           created with the lead source and reference preserved.
         </p>
@@ -408,7 +408,7 @@ function ModeButton({
       type="button"
       onClick={onClick}
       className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-        active ? "bg-teal-800 text-white shadow-sm" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+        active ? "bg-brand-800 text-white shadow-sm" : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
       }`}
     >
       {children}

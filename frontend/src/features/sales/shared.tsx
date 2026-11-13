@@ -174,7 +174,7 @@ export function statusTone(status: string): string {
       return "bg-emerald-50 text-emerald-800 ring-emerald-200";
     case "SENT":
     case "PROCESSING":
-      return "bg-cyan-50 text-cyan-800 ring-cyan-200";
+      return "bg-sky-50 text-sky-800 ring-sky-200";
     case "REJECTED":
     case "EXPIRED":
     case "OVERDUE":

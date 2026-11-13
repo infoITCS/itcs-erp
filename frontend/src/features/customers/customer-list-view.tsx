@@ -65,20 +65,20 @@ export function CustomerListView({
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <header className="flex flex-col items-start justify-between gap-5 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
         <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-teal-800"><span className="h-2 w-2 rounded-full bg-teal-600" />CRM / Directory</p>
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-brand-800"><span className="h-2 w-2 rounded-full bg-brand-600" />CRM / Directory</p>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-3xl font-semibold text-slate-950">Customers</h1>
           </div>
           <p className="mt-1 text-sm text-slate-600">Customer accounts, contacts and receivables.</p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-          <Link to="/customers/new"><Button className="h-10 bg-teal-800 px-4 hover:bg-teal-900">Add New Customer</Button></Link>
+          <Link to="/customers/new"><Button className="h-10 bg-brand-800 px-4 hover:bg-brand-900">Add New Customer</Button></Link>
         </div>
       </header>
 
       <div className="grid grid-cols-2 divide-x divide-y divide-slate-200 border-y border-slate-200 sm:grid-cols-4 sm:divide-y-0">
         <SummaryItem label="Visible customers" value={rows.length.toString()} tone="slate" />
-        <SummaryItem label="Active" value={activeCount.toString()} tone="teal" />
+        <SummaryItem label="Active" value={activeCount.toString()} tone="brand" />
         <SummaryItem label="On hold" value={holdCount.toString()} tone="amber" />
         <SummaryItem label="Inactive" value={inactiveCount.toString()} tone="slate" />
       </div>
@@ -95,7 +95,7 @@ export function CustomerListView({
           />
           <select
             aria-label="Filter by status"
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={filters.status}
             onChange={(event) => onStatusChange(event.target.value)}
           >
@@ -106,7 +106,7 @@ export function CustomerListView({
           </select>
           <select
             aria-label="Filter by customer type"
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={filters.customerType}
             onChange={(event) => onCustomerTypeChange(event.target.value)}
           >
@@ -120,7 +120,7 @@ export function CustomerListView({
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
           <label className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 text-sm text-slate-700 hover:bg-slate-50">
-            <input className="accent-teal-800" type="checkbox" checked={filters.includeDeleted} onChange={(event) => onIncludeDeletedChange(event.target.checked)} />
+            <input className="accent-brand-800" type="checkbox" checked={filters.includeDeleted} onChange={(event) => onIncludeDeletedChange(event.target.checked)} />
             Include deleted customers
           </label>
         </div>
@@ -175,13 +175,13 @@ export function CustomerListView({
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-500">No customers match these filters.</td></tr>
               ) : null}
               {!isLoading && !error ? rows.map((row) => (
-                <tr key={row.id} className="border-t border-slate-100 transition-colors hover:bg-teal-50/30">
+                <tr key={row.id} className="border-t border-slate-100 transition-colors hover:bg-brand-50/30">
                   <td className="whitespace-nowrap px-5 py-4 font-mono text-xs font-medium text-slate-500">{row.customerNumber}</td>
                   <td className="max-w-[270px] px-5 py-4">
                     {row.deletedAt ? (
                       <span className="font-medium text-slate-500">{row.displayName}</span>
                     ) : (
-                      <Link className="font-semibold text-slate-950 decoration-teal-700 underline-offset-4 hover:text-teal-800 hover:underline" to={`/customers/${row.id}`}>
+                      <Link className="font-semibold text-slate-950 decoration-brand-700 underline-offset-4 hover:text-brand-800 hover:underline" to={`/customers/${row.id}`}>
                         {row.displayName}
                       </Link>
                     )}
@@ -229,8 +229,8 @@ export function CustomerListView({
   );
 }
 
-function SummaryItem({ label, value, tone }: { label: string; value: string; tone: "slate" | "teal" | "amber" }) {
-  const valueColor = tone === "teal" ? "text-teal-800" : tone === "amber" ? "text-amber-800" : "text-slate-950";
+function SummaryItem({ label, value, tone }: { label: string; value: string; tone: "slate" | "brand" | "amber" }) {
+  const valueColor = tone === "brand" ? "text-brand-800" : tone === "amber" ? "text-amber-800" : "text-slate-950";
   return (
     <div className="flex min-h-[76px] flex-col justify-center px-4 py-3 first:pl-0 sm:pl-5">
       <p className="text-xs font-medium text-slate-500">{label}</p>

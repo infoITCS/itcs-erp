@@ -25,6 +25,7 @@ export interface AuthUserRecord {
   passwordHash: string;
   firstName: string;
   lastName: string;
+  avatarUrl?: string | null;
   status: AccountStatus;
   failedLoginCount: number;
   organizationId: string | null;
@@ -88,6 +89,7 @@ export class AuthRepository extends BaseRepository {
         passwordHash: true,
         firstName: true,
         lastName: true,
+        avatarUrl: true,
         status: true,
         failedLoginCount: true,
         memberships: {
@@ -117,6 +119,7 @@ export class AuthRepository extends BaseRepository {
       passwordHash: user.passwordHash,
       firstName: user.firstName,
       lastName: user.lastName,
+      avatarUrl: user.avatarUrl,
       status: user.status,
       failedLoginCount: user.failedLoginCount,
       organizationId,

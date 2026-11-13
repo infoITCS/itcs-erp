@@ -367,13 +367,13 @@ export default function CustomerFormPage() {
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div className="flex min-w-0 flex-col gap-2">
-          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800"><span className="h-2 w-2 rounded-full bg-teal-600" />CRM / Directory</p>
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800"><span className="h-2 w-2 rounded-full bg-brand-600" />CRM / Directory</p>
           <div>
             <h1 className="text-3xl font-semibold text-slate-950">{id ? "Edit customer" : "New customer"}</h1>
             <p className="mt-1 text-sm text-slate-600">Customer number is assigned automatically when submitted.</p>
           </div>
         </div>
-        <Link to={id ? `/customers/${id}` : "/customers"} className="inline-flex h-10 w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2 sm:w-auto">
+        <Link to={id ? `/customers/${id}` : "/customers"} className="inline-flex h-10 w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 sm:w-auto">
           Cancel
         </Link>
       </header>
@@ -394,9 +394,9 @@ export default function CustomerFormPage() {
                 aria-selected={activeTab === tab.id}
                 aria-controls={`customer-panel-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex min-h-14 shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-left text-sm transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-700 sm:gap-3 sm:px-4 xl:min-h-16 ${activeTab === tab.id ? "border-teal-700 bg-white font-semibold text-slate-950" : "border-transparent text-slate-600 hover:bg-white/70 hover:text-slate-900"}`}
+                className={`flex min-h-14 shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-left text-sm transition-colors focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-700 sm:gap-3 sm:px-4 xl:min-h-16 ${activeTab === tab.id ? "border-brand-700 bg-white font-semibold text-slate-950" : "border-transparent text-slate-600 hover:bg-white/70 hover:text-slate-900"}`}
               >
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold sm:h-8 sm:w-8 ${activeTab === tab.id ? "bg-teal-50 text-teal-800" : "bg-slate-200/70 text-slate-500"}`}>{tab.number}</span>
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold sm:h-8 sm:w-8 ${activeTab === tab.id ? "bg-brand-50 text-brand-800" : "bg-slate-200/70 text-slate-500"}`}>{tab.number}</span>
                 <span className="whitespace-nowrap">{tab.label}</span>
                 {tabHasErrors(tab.id, form.formState.errors) ? <span aria-label="Contains errors" className="ml-auto h-2 w-2 shrink-0 rounded-full bg-red-600" /> : null}
               </button>
@@ -410,7 +410,7 @@ export default function CustomerFormPage() {
                 <input type="hidden" {...form.register("entityType")} />
                 <div className="grid max-w-xl grid-cols-2 rounded-md border border-slate-300 bg-slate-50 p-1" role="group" aria-label="Entity type">
                   {entityTypes.map((type) => (
-                    <button key={type} type="button" aria-pressed={entityType === type} onClick={() => form.setValue("entityType", type, { shouldDirty: true })} className={`min-h-10 rounded px-3 text-sm font-medium transition-colors ${entityType === type ? "bg-teal-800 text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-slate-900"}`}>
+                    <button key={type} type="button" aria-pressed={entityType === type} onClick={() => form.setValue("entityType", type, { shouldDirty: true })} className={`min-h-10 rounded px-3 text-sm font-medium transition-colors ${entityType === type ? "bg-brand-800 text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-slate-900"}`}>
                       {type === "COMPANY" ? "Company" : "Individual"}
                     </button>
                   ))}
@@ -487,7 +487,7 @@ export default function CustomerFormPage() {
                   <Button type="button" variant="secondary" onClick={() => addresses.append(emptyAddress(sameAsBilling ? "BILLING" : "SHIPPING"))}>Add address</Button>
                 </div>
                 <label className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  <input type="checkbox" className="mt-0.5 accent-teal-800" checked={sameAsBilling} onChange={(event) => toggleSameAsBilling(event.target.checked)} />
+                  <input type="checkbox" className="mt-0.5 accent-brand-800" checked={sameAsBilling} onChange={(event) => toggleSameAsBilling(event.target.checked)} />
                   <span><span className="block font-medium text-slate-900">Delivery address is the same as billing</span><span className="mt-1 block text-xs text-slate-500">Turn this off to enter a separate ship-to address.</span></span>
                 </label>
                 {addresses.fields.length === 0 ? <p className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">No addresses added.</p> : null}
@@ -580,17 +580,17 @@ export default function CustomerFormPage() {
                       </FormField>
                       <div className="flex items-center justify-between gap-4 md:col-span-2">
                         <label className="flex items-center gap-2 text-sm text-slate-700">
-                          <input type="checkbox" className="accent-teal-800" {...form.register(`contacts.${index}.isPrimary`)} />Primary contact
+                          <input type="checkbox" className="accent-brand-800" {...form.register(`contacts.${index}.isPrimary`)} />Primary contact
                         </label>
                         <button type="button" className="text-sm font-medium text-red-700 underline underline-offset-2" onClick={() => contacts.remove(index)}>Remove</button>
                       </div>
                       <fieldset className="md:col-span-2">
                         <legend className="text-xs font-medium uppercase text-slate-500">Communication consent</legend>
                         <div className="mt-2 grid grid-cols-2 gap-3 text-sm text-slate-700 sm:grid-cols-4">
-                          <label className="flex items-center gap-2"><input type="checkbox" className="accent-teal-800" {...form.register(`contacts.${index}.emailOptIn`)} />Email</label>
-                          <label className="flex items-center gap-2"><input type="checkbox" className="accent-teal-800" {...form.register(`contacts.${index}.phoneOptIn`)} />Phone</label>
-                          <label className="flex items-center gap-2"><input type="checkbox" className="accent-teal-800" {...form.register(`contacts.${index}.smsOptIn`)} />SMS</label>
-                          <label className="flex items-center gap-2"><input type="checkbox" className="accent-teal-800" {...form.register(`contacts.${index}.whatsappOptIn`)} />WhatsApp</label>
+                          <label className="flex items-center gap-2"><input type="checkbox" className="accent-brand-800" {...form.register(`contacts.${index}.emailOptIn`)} />Email</label>
+                          <label className="flex items-center gap-2"><input type="checkbox" className="accent-brand-800" {...form.register(`contacts.${index}.phoneOptIn`)} />Phone</label>
+                          <label className="flex items-center gap-2"><input type="checkbox" className="accent-brand-800" {...form.register(`contacts.${index}.smsOptIn`)} />SMS</label>
+                          <label className="flex items-center gap-2"><input type="checkbox" className="accent-brand-800" {...form.register(`contacts.${index}.whatsappOptIn`)} />WhatsApp</label>
                         </div>
                       </fieldset>
                     </div>
@@ -652,7 +652,7 @@ export default function CustomerFormPage() {
                   </FormField>
                 </div>
                 <label className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  <input type="checkbox" className="mt-0.5 accent-teal-800" {...form.register("emailMarketingOptIn")} />
+                  <input type="checkbox" className="mt-0.5 accent-brand-800" {...form.register("emailMarketingOptIn")} />
                   <span><span className="block font-medium text-slate-900">Email marketing consent</span><span className="mt-1 block text-xs text-slate-500">Record consent only when explicitly granted.</span></span>
                 </label>
               </section>
@@ -754,19 +754,19 @@ export default function CustomerFormPage() {
                     </FormField>
                   </div>
                   <label className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                    <input type="checkbox" className="mt-0.5 accent-teal-800" {...form.register("taxExempt")} />
+                    <input type="checkbox" className="mt-0.5 accent-brand-800" {...form.register("taxExempt")} />
                     <span><span className="block font-medium text-slate-900">Tax exempt</span><span className="mt-1 block text-xs text-slate-500">An exemption code is required when this is enabled.</span></span>
                   </label>
                   {form.watch("taxExempt") ? <FormField label="Exemption code" htmlFor="taxExemptionCode" error={form.formState.errors.taxExemptionCode?.message}>
                     <Input id="taxExemptionCode" autoComplete="off" {...form.register("taxExemptionCode")} />
                   </FormField> : null}
                   <label className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                    <input type="checkbox" className="mt-0.5 accent-teal-800" {...form.register("pricesIncludeTax")} />
+                    <input type="checkbox" className="mt-0.5 accent-brand-800" {...form.register("pricesIncludeTax")} />
                     <span><span className="block font-medium text-slate-900">Product prices include tax</span><span className="mt-1 block text-xs text-slate-500">Enable when quoted line prices already include VAT.</span></span>
                   </label>
                 </section>
                 <FormField label="Internal notes and remarks" htmlFor="notes" error={form.formState.errors.notes?.message}>
-                  <textarea id="notes" className="min-h-28 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100" {...form.register("notes")} />
+                  <textarea id="notes" className="min-h-28 w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100" {...form.register("notes")} />
                 </FormField>
               </section>
             ) : null}
@@ -777,7 +777,7 @@ export default function CustomerFormPage() {
             <div className="flex min-h-5 flex-1 items-center text-sm text-slate-500" aria-live="polite">{draftMessage || (form.formState.isDirty ? "Unsaved changes" : "")}</div>
             <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <Button type="button" variant="secondary" disabled={form.formState.isSubmitting} onClick={saveDraft} className="flex-1 sm:flex-none">Save as Draft</Button>
-              <Button type="submit" disabled={form.formState.isSubmitting || (Boolean(id) && existing.isPending)} className="flex-1 bg-teal-800 hover:bg-teal-900 disabled:bg-slate-400 sm:flex-none">{form.formState.isSubmitting ? "Submitting…" : id ? "Save changes" : "Submit customer"}</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting || (Boolean(id) && existing.isPending)} className="flex-1 bg-brand-800 hover:bg-brand-900 disabled:bg-slate-400 sm:flex-none">{form.formState.isSubmitting ? "Submitting…" : id ? "Save changes" : "Submit customer"}</Button>
             </div>
           </footer>
         </form>
@@ -793,12 +793,12 @@ export default function CustomerFormPage() {
             <Input id="new-payment-term-days" type="number" min="0" max="3650" step="1" value={paymentTermDays} onChange={(event) => setPaymentTermDays(event.target.value)} />
           </FormField>
           <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" className="accent-teal-800" checked={paymentTermRequiresPrepayment} onChange={(event) => setPaymentTermRequiresPrepayment(event.target.checked)} />Requires prepayment
+            <input type="checkbox" className="accent-brand-800" checked={paymentTermRequiresPrepayment} onChange={(event) => setPaymentTermRequiresPrepayment(event.target.checked)} />Requires prepayment
           </label>
           {paymentTermError ? <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{paymentTermError}</p> : null}
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="secondary" disabled={savingPaymentTerm} onClick={() => setPaymentTermModalOpen(false)}>Cancel</Button>
-            <Button className="bg-teal-800 hover:bg-teal-900" disabled={savingPaymentTerm} onClick={() => void savePaymentTerm()}>{savingPaymentTerm ? "Creating…" : "Create payment term"}</Button>
+            <Button className="bg-brand-800 hover:bg-brand-900" disabled={savingPaymentTerm} onClick={() => void savePaymentTerm()}>{savingPaymentTerm ? "Creating…" : "Create payment term"}</Button>
           </div>
         </div>
       </Modal>
@@ -815,7 +815,7 @@ export default function CustomerFormPage() {
           {accountingCategoryError ? <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{accountingCategoryError}</p> : null}
           <div className="flex flex-wrap justify-end gap-2">
             <Button variant="secondary" disabled={savingAccountingCategory} onClick={() => setAccountingCategoryModalOpen(false)}>Cancel</Button>
-            <Button className="bg-teal-800 hover:bg-teal-900" disabled={savingAccountingCategory} onClick={() => void saveAccountingCategory()}>{savingAccountingCategory ? "Creating…" : "Create category"}</Button>
+            <Button className="bg-brand-800 hover:bg-brand-900" disabled={savingAccountingCategory} onClick={() => void saveAccountingCategory()}>{savingAccountingCategory ? "Creating…" : "Create category"}</Button>
           </div>
         </div>
       </Modal>
@@ -824,7 +824,7 @@ export default function CustomerFormPage() {
 }
 
 function SectionHeading({ title, description }: { title: string; description: string }) {
-  return <div className="border-l-2 border-teal-700 pl-3"><h2 className="text-lg font-semibold text-slate-950">{title}</h2><p className="mt-1 text-sm text-slate-600">{description}</p></div>;
+  return <div className="border-l-2 border-brand-700 pl-3"><h2 className="text-lg font-semibold text-slate-950">{title}</h2><p className="mt-1 text-sm text-slate-600">{description}</p></div>;
 }
 
 function emptyAddress(purpose: "BILLING" | "SHIPPING" = "BILLING") {

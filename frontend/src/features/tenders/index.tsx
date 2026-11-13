@@ -113,8 +113,8 @@ export default function TendersPage() {
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <header className="flex flex-col items-start justify-between gap-5 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
         <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-teal-800">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-teal-600" />
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-brand-800">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-brand-600" />
             CRM / Tenders
           </p>
           <h1 className="text-3xl font-semibold text-slate-950">Tenders</h1>
@@ -125,7 +125,7 @@ export default function TendersPage() {
         {canCreate ? (
           <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <Link to="/tenders/new">
-              <Button className="h-10 bg-teal-800 px-4 transition hover:bg-teal-900 hover:shadow-sm">
+              <Button className="h-10 bg-brand-800 px-4 transition hover:bg-brand-900 hover:shadow-sm">
                 Add New Tender
               </Button>
             </Link>
@@ -174,7 +174,7 @@ export default function TendersPage() {
           />
           <select
             aria-label="Filter by status"
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={status}
             onChange={(event) => {
               setStatus(event.target.value);
@@ -190,7 +190,7 @@ export default function TendersPage() {
           </select>
           <select
             aria-label="Filter by customer"
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={customerId}
             onChange={(event) => {
               setCustomerId(event.target.value);
@@ -206,7 +206,7 @@ export default function TendersPage() {
           </select>
           <select
             aria-label="Filter by owner"
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={ownerUserId}
             onChange={(event) => {
               setOwnerUserId(event.target.value);
@@ -226,7 +226,7 @@ export default function TendersPage() {
           {canIncludeDeleted ? (
             <label className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 text-sm text-slate-700 transition hover:bg-slate-50">
               <input
-                className="accent-teal-800"
+                className="accent-brand-800"
                 type="checkbox"
                 checked={includeDeleted}
                 onChange={(event) => {
@@ -242,7 +242,7 @@ export default function TendersPage() {
           {filtersActive ? (
             <button
               type="button"
-              className="text-xs font-medium text-teal-800 underline-offset-2 transition hover:underline"
+              className="text-xs font-medium text-brand-800 underline-offset-2 transition hover:underline"
               onClick={clearFilters}
             >
               Clear filters
@@ -265,7 +265,7 @@ export default function TendersPage() {
               {rows.length}
             </span>
             {status ? (
-              <span className="rounded-md bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-800 ring-1 ring-inset ring-teal-100">
+              <span className="rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-800 ring-1 ring-inset ring-brand-100">
                 {statusLabel(status)}
               </span>
             ) : null}
@@ -340,7 +340,7 @@ export default function TendersPage() {
                       <tr
                         key={row.id}
                         className={`border-t border-slate-100 transition-colors ${
-                          row.deletedAt ? "opacity-70" : "cursor-pointer hover:bg-teal-50/40"
+                          row.deletedAt ? "opacity-70" : "cursor-pointer hover:bg-brand-50/40"
                         }`}
                         onClick={() => {
                           if (!row.deletedAt) {
@@ -468,13 +468,13 @@ function SummaryItem({
 }: {
   label: string;
   value: string;
-  tone: "slate" | "teal" | "blue" | "emerald" | "amber";
+  tone: "slate" | "brand" | "blue" | "emerald" | "amber";
   active?: boolean;
   onClick?: () => void;
 }) {
   const valueColor =
-    tone === "teal"
-      ? "text-teal-800"
+    tone === "brand"
+      ? "text-brand-800"
       : tone === "blue"
         ? "text-blue-800"
         : tone === "emerald"
@@ -487,22 +487,22 @@ function SummaryItem({
       type="button"
       onClick={onClick}
       className={`flex min-h-[76px] w-full flex-col justify-center px-4 py-3 text-left transition first:pl-0 sm:pl-5 ${
-        active ? "bg-teal-50/70" : "hover:bg-slate-50"
+        active ? "bg-brand-50/70" : "hover:bg-slate-50"
       }`}
     >
       <p className="text-xs font-medium text-slate-500">{label}</p>
       <p className={`mt-1 text-2xl font-semibold tabular-nums transition ${valueColor}`}>{value}</p>
       {active ? (
-        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-teal-700">Filtered</p>
+        <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-brand-700">Filtered</p>
       ) : null}
     </button>
   );
 }
 
-function statusTone(status: TenderStatus): "slate" | "teal" | "blue" | "emerald" | "amber" {
+function statusTone(status: TenderStatus): "slate" | "brand" | "blue" | "emerald" | "amber" {
   switch (status) {
     case "OPEN":
-      return "teal";
+      return "brand";
     case "SUBMITTED":
       return "blue";
     case "WON":
@@ -539,7 +539,7 @@ function EmptyState({
         </Button>
       ) : canCreate ? (
         <Link to="/tenders/new">
-          <Button className="h-9 bg-teal-800 hover:bg-teal-900">Add New Tender</Button>
+          <Button className="h-9 bg-brand-800 hover:bg-brand-900">Add New Tender</Button>
         </Link>
       ) : null}
     </div>
@@ -561,7 +561,7 @@ function TenderMobileCard({
 }) {
   const overdue = isDeadlineOverdue(row.submissionDeadline, row.status);
   return (
-    <article className="flex flex-col gap-3 p-4 transition hover:bg-teal-50/30">
+    <article className="flex flex-col gap-3 p-4 transition hover:bg-brand-50/30">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="font-mono text-xs text-slate-500">{row.tenderNumber}</p>
@@ -569,7 +569,7 @@ function TenderMobileCard({
             <p className="mt-1 break-words font-semibold text-slate-500">{row.title}</p>
           ) : (
             <Link
-              className="mt-1 block break-words font-semibold text-slate-950 transition hover:text-teal-800"
+              className="mt-1 block break-words font-semibold text-slate-950 transition hover:text-brand-800"
               to={`/tenders/${row.id}`}
             >
               {row.title}
@@ -620,12 +620,12 @@ function TenderMobileCard({
           ) : null
         ) : (
           <>
-            <Link className="text-slate-700 transition hover:text-teal-800" to={`/tenders/${row.id}`}>
+            <Link className="text-slate-700 transition hover:text-brand-800" to={`/tenders/${row.id}`}>
               View
             </Link>
             {canEdit ? (
               <Link
-                className="text-slate-700 transition hover:text-teal-800"
+                className="text-slate-700 transition hover:text-brand-800"
                 to={`/tenders/${row.id}/edit`}
               >
                 Edit

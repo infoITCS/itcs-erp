@@ -29,8 +29,8 @@ export function ModuleScaffold({ title, description, group = "Coming soon" }: Mo
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <header className="flex flex-col gap-4 border-b border-slate-200/80 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
-            <span className="h-2 w-2 rounded-full bg-teal-600" />
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
+            <span className="h-2 w-2 rounded-full bg-brand-600" />
             {group}
           </p>
           <h1 className="text-3xl font-semibold text-slate-950">{title}</h1>

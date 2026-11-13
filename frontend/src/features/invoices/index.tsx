@@ -80,7 +80,7 @@ export default function InvoicesPage() {
             <p className="mt-0.5 font-semibold text-slate-500">{row.customer?.displayName ?? "—"}</p>
           ) : (
             <Link
-              className="mt-0.5 block font-semibold text-slate-950 transition hover:text-teal-800"
+              className="mt-0.5 block font-semibold text-slate-950 transition hover:text-brand-800"
               to={`/invoices/${row.id}`}
             >
               {row.customer?.displayName ?? "—"}
@@ -177,8 +177,8 @@ export default function InvoicesPage() {
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <header className="flex flex-col items-start justify-between gap-5 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
         <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-teal-800">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-teal-600" />
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-brand-800">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-brand-600" />
             Sales / Receivables
           </p>
           <h1 className="text-3xl font-semibold text-slate-950">Invoices</h1>
@@ -188,7 +188,7 @@ export default function InvoicesPage() {
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <Link to="/invoices/new">
-            <Button className="h-10 bg-teal-800 px-4 transition hover:bg-teal-900">New Invoice</Button>
+            <Button className="h-10 bg-brand-800 px-4 transition hover:bg-brand-900">New Invoice</Button>
           </Link>
         </div>
       </header>
@@ -224,7 +224,7 @@ export default function InvoicesPage() {
           />
           <select
             aria-label="Filter by status"
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={status}
             onChange={(event) => {
               setStatus(event.target.value);
@@ -240,7 +240,7 @@ export default function InvoicesPage() {
           </select>
           <select
             aria-label="Filter by owner"
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={ownerUserId}
             onChange={(event) => {
               setOwnerUserId(event.target.value);
@@ -259,7 +259,7 @@ export default function InvoicesPage() {
           {canSeeDeleted ? (
             <label className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 text-sm text-slate-700">
               <input
-                className="accent-teal-800"
+                className="accent-brand-800"
                 type="checkbox"
                 checked={includeDeleted}
                 onChange={(event) => {
@@ -275,7 +275,7 @@ export default function InvoicesPage() {
           {filtersActive ? (
             <button
               type="button"
-              className="text-xs font-medium text-teal-800 underline-offset-2 hover:underline"
+              className="text-xs font-medium text-brand-800 underline-offset-2 hover:underline"
               onClick={clearFilters}
             >
               Clear filters

@@ -16,6 +16,12 @@ export const navItems: NavItem[] = [
     page: lazy(() => import("@/features/dashboard/index.tsx")),
   },
   {
+    path: "/analytics",
+    label: "Analytics",
+    group: "Overview",
+    page: lazy(() => import("@/features/analytics/index.tsx")),
+  },
+  {
     path: "/customers",
     label: "Customers",
     group: "CRM",
@@ -186,7 +192,6 @@ export const navItems: NavItem[] = [
     path: "/settings",
     label: "Settings",
     group: "System",
-    permission: "settings:read",
     page: lazy(() => import("@/features/settings/index.tsx")),
   },
 ];

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import request from "supertest";
 import { createApp } from "../src/app";
+import { env } from "../src/config/env";
 
 describe("API envelope", () => {
   it("GET /api/v1/health returns the running envelope", async () => {
@@ -29,5 +30,18 @@ describe("API envelope", () => {
     assert.equal(response.body.success, false);
     assert.equal(response.body.message, "Validation failed");
     assert.ok(response.body.errors);
+  });
+
+  it("allows browser preflight requests for profile avatar uploads", async () => {
+    const origin = env.CORS_ORIGIN.split(",")[0].trim();
+    const response = await request(createApp())
+      .options("/api/v1/profile/avatar")
+      .set("Origin", origin)
+      .set("Access-Control-Request-Method", "PUT")
+      .set("Access-Control-Request-Headers", "authorization,content-type");
+
+    assert.equal(response.status, 204);
+    assert.match(String(response.headers["access-control-allow-methods"]), /\bPUT\b/);
+    assert.equal(response.headers["access-control-allow-origin"], origin);
   });
 });

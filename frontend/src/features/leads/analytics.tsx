@@ -39,7 +39,7 @@ export function LeadsAnalytics() {
         </div>
         <select
           aria-label="Analytics period"
-          className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+          className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
           value={period}
           onChange={(event) => setPeriod(event.target.value as ComparisonPeriod)}
         >
@@ -63,7 +63,7 @@ export function LeadsAnalytics() {
           label="Conversion rate"
           value={totals ? `${totals.conversionRate}%` : "—"}
           hint={totals ? `${totals.convertedOrWon} converted or won` : undefined}
-          tone="teal"
+          tone="brand"
         />
         <Metric
           label="Win rate"
@@ -135,9 +135,9 @@ function Metric({
   label: string;
   value: string;
   hint?: string;
-  tone?: "slate" | "teal" | "emerald";
+  tone?: "slate" | "brand" | "emerald";
 }) {
-  const color = tone === "teal" ? "text-teal-800" : tone === "emerald" ? "text-emerald-800" : "text-slate-950";
+  const color = tone === "brand" ? "text-brand-800" : tone === "emerald" ? "text-emerald-800" : "text-slate-950";
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <p className="text-xs font-medium text-slate-500">{label}</p>
@@ -156,7 +156,7 @@ function SourceRow({ row, currency }: { row: LeadAnalyticsSourceRow; currency: s
       <td className="px-4 py-3 text-right tabular-nums text-slate-700">{row.leads}</td>
       <td className="px-4 py-3 text-right tabular-nums text-slate-700">{row.qualified}</td>
       <td className="px-4 py-3 text-right tabular-nums text-slate-700">{row.converted}</td>
-      <td className="px-4 py-3 text-right tabular-nums font-medium text-teal-800">{row.conversionRate}%</td>
+      <td className="px-4 py-3 text-right tabular-nums font-medium text-brand-800">{row.conversionRate}%</td>
       <td className="px-4 py-3 text-right tabular-nums text-slate-700">{row.openOpportunities}</td>
       <td className="px-4 py-3 text-right tabular-nums text-slate-700">
         {row.won} / {row.lost}

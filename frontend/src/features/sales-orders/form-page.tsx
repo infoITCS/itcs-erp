@@ -134,8 +134,8 @@ export default function SalesOrderFormPage() {
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-4">
       <div className="border-b border-slate-200 pb-4">
-        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
-          <span className="h-2 w-2 rounded-full bg-teal-600" />
+        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
+          <span className="h-2 w-2 rounded-full bg-brand-600" />
           Sales / Order management
         </p>
         <h1 className="text-3xl font-semibold text-slate-950">{isEdit ? "Edit sales order" : "New sales order"}</h1>
@@ -285,7 +285,7 @@ export default function SalesOrderFormPage() {
           >
             Cancel
           </Link>
-          <Button type="button" className="h-9 bg-teal-800 hover:bg-teal-900" disabled={busy} onClick={submit}>
+          <Button type="button" className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy} onClick={submit}>
             {busy ? "Saving…" : id ? "Save changes" : "Create order"}
           </Button>
         </div>

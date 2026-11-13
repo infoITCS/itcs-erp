@@ -112,8 +112,8 @@ export default function InvoiceDetailPage() {
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <div className="border-b border-slate-200 pb-5">
-        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
-          <span className="h-2 w-2 rounded-full bg-teal-600" />
+        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
+          <span className="h-2 w-2 rounded-full bg-brand-600" />
           <Link className="hover:underline" to="/invoices">
             Sales / Invoices
           </Link>
@@ -131,7 +131,7 @@ export default function InvoiceDetailPage() {
               {row.sourceSalesOrder ? (
                 <>
                   {" · From "}
-                  <Link className="font-medium text-teal-800 hover:underline" to={`/sales-orders/${row.sourceSalesOrder.id}`}>
+                  <Link className="font-medium text-brand-800 hover:underline" to={`/sales-orders/${row.sourceSalesOrder.id}`}>
                     {row.sourceSalesOrder.salesOrderNumber}
                   </Link>
                 </>
@@ -154,7 +154,7 @@ export default function InvoiceDetailPage() {
                 ) : null}
                 {canReceivePayment ? (
                   <Link to={`/payments/new?invoiceId=${row.id}`}>
-                    <Button className="bg-teal-800 hover:bg-teal-900">Receive payment</Button>
+                    <Button className="bg-brand-800 hover:bg-brand-900">Receive payment</Button>
                   </Link>
                 ) : null}
                 {canUpdate && allowedStatuses.length > 0 ? (
@@ -285,7 +285,7 @@ export default function InvoiceDetailPage() {
                 <li key={payment.id} className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0">
                   <div className="min-w-0">
                     <Link
-                      className="font-mono text-xs font-medium text-teal-800 hover:underline"
+                      className="font-mono text-xs font-medium text-brand-800 hover:underline"
                       to={`/payments/${payment.id}`}
                     >
                       {payment.paymentNumber}
@@ -311,7 +311,7 @@ export default function InvoiceDetailPage() {
             <ol className="flex flex-col gap-3">
               {auditRows.map((event) => (
                 <li key={event.id} className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-teal-600" />
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-600" />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-800">{event.action.replaceAll(".", " ")}</p>
                     <p className="mt-0.5 text-xs text-slate-500">{new Date(event.createdAt).toLocaleString()}</p>
@@ -333,7 +333,7 @@ export default function InvoiceDetailPage() {
               Cancel
             </Button>
             <Button
-              className="bg-teal-800 hover:bg-teal-900"
+              className="bg-brand-800 hover:bg-brand-900"
               onClick={() => changeStatus.mutate()}
               disabled={changeStatus.isPending || !targetStatus}
             >

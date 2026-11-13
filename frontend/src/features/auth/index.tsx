@@ -66,6 +66,7 @@ export function LoginPage() {
   const search = new URLSearchParams(location.search);
   const errorCode = search.get("error");
   const passwordChanged = search.get("passwordChanged") === "1";
+  const organizationDeleted = search.get("organizationDeleted") === "1";
   const returnTo = safeReturnPath((location.state as { from?: unknown } | null)?.from);
   const [formError, setFormError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -85,7 +86,7 @@ export function LoginPage() {
     <AuthLayout>
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_24px_60px_-30px_rgba(15,23,42,0.35)] short:p-4 sm:p-7">
         <div className="mb-5 short:mb-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-teal-700">Welcome back</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-brand-700">Welcome back</p>
           <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 short:text-xl">Sign in to ITCS ERP</h1>
           <p className="mt-2 text-sm leading-relaxed text-slate-500 short:hidden">
             Use your company Microsoft account or the email and password provided by your administrator.
@@ -95,6 +96,12 @@ export function LoginPage() {
         {passwordChanged ? (
           <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm text-emerald-900">
             Password updated. Sign in again with your new password.
+          </div>
+        ) : null}
+
+        {organizationDeleted ? (
+          <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm text-amber-900">
+            The organization was archived and its members no longer have access.
           </div>
         ) : null}
 
@@ -157,7 +164,7 @@ export function LoginPage() {
               type="email"
               autoComplete="username"
               placeholder="name@itcs.com.pk"
-              className="h-11 rounded-xl border-slate-300 px-3.5 focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10"
+              className="h-11 rounded-xl border-slate-300 px-3.5 focus:border-brand-600 focus:ring-4 focus:ring-brand-600/10"
               {...form.register("email")}
             />
             {form.formState.errors.email ? (
@@ -178,7 +185,7 @@ export function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 placeholder="Enter your password"
-                className="h-11 rounded-xl border-slate-300 px-3.5 pr-16 focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10"
+                className="h-11 rounded-xl border-slate-300 px-3.5 pr-16 focus:border-brand-600 focus:ring-4 focus:ring-brand-600/10"
                 {...form.register("password")}
               />
               <button
@@ -204,7 +211,7 @@ export function LoginPage() {
           <Button
             type="submit"
             disabled={form.formState.isSubmitting}
-            className="mt-1 h-11 rounded-xl bg-teal-800 px-4 text-sm font-semibold hover:bg-teal-900 disabled:bg-teal-800/60"
+            className="mt-1 h-11 rounded-xl bg-brand-800 px-4 text-sm font-semibold hover:bg-brand-900 disabled:bg-brand-800/60"
           >
             {form.formState.isSubmitting ? "Signing in…" : "Sign in"}
           </Button>

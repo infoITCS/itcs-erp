@@ -44,21 +44,21 @@ export default function ResellersPage() {
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <header className="flex flex-col items-start justify-between gap-5 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
         <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-teal-800">
-            <span className="h-2 w-2 rounded-full bg-teal-600" />
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-brand-800">
+            <span className="h-2 w-2 rounded-full bg-brand-600" />
             CRM / Channel
           </p>
           <h1 className="text-3xl font-semibold text-slate-950">Resellers</h1>
           <p className="mt-1 text-sm text-slate-600">Channel partners that sell ITCS products and services.</p>
         </div>
         <Link to="/resellers/new">
-          <Button className="h-10 bg-teal-800 px-4 hover:bg-teal-900">Add New Reseller</Button>
+          <Button className="h-10 bg-brand-800 px-4 hover:bg-brand-900">Add New Reseller</Button>
         </Link>
       </header>
 
       <div className="grid grid-cols-2 divide-x divide-y divide-slate-200 border-y border-slate-200 sm:grid-cols-4 sm:divide-y-0">
         <SummaryItem label="Visible" value={rows.length.toString()} tone="slate" />
-        <SummaryItem label="Active" value={activeCount.toString()} tone="teal" />
+        <SummaryItem label="Active" value={activeCount.toString()} tone="brand" />
         <SummaryItem label="Inactive" value={inactiveCount.toString()} tone="slate" />
         <SummaryItem label="Suspended" value={suspendedCount.toString()} tone="amber" />
       </div>
@@ -76,7 +76,7 @@ export default function ResellersPage() {
             }}
           />
           <select
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={status}
             onChange={(event) => {
               setStatus(event.target.value);
@@ -146,11 +146,11 @@ export default function ResellersPage() {
               ) : null}
               {!resellers.isPending && !error
                 ? rows.map((row) => (
-                    <tr key={row.id} className="border-t border-slate-100 transition-colors hover:bg-teal-50/30">
+                    <tr key={row.id} className="border-t border-slate-100 transition-colors hover:bg-brand-50/30">
                       <td className="whitespace-nowrap px-5 py-4 font-mono text-xs font-medium text-slate-500">{row.resellerNumber}</td>
                       <td className="max-w-[240px] px-5 py-4">
                         <Link
-                          className="font-semibold text-slate-950 decoration-teal-700 underline-offset-4 hover:text-teal-800 hover:underline"
+                          className="font-semibold text-slate-950 decoration-brand-700 underline-offset-4 hover:text-brand-800 hover:underline"
                           to={`/resellers/${row.id}`}
                         >
                           {row.displayName}
@@ -211,8 +211,8 @@ export default function ResellersPage() {
   );
 }
 
-function SummaryItem({ label, value, tone }: { label: string; value: string; tone: "slate" | "teal" | "amber" }) {
-  const valueColor = tone === "teal" ? "text-teal-800" : tone === "amber" ? "text-amber-800" : "text-slate-950";
+function SummaryItem({ label, value, tone }: { label: string; value: string; tone: "slate" | "brand" | "amber" }) {
+  const valueColor = tone === "brand" ? "text-brand-800" : tone === "amber" ? "text-amber-800" : "text-slate-950";
   return (
     <div className="flex min-h-[76px] flex-col justify-center px-4 py-3 first:pl-0 sm:pl-5">
       <p className="text-xs font-medium text-slate-500">{label}</p>

@@ -3,6 +3,7 @@ export interface SessionUser {
   email: string;
   firstName: string;
   lastName: string;
+  avatarUrl?: string | null;
   organizationId: string;
   roles: string[];
   permissions: string[];

@@ -119,8 +119,8 @@ export default function PaymentFormPage() {
   return (
     <section className="mx-auto flex w-full max-w-4xl flex-col gap-4">
       <div className="border-b border-slate-200 pb-4">
-        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
-          <span className="h-2 w-2 rounded-full bg-teal-600" />
+        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
+          <span className="h-2 w-2 rounded-full bg-brand-600" />
           Sales / Payments
         </p>
         <h1 className="text-3xl font-semibold text-slate-950">{isEdit ? "Edit payment" : "Record payment"}</h1>
@@ -203,7 +203,7 @@ export default function PaymentFormPage() {
         </fieldset>
 
         {selectedInvoice ? (
-          <div className="grid gap-3 rounded-md border border-teal-100 bg-teal-50/60 p-3 text-sm sm:grid-cols-4">
+          <div className="grid gap-3 rounded-md border border-brand-100 bg-brand-50/60 p-3 text-sm sm:grid-cols-4">
             <div>
               <p className="text-xs text-slate-500">Customer</p>
               <p className="mt-0.5 font-medium text-slate-900">{selectedInvoice.customer.displayName}</p>
@@ -222,7 +222,7 @@ export default function PaymentFormPage() {
             </div>
             <div>
               <p className="text-xs text-slate-500">Outstanding</p>
-              <p className="mt-0.5 font-semibold tabular-nums text-teal-900">
+              <p className="mt-0.5 font-semibold tabular-nums text-brand-900">
                 {formatMoney(selectedInvoice.balance, selectedInvoice.currencyCode)}
               </p>
               <p className="mt-0.5 text-xs text-slate-500">Due {formatDate(selectedInvoice.dueDate)}</p>
@@ -252,7 +252,7 @@ export default function PaymentFormPage() {
           >
             Cancel
           </Link>
-          <Button type="button" className="h-9 bg-teal-800 hover:bg-teal-900" disabled={busy} onClick={submit}>
+          <Button type="button" className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy} onClick={submit}>
             {busy ? "Saving…" : id ? "Save changes" : "Record payment"}
           </Button>
         </div>

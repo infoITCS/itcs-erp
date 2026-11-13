@@ -142,8 +142,8 @@ export default function OpportunityDetailPage() {
         <>
           <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-5">
             <div>
-              <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-teal-800">
-                <span className="h-2 w-2 rounded-full bg-teal-600" />
+              <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-brand-800">
+                <span className="h-2 w-2 rounded-full bg-brand-600" />
                 CRM / Pipeline
               </p>
               <p className="font-mono text-xs text-slate-500">
@@ -186,7 +186,7 @@ export default function OpportunityDetailPage() {
             <MetricCard label="Probability" value={`${data.probabilityPercent}%`}>
               <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-slate-100">
                 <span
-                  className="block h-full rounded-full bg-teal-600 transition-all duration-500"
+                  className="block h-full rounded-full bg-brand-600 transition-all duration-500"
                   style={{ width: `${data.probabilityPercent}%` }}
                 />
               </span>
@@ -257,9 +257,9 @@ export default function OpportunityDetailPage() {
                             ? "border-emerald-300 bg-emerald-50 shadow-sm"
                             : step === "LOST"
                               ? "border-amber-300 bg-amber-50 shadow-sm"
-                              : "border-teal-300 bg-teal-50 shadow-sm"
+                              : "border-brand-300 bg-brand-50 shadow-sm"
                           : canJump
-                            ? "border-slate-200 bg-white hover:border-teal-300 hover:bg-teal-50/40"
+                            ? "border-slate-200 bg-white hover:border-brand-300 hover:bg-brand-50/40"
                             : isPast
                               ? "border-slate-100 bg-slate-50 text-slate-500"
                               : "border-slate-100 bg-white text-slate-400"
@@ -320,7 +320,7 @@ export default function OpportunityDetailPage() {
               ) : null}
               {isTerminal ? (
                 <Button
-                  className="h-9 !bg-teal-800 !text-white hover:!bg-teal-900"
+                  className="h-9 !bg-brand-800 !text-white hover:!bg-brand-900"
                   onClick={() => {
                     setReopenStage(data.customerId ? "NEGOTIATION" : "QUALIFICATION");
                     setReopenApplyDefault(false);
@@ -333,7 +333,7 @@ export default function OpportunityDetailPage() {
               ) : null}
               {!data.customerId ? (
                 <Button
-                  className="h-9 !bg-teal-800 !text-white hover:!bg-teal-900"
+                  className="h-9 !bg-brand-800 !text-white hover:!bg-brand-900"
                   onClick={() => {
                     setConvertMode("LINK");
                     setConvertError(null);
@@ -353,7 +353,7 @@ export default function OpportunityDetailPage() {
                 <dt className="text-xs text-slate-500">Customer / prospect</dt>
                 <dd className="mt-0.5 text-sm text-slate-800">
                   {data.customer ? (
-                    <Link className="font-medium text-teal-800 underline-offset-2 hover:underline" to={`/customers/${data.customer.id}`}>
+                    <Link className="font-medium text-brand-800 underline-offset-2 hover:underline" to={`/customers/${data.customer.id}`}>
                       {data.customer.displayName} ({data.customer.customerNumber})
                     </Link>
                   ) : (
@@ -365,7 +365,7 @@ export default function OpportunityDetailPage() {
                 <div>
                   <dt className="text-xs text-slate-500">Lead reference</dt>
                   <dd className="mt-0.5 text-sm text-slate-800">
-                    <Link className="font-medium text-teal-800 underline-offset-2 hover:underline" to={`/leads/${data.lead.id}`}>
+                    <Link className="font-medium text-brand-800 underline-offset-2 hover:underline" to={`/leads/${data.lead.id}`}>
                       {data.lead.leadNumber}
                     </Link>
                     <span className="text-slate-500">

@@ -8,7 +8,9 @@ export function requirePermission(...required: string[]) {
       return;
     }
 
-    const allowed = required.every((code) => req.auth?.permissions.includes(code));
+    const isAdministrator = req.auth.roles?.includes("admin") ?? false;
+    const allowed =
+      isAdministrator || required.every((code) => req.auth?.permissions.includes(code));
     if (!allowed) {
       next(new ForbiddenError());
       return;
@@ -25,7 +27,9 @@ export function requireAnyPermission(...required: string[]) {
       return;
     }
 
-    const allowed = required.some((code) => req.auth?.permissions.includes(code));
+    const isAdministrator = req.auth.roles?.includes("admin") ?? false;
+    const allowed =
+      isAdministrator || required.some((code) => req.auth?.permissions.includes(code));
     if (!allowed) {
       next(new ForbiddenError());
       return;

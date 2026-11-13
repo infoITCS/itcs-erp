@@ -115,8 +115,8 @@ export default function TenderFormPage() {
   return (
     <section className="mx-auto flex max-w-2xl flex-col gap-4">
       <div className="border-b border-slate-200 pb-4">
-        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
-          <span className="h-2 w-2 rounded-full bg-teal-600" />
+        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
+          <span className="h-2 w-2 rounded-full bg-brand-600" />
           CRM / Tenders
         </p>
         <h1 className="text-3xl font-semibold text-slate-950">

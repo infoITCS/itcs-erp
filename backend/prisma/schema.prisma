@@ -380,6 +380,12 @@ model User {
   passwordHash      String        @map("password_hash") @db.VarChar(255)
   firstName         String        @map("first_name") @db.VarChar(100)
   lastName          String        @map("last_name") @db.VarChar(100)
+  phone             String?       @db.VarChar(32)
+  jobTitle          String?       @map("job_title") @db.VarChar(120)
+  department        String?       @db.VarChar(120)
+  location          String?       @db.VarChar(160)
+  bio               String?       @db.VarChar(500)
+  avatarUrl         String?       @map("avatar_url") @db.Text
   status            AccountStatus @default(ACTIVE)
   failedLoginCount  Int           @default(0) @map("failed_login_count")
   lockedAt          DateTime?     @map("locked_at") @db.Timestamptz(6)

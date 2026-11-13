@@ -60,7 +60,7 @@ export function MicrosoftCallbackPage() {
   return (
     <AuthLayout>
       <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-[0_24px_60px_-30px_rgba(15,23,42,0.35)]">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-50 ring-1 ring-teal-100">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 ring-1 ring-brand-100">
           <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
             <path fill="#f25022" d="M2 2h9.5v9.5H2z" />
             <path fill="#7fba00" d="M12.5 2H22v9.5h-9.5z" />
@@ -80,7 +80,7 @@ export function MicrosoftCallbackPage() {
           <div className="mt-6 flex flex-col gap-2">
             <Link
               to="/login"
-              className="inline-flex h-10 items-center justify-center rounded-xl bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900"
+              className="inline-flex h-10 items-center justify-center rounded-xl bg-brand-800 px-4 text-sm font-semibold text-white hover:bg-brand-900"
             >
               Back to sign in
             </Link>
@@ -94,7 +94,7 @@ export function MicrosoftCallbackPage() {
           </div>
         ) : (
           <div className="mx-auto mt-6 h-1 w-40 overflow-hidden rounded-full bg-slate-100">
-            <div className="h-full w-1/2 animate-pulse rounded-full bg-teal-600" />
+            <div className="h-full w-1/2 animate-pulse rounded-full bg-brand-600" />
           </div>
         )}
       </div>

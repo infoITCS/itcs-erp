@@ -59,22 +59,22 @@ export default function ContactsPage() {
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <header className="flex flex-col items-start justify-between gap-5 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
         <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-teal-800">
-            <span className="h-2 w-2 rounded-full bg-teal-600" />
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-brand-800">
+            <span className="h-2 w-2 rounded-full bg-brand-600" />
             CRM / Directory
           </p>
           <h1 className="text-3xl font-semibold text-slate-950">Contacts</h1>
           <p className="mt-1 text-sm text-slate-600">People linked to your customers. Primary contacts are marked clearly.</p>
         </div>
-        <Button className="h-10 bg-teal-800 px-4 hover:bg-teal-900" onClick={() => setOpen(true)}>
+        <Button className="h-10 bg-brand-800 px-4 hover:bg-brand-900" onClick={() => setOpen(true)}>
           Add New Contact
         </Button>
       </header>
 
       <div className="grid grid-cols-2 divide-x divide-y divide-slate-200 border-y border-slate-200 sm:grid-cols-4 sm:divide-y-0">
         <SummaryItem label="Visible" value={rows.length.toString()} tone="slate" />
-        <SummaryItem label="Active" value={activeCount.toString()} tone="teal" />
-        <SummaryItem label="Primary" value={primaryCount.toString()} tone="teal" />
+        <SummaryItem label="Active" value={activeCount.toString()} tone="brand" />
+        <SummaryItem label="Primary" value={primaryCount.toString()} tone="brand" />
         <SummaryItem label="Inactive" value={inactiveCount.toString()} tone="amber" />
       </div>
 
@@ -87,7 +87,7 @@ export default function ContactsPage() {
             onChange={(event) => reset(setQ, event.target.value)}
           />
           <select
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={status}
             onChange={(event) => reset(setStatus, event.target.value)}
           >
@@ -96,7 +96,7 @@ export default function ContactsPage() {
             <option value="INACTIVE">Inactive</option>
           </select>
           <select
-            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
             value={primary}
             onChange={(event) => reset(setPrimary, event.target.value)}
           >
@@ -119,7 +119,7 @@ export default function ContactsPage() {
                 id: "name",
                 header: "Name",
                 cell: (row: ContactRow) => (
-                  <Link className="font-semibold text-slate-950 underline-offset-4 hover:text-teal-800 hover:underline" to={`/customers/${row.customerId}`}>
+                  <Link className="font-semibold text-slate-950 underline-offset-4 hover:text-brand-800 hover:underline" to={`/customers/${row.customerId}`}>
                     {row.displayName}
                     {row.isPrimary ? " · Primary" : ""}
                   </Link>
@@ -280,8 +280,8 @@ export default function ContactsPage() {
   }
 }
 
-function SummaryItem({ label, value, tone }: { label: string; value: string; tone: "slate" | "teal" | "amber" }) {
-  const valueColor = tone === "teal" ? "text-teal-800" : tone === "amber" ? "text-amber-800" : "text-slate-950";
+function SummaryItem({ label, value, tone }: { label: string; value: string; tone: "slate" | "brand" | "amber" }) {
+  const valueColor = tone === "brand" ? "text-brand-800" : tone === "amber" ? "text-amber-800" : "text-slate-950";
   return (
     <div className="flex min-h-[76px] flex-col justify-center px-4 py-3 first:pl-0 sm:pl-5">
       <p className="text-xs font-medium text-slate-500">{label}</p>

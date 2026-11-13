@@ -80,7 +80,7 @@ export default function ProductDetailPage() {
           <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-5 p-5 md:p-7">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-teal-800">Supply / Catalog</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand-800">Supply / Catalog</p>
                 <p className="mt-2 font-mono text-xs text-slate-500">{product.data.code}</p>
                 <h1 className="mt-1 break-words text-2xl font-semibold text-slate-950 md:text-3xl">{product.data.name}</h1>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -94,7 +94,7 @@ export default function ProductDetailPage() {
                     {product.data.unitOfMeasure.code}
                   </span>
                   {product.data.taxCode ? (
-                    <span className="rounded-md bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">
+                    <span className="rounded-md bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-800">
                       Tax {product.data.taxCode.code}
                     </span>
                   ) : null}
@@ -139,7 +139,7 @@ export default function ProductDetailPage() {
               {product.data.prices.map((price) => (
                 <li
                   key={price.id}
-                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm transition hover:border-teal-200 hover:bg-teal-50/30"
+                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-3 text-sm transition hover:border-brand-200 hover:bg-brand-50/30"
                 >
                   <div>
                     <p className="font-medium text-slate-900">

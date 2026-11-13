@@ -105,7 +105,7 @@ export default function LeadsPage() {
             <p className="mt-0.5 font-semibold text-slate-500">{row.displayName}</p>
           ) : (
             <Link
-              className="mt-0.5 block font-semibold text-slate-950 transition hover:text-teal-800"
+              className="mt-0.5 block font-semibold text-slate-950 transition hover:text-brand-800"
               to={`/leads/${row.id}`}
             >
               {row.displayName}
@@ -214,8 +214,8 @@ export default function LeadsPage() {
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <header className="flex flex-col items-start justify-between gap-5 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
         <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-teal-800">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-teal-600" />
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-brand-800">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-brand-600" />
             CRM / Lead management
           </p>
           <h1 className="text-3xl font-semibold text-slate-950">Leads</h1>
@@ -225,7 +225,7 @@ export default function LeadsPage() {
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <Link to="/leads/new">
-            <Button className="h-10 bg-teal-800 px-4 transition hover:bg-teal-900 hover:shadow-sm">Add New Lead</Button>
+            <Button className="h-10 bg-brand-800 px-4 transition hover:bg-brand-900 hover:shadow-sm">Add New Lead</Button>
           </Link>
         </div>
       </header>
@@ -253,18 +253,18 @@ export default function LeadsPage() {
                 resetPage();
               }}
             />
-            <SummaryItem label="New" value={counts.new.toString()} tone="teal" active={status === "NEW"} onClick={() => toggleStatus("NEW")} />
+            <SummaryItem label="New" value={counts.new.toString()} tone="brand" active={status === "NEW"} onClick={() => toggleStatus("NEW")} />
             <SummaryItem
               label="Qualified"
               value={counts.qualified.toString()}
-              tone="teal"
+              tone="brand"
               active={status === "QUALIFIED"}
               onClick={() => toggleStatus("QUALIFIED")}
             />
             <SummaryItem
               label="Converted"
               value={counts.converted.toString()}
-              tone="teal"
+              tone="brand"
               active={status === "CONVERTED"}
               onClick={() => toggleStatus("CONVERTED")}
             />
@@ -289,7 +289,7 @@ export default function LeadsPage() {
               />
               <select
                 aria-label="Filter by status"
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
                 value={status}
                 onChange={(event) => {
                   setStatus(event.target.value);
@@ -305,7 +305,7 @@ export default function LeadsPage() {
               </select>
               <select
                 aria-label="Filter by source"
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
                 value={source}
                 onChange={(event) => {
                   setSource(event.target.value);
@@ -321,7 +321,7 @@ export default function LeadsPage() {
               </select>
               <select
                 aria-label="Filter by owner"
-                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+                className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-800 transition focus:border-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-100"
                 value={ownerUserId}
                 onChange={(event) => {
                   setOwnerUserId(event.target.value);
@@ -345,7 +345,7 @@ export default function LeadsPage() {
                   resetPage();
                 }}
                 className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                  !status ? "bg-teal-800 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  !status ? "bg-brand-800 text-white shadow-sm" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                 }`}
               >
                 All
@@ -361,7 +361,7 @@ export default function LeadsPage() {
                         ? "bg-amber-700 text-white shadow-sm"
                         : value === "WON"
                           ? "bg-emerald-700 text-white shadow-sm"
-                          : "bg-teal-800 text-white shadow-sm"
+                          : "bg-brand-800 text-white shadow-sm"
                       : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
@@ -374,7 +374,7 @@ export default function LeadsPage() {
               {canSeeDeleted ? (
                 <label className="inline-flex min-h-9 items-center gap-2 rounded-md px-2 text-sm text-slate-700 transition hover:bg-slate-50">
                   <input
-                    className="accent-teal-800"
+                    className="accent-brand-800"
                     type="checkbox"
                     checked={includeDeleted}
                     onChange={(event) => {
@@ -390,7 +390,7 @@ export default function LeadsPage() {
               {filtersActive ? (
                 <button
                   type="button"
-                  className="text-xs font-medium text-teal-800 underline-offset-2 transition hover:underline"
+                  className="text-xs font-medium text-brand-800 underline-offset-2 transition hover:underline"
                   onClick={clearFilters}
                 >
                   Clear filters
@@ -452,7 +452,7 @@ function TabButton({
       onClick={onClick}
       className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition ${
         active
-          ? "border-teal-800 text-teal-900"
+          ? "border-brand-800 text-brand-900"
           : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900"
       }`}
     >
@@ -470,22 +470,22 @@ function SummaryItem({
 }: {
   label: string;
   value: string;
-  tone?: "slate" | "teal" | "emerald";
+  tone?: "slate" | "brand" | "emerald";
   active?: boolean;
   onClick?: () => void;
 }) {
-  const valueColor = tone === "teal" ? "text-teal-800" : tone === "emerald" ? "text-emerald-800" : "text-slate-950";
+  const valueColor = tone === "brand" ? "text-brand-800" : tone === "emerald" ? "text-emerald-800" : "text-slate-950";
   return (
     <button
       type="button"
       onClick={onClick}
       className={`flex min-h-[76px] w-full flex-col justify-center px-4 py-3 text-left transition first:pl-0 sm:pl-5 ${
-        active ? "bg-teal-50/70" : "hover:bg-slate-50"
+        active ? "bg-brand-50/70" : "hover:bg-slate-50"
       }`}
     >
       <p className="text-xs font-medium text-slate-500">{label}</p>
       <p className={`mt-1 text-2xl font-semibold tabular-nums transition ${valueColor}`}>{value}</p>
-      {active ? <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-teal-700">Filtered</p> : null}
+      {active ? <p className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-brand-700">Filtered</p> : null}
     </button>
   );
 }
@@ -502,9 +502,9 @@ function StatusBadge({ status, deleted }: { status: LeadStatus; deleted: boolean
     status === "WON"
       ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
       : status === "CONVERTED"
-        ? "bg-teal-50 text-teal-800 ring-teal-200"
+        ? "bg-brand-50 text-brand-800 ring-brand-200"
         : status === "QUALIFIED"
-          ? "bg-cyan-50 text-cyan-800 ring-cyan-200"
+          ? "bg-sky-50 text-sky-800 ring-sky-200"
           : status === "UNQUALIFIED"
             ? "bg-amber-50 text-amber-800 ring-amber-200"
             : status === "CONTACTED"

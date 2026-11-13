@@ -101,20 +101,20 @@ export default function CustomerDetailPage() {
           <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-5 p-5 md:p-7">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase text-teal-800">Customer profile</p>
+                <p className="text-xs font-semibold uppercase text-brand-800">Customer profile</p>
                 <h1 className="mt-2 break-words text-2xl font-semibold text-slate-950 md:text-3xl">{customer.data.displayName}</h1>
                 {customer.data.legalName !== customer.data.displayName ? <p className="mt-1 text-sm text-slate-600">{customer.data.legalName}</p> : null}
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <StatusBadge status={customer.data.status} />
                   <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{customer.data.entityType === "INDIVIDUAL" ? "Individual" : "Company"}</span>
                   <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{customerTypeLabel(customer.data.customerType)}</span>
-                  {customer.data.customerCategory ? <span className="rounded-md bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">{labelFor(customer.data.customerCategory)}</span> : null}
+                  {customer.data.customerCategory ? <span className="rounded-md bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-800">{labelFor(customer.data.customerCategory)}</span> : null}
                   <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{customer.data.countryCode} · {customer.data.currencyCode}</span>
                   {customer.data.creditHold ? <span className="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Credit hold</span> : null}
                 </div>
               </div>
               <div className="flex w-full shrink-0 gap-2 sm:w-auto">
-                <Link to={`/customers/${id}/edit`} className="inline-flex h-9 flex-1 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700 focus-visible:ring-offset-2 sm:flex-none">
+                <Link to={`/customers/${id}/edit`} className="inline-flex h-9 flex-1 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 sm:flex-none">
                   Edit customer
                 </Link>
                 <Button variant="secondary" onClick={() => setPendingDelete({ kind: "customer" })} className="flex-1 text-red-700 hover:bg-red-50 sm:flex-none">
@@ -146,13 +146,13 @@ export default function CustomerDetailPage() {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold text-slate-900">{address.label || (address.purpose === "BILLING" ? "Billing address" : "Shipping address")}</p>
-                            {address.isPrimary ? <span className="rounded-md bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-800">Primary</span> : null}
+                            {address.isPrimary ? <span className="rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-800">Primary</span> : null}
                           </div>
                           <p className="mt-1 text-xs font-medium uppercase text-slate-500">{address.purpose}</p>
                           <p className="mt-3 text-sm leading-6 text-slate-700">{[address.line1, address.line2, address.city, address.region, address.postalCode, address.countryCode].filter(Boolean).join(", ")}</p>
                         </div>
                         <div className="flex shrink-0 gap-2">
-                          <button type="button" className="rounded px-2 py-1 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-700" onClick={() => {
+                          <button type="button" className="rounded px-2 py-1 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700" onClick={() => {
                             setFormError(null);
                             setEditingAddress(address);
                             setAddressOpen(true);
@@ -174,11 +174,11 @@ export default function CustomerDetailPage() {
                   {contacts.data?.items.map((contact) => (
                     <li key={contact.id} className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
                       <div className="flex min-w-0 items-center gap-3">
-                        <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-teal-50 text-sm font-semibold text-teal-800">{contact.displayName.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span>
+                        <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-800">{contact.displayName.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span>
                         <div className="min-w-0">
                           <p className="flex flex-wrap items-center gap-2 font-semibold text-slate-900">
                             {contact.displayName}
-                            {contact.isPrimary ? <span className="rounded-md bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-800">Primary</span> : null}
+                            {contact.isPrimary ? <span className="rounded-md bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-800">Primary</span> : null}
                           </p>
                           <p className="mt-1 break-words text-sm text-slate-600">{[contact.jobTitle, contact.email, contact.phone].filter(Boolean).join(" · ") || contact.status}</p>
                         </div>
@@ -245,7 +245,7 @@ export default function CustomerDetailPage() {
             <ol className="mt-5 grid gap-x-8 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
               {audit.data?.items.map((event) => (
                 <li key={event.id} className="relative border-l border-slate-200 pb-4 pl-4 last:pb-0">
-                  <span aria-hidden="true" className="absolute -left-1 top-1 h-2 w-2 rounded-full bg-teal-700 ring-4 ring-white" />
+                  <span aria-hidden="true" className="absolute -left-1 top-1 h-2 w-2 rounded-full bg-brand-700 ring-4 ring-white" />
                   <p className="text-sm font-medium text-slate-800">{formatActivityAction(event.action)}</p>
                   <time className="mt-1 block text-xs text-slate-500" dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time>
                 </li>
@@ -366,7 +366,7 @@ function ContactDetail({ label, value, href }: { label: string; value: string | 
   return (
     <div className="min-w-0">
       <p className="text-xs font-medium text-slate-500">{label}</p>
-      {href ? <a href={href} className="mt-1 block break-words text-sm font-medium text-slate-800 underline decoration-slate-300 underline-offset-2 hover:text-teal-800">{value}</a> : <p className="mt-1 break-words text-sm font-medium text-slate-800">{value || "Not provided"}</p>}
+      {href ? <a href={href} className="mt-1 block break-words text-sm font-medium text-slate-800 underline decoration-slate-300 underline-offset-2 hover:text-brand-800">{value}</a> : <p className="mt-1 break-words text-sm font-medium text-slate-800">{value || "Not provided"}</p>}
     </div>
   );
 }

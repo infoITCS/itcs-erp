@@ -63,6 +63,7 @@ export class AuthService {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        avatarUrl: user.avatarUrl,
         organizationId: user.organizationId,
         roles: user.roles,
         permissions: user.permissions,
@@ -95,6 +96,7 @@ export class AuthService {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        avatarUrl: user.avatarUrl,
         organizationId: user.organizationId,
         roles: user.roles,
         permissions: user.permissions,
@@ -197,6 +199,7 @@ export class AuthService {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        avatarUrl: user.avatarUrl ?? null,
         organizationId: user.organizationId,
         roles: user.roles,
         permissions: user.permissions,
@@ -230,6 +233,7 @@ interface AuthUserRecordActive {
   email: string;
   firstName: string;
   lastName: string;
+  avatarUrl?: string | null;
   organizationId: string;
   roles: string[];
   permissions: string[];

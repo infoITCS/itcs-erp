@@ -124,8 +124,8 @@ export default function SalesOrderDetailPage() {
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <div className="border-b border-slate-200 pb-5">
-        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
-          <span className="h-2 w-2 rounded-full bg-teal-600" />
+        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
+          <span className="h-2 w-2 rounded-full bg-brand-600" />
           <Link className="hover:underline" to="/sales-orders">
             Sales / Sales orders
           </Link>
@@ -143,7 +143,7 @@ export default function SalesOrderDetailPage() {
               {row.sourceQuote ? (
                 <>
                   {" · From "}
-                  <Link className="font-medium text-teal-800 hover:underline" to={`/quotes/${row.sourceQuote.id}`}>
+                  <Link className="font-medium text-brand-800 hover:underline" to={`/quotes/${row.sourceQuote.id}`}>
                     {row.sourceQuote.quoteNumber}
                   </Link>
                 </>
@@ -170,7 +170,7 @@ export default function SalesOrderDetailPage() {
                   </Button>
                 ) : null}
                 {canInvoiceNow ? (
-                  <Button className="bg-teal-800 hover:bg-teal-900" onClick={openInvoice}>
+                  <Button className="bg-brand-800 hover:bg-brand-900" onClick={openInvoice}>
                     Create invoice
                   </Button>
                 ) : null}
@@ -268,7 +268,7 @@ export default function SalesOrderDetailPage() {
               <ul className="flex flex-col gap-2 text-sm">
                 {row.invoices.map((item) => (
                   <li key={item.id} className="flex flex-wrap items-center justify-between gap-2">
-                    <Link className="font-medium text-teal-800 hover:underline" to={`/invoices/${item.id}`}>
+                    <Link className="font-medium text-brand-800 hover:underline" to={`/invoices/${item.id}`}>
                       {item.invoiceNumber}
                     </Link>
                     <StatusPill status={item.status} />
@@ -311,7 +311,7 @@ export default function SalesOrderDetailPage() {
             <ol className="flex flex-col gap-3">
               {auditRows.map((event) => (
                 <li key={event.id} className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-teal-600" />
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-600" />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-800">{event.action.replaceAll(".", " ")}</p>
                     <p className="mt-0.5 text-xs text-slate-500">{new Date(event.createdAt).toLocaleString()}</p>
@@ -333,7 +333,7 @@ export default function SalesOrderDetailPage() {
               Cancel
             </Button>
             <Button
-              className="bg-teal-800 hover:bg-teal-900"
+              className="bg-brand-800 hover:bg-brand-900"
               onClick={() => changeStatus.mutate()}
               disabled={changeStatus.isPending || !targetStatus}
             >
@@ -371,7 +371,7 @@ export default function SalesOrderDetailPage() {
             <Button variant="secondary" onClick={() => setInvoiceOpen(false)} disabled={invoice.isPending}>
               Cancel
             </Button>
-            <Button className="bg-teal-800 hover:bg-teal-900" onClick={() => invoice.mutate()} disabled={invoice.isPending}>
+            <Button className="bg-brand-800 hover:bg-brand-900" onClick={() => invoice.mutate()} disabled={invoice.isPending}>
               {invoice.isPending ? "Creating…" : "Create invoice"}
             </Button>
           </>

@@ -79,7 +79,7 @@ export function TenderStatusBadge({
 function statusTone(status: TenderStatus): string {
   switch (status) {
     case "OPEN":
-      return "bg-teal-50 text-teal-800 ring-teal-200";
+      return "bg-brand-50 text-brand-800 ring-brand-200";
     case "SUBMITTED":
       return "bg-blue-50 text-blue-800 ring-blue-200";
     case "WON":

@@ -76,7 +76,7 @@ function PasswordField({
         <button
           type="button"
           onClick={() => onChange(generatePassword())}
-          className="text-xs font-semibold text-teal-800 hover:text-teal-950"
+          className="text-xs font-semibold text-brand-800 hover:text-brand-950"
         >
           Generate
         </button>
@@ -129,7 +129,7 @@ function RolePicker({
             >
               <input
                 type="checkbox"
-                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-800 focus:ring-teal-700"
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-800 focus:ring-brand-700"
                 checked={checked}
                 onChange={(event) => {
                   onChange(
@@ -305,7 +305,7 @@ function CreateUserModal({
           </Button>
           <Button
             type="submit"
-            className="bg-teal-800 hover:bg-teal-900"
+            className="bg-brand-800 hover:bg-brand-900"
             disabled={mutation.isPending}
           >
             {mutation.isPending ? "Creating…" : "Create user"}
@@ -433,7 +433,7 @@ function EditUserModal({
           </Button>
           <Button
             type="submit"
-            className="bg-teal-800 hover:bg-teal-900"
+            className="bg-brand-800 hover:bg-brand-900"
             disabled={mutation.isPending || (isSelf && !selectedRoles.includes("admin"))}
           >
             {mutation.isPending ? "Saving…" : "Save changes"}
@@ -515,7 +515,7 @@ function ResetPasswordModal({
           </Button>
           <Button
             type="submit"
-            className="bg-teal-800 hover:bg-teal-900"
+            className="bg-brand-800 hover:bg-brand-900"
             disabled={mutation.isPending}
           >
             {mutation.isPending ? "Resetting…" : "Reset password"}
@@ -617,8 +617,8 @@ export default function UsersPage() {
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-6">
       <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
-            <span className="h-2 w-2 rounded-full bg-teal-600" />
+          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
+            <span className="h-2 w-2 rounded-full bg-brand-600" />
             System / Access
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Users &amp; access</h1>
@@ -631,7 +631,7 @@ export default function UsersPage() {
           <Button
             onClick={openCreate}
             disabled={roles.isPending}
-            className="h-10 bg-teal-800 px-4 hover:bg-teal-900"
+            className="h-10 bg-brand-800 px-4 hover:bg-brand-900"
           >
             Add user
           </Button>
@@ -643,7 +643,7 @@ export default function UsersPage() {
         <SummaryCard label="Active" value={stats.data?.active} accent="bg-emerald-500" />
         <SummaryCard label="Inactive" value={stats.data?.inactive} accent="bg-slate-400" />
         <SummaryCard label="Locked" value={stats.data?.locked} accent="bg-amber-500" />
-        <SummaryCard label="Roles" value={stats.data?.roles} accent="bg-teal-500" />
+        <SummaryCard label="Roles" value={stats.data?.roles} accent="bg-brand-500" />
       </div>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -720,7 +720,7 @@ export default function UsersPage() {
                         <p className="font-medium text-slate-900">
                           {user.firstName} {user.lastName}
                           {user.id === sessionUser?.id ? (
-                            <span className="ml-2 rounded bg-teal-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-teal-800">
+                            <span className="ml-2 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-brand-800">
                               You
                             </span>
                           ) : null}

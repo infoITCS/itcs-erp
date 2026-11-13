@@ -108,8 +108,8 @@ export default function LeadFormPage() {
   return (
     <section className="mx-auto flex max-w-3xl flex-col gap-4">
       <div className="border-b border-slate-200 pb-4">
-        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
-          <span className="h-2 w-2 rounded-full bg-teal-600" />
+        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
+          <span className="h-2 w-2 rounded-full bg-brand-600" />
           CRM / Lead management
         </p>
         <h1 className="text-3xl font-semibold text-slate-950">{isEdit ? "Edit lead" : "New lead"}</h1>
@@ -252,7 +252,7 @@ export default function LeadFormPage() {
           >
             Cancel
           </Link>
-          <Button type="submit" className="h-9 bg-teal-800 hover:bg-teal-900" disabled={form.formState.isSubmitting}>
+          <Button type="submit" className="h-9 bg-brand-800 hover:bg-brand-900" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting ? "Saving…" : id ? "Save changes" : "Create lead"}
           </Button>
         </div>

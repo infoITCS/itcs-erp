@@ -106,7 +106,7 @@ export default function ResellerDetailPage() {
           <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-5 p-5 md:p-7">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-teal-800">CRM / Channel</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-brand-800">CRM / Channel</p>
                 <p className="mt-2 font-mono text-xs text-slate-500">{reseller.data.resellerNumber}</p>
                 <h1 className="mt-1 break-words text-2xl font-semibold text-slate-950 md:text-3xl">{reseller.data.displayName}</h1>
                 {reseller.data.legalName !== reseller.data.displayName ? (
@@ -127,7 +127,7 @@ export default function ResellerDetailPage() {
                   <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
                     {reseller.data.countryCode} · {reseller.data.currencyCode}
                   </span>
-                  <span className="rounded-md bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800">
+                  <span className="rounded-md bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-800">
                     List {reseller.data.priceListCode}
                   </span>
                 </div>

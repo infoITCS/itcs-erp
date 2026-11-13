@@ -1,8 +1,11 @@
 import type { AppModule, ModuleDependencies } from "./module";
 import { createAuthModule } from "./auth";
 import { createUsersModule } from "./users";
+import { createProfileModule } from "./profile";
 import { createRolesModule } from "./roles";
 import { createPermissionsModule } from "./permissions";
+import { createDashboardModule } from "./dashboard";
+import { createAnalyticsModule } from "./analytics";
 import { createCustomersModule } from "./customers";
 import { createContactsModule } from "./contacts";
 import { createLeadsModule } from "./leads";
@@ -34,8 +37,11 @@ export function createModules(deps: ModuleDependencies): AppModule[] {
   return [
     createAuthModule(deps),
     createUsersModule(deps),
+    createProfileModule(deps),
     createRolesModule(deps),
     createPermissionsModule(deps),
+    createDashboardModule(deps),
+    createAnalyticsModule(deps),
     createCustomersModule(deps),
     createContactsModule(deps),
     createLeadsModule(deps),

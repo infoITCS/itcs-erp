@@ -38,6 +38,26 @@ describe("auth structure", () => {
     assert.equal(verifyAccessToken("not-a-token"), null);
   });
 
+  it("lets administrators through even when a token has a stale permission list", () => {
+    const middleware = requirePermission("organizations:delete");
+    const req = {
+      auth: {
+        userId: "6f0b9c3e-1c0a-4f0a-9c1e-6d5b2a9e8f11",
+        email: "ada@example.com",
+        roles: ["admin"],
+        permissions: [],
+      },
+    } as Request;
+
+    let forwarded: unknown;
+    const next: NextFunction = (error?: unknown) => {
+      forwarded = error;
+    };
+
+    middleware(req, {} as Response, next);
+    assert.equal(forwarded, undefined);
+  });
+
   it("denies a request that lacks the required permission", () => {
     const middleware = requirePermission("invoices:approve");
     const req = {

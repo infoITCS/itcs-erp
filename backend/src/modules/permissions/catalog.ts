@@ -279,7 +279,7 @@ export const ERP_PERMISSIONS: PermissionDefinition[] = [
   ...definePermissions("roles", ["read", "create", "update", "delete"]),
   ...definePermissions("permissions", ["read"]),
   ...definePermissions("audit-logs", ["read"]),
-  ...definePermissions("organizations", ["read", "update"]),
+  ...definePermissions("organizations", ["read", "update", "delete"]),
   ...definePermissions("document-sequences", ["read", "manage"]),
   ...definePermissions("settings", ["read", "update"]),
 ];

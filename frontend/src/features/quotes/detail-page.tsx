@@ -110,8 +110,8 @@ export default function QuoteDetailPage() {
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <div className="border-b border-slate-200 pb-5">
-        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-teal-800">
-          <span className="h-2 w-2 rounded-full bg-teal-600" />
+        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
+          <span className="h-2 w-2 rounded-full bg-brand-600" />
           <Link className="hover:underline" to="/quotes">
             Sales / Quotes
           </Link>
@@ -149,7 +149,7 @@ export default function QuoteDetailPage() {
                   </Button>
                 ) : null}
                 {canConvertNow ? (
-                  <Button className="bg-teal-800 hover:bg-teal-900" onClick={() => setConvertOpen(true)}>
+                  <Button className="bg-brand-800 hover:bg-brand-900" onClick={() => setConvertOpen(true)}>
                     Convert to order
                   </Button>
                 ) : null}
@@ -250,7 +250,7 @@ export default function QuoteDetailPage() {
               <ul className="flex flex-col gap-2 text-sm">
                 {row.salesOrders.map((order) => (
                   <li key={order.id} className="flex items-center justify-between gap-3">
-                    <Link className="font-medium text-teal-800 hover:underline" to={`/sales-orders/${order.id}`}>
+                    <Link className="font-medium text-brand-800 hover:underline" to={`/sales-orders/${order.id}`}>
                       {order.salesOrderNumber}
                     </Link>
                     <span className="text-slate-600">{statusLabel(order.status)}</span>
@@ -291,7 +291,7 @@ export default function QuoteDetailPage() {
             <ol className="flex flex-col gap-3">
               {auditRows.map((event) => (
                 <li key={event.id} className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-teal-600" />
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-600" />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-800">{event.action.replaceAll(".", " ")}</p>
                     <p className="mt-0.5 text-xs text-slate-500">{new Date(event.createdAt).toLocaleString()}</p>
@@ -313,7 +313,7 @@ export default function QuoteDetailPage() {
               Cancel
             </Button>
             <Button
-              className="bg-teal-800 hover:bg-teal-900"
+              className="bg-brand-800 hover:bg-brand-900"
               onClick={() => changeStatus.mutate()}
               disabled={changeStatus.isPending || !targetStatus}
             >
