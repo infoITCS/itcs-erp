@@ -20,8 +20,8 @@ export interface CalculatorSettings {
   // Pricing & Payment Terms
   profitMargin: number; // e.g. 0.08 (8%)
   riskFreeRate: number; // e.g. 0.086 (8.6%)
-  vendorPaymentTerm: number; // in days, e.g. 0
-  customerPaymentTerm: number; // in days, e.g. 0
+  vendorPaymentTerm: number; // in months, e.g. 0
+  customerPaymentTerm: number; // in months, e.g. 0
 
   // Performance Guarantee
   pgBasis: "% of total incl. taxes" | "Fixed amount";

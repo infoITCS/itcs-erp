@@ -140,7 +140,9 @@ export function calculatePricing(
   summary: CalculatorSummary;
 } {
   const creditCardUsdRate = settings.bankUsdRate * (1 + settings.creditCardUplift);
-  const financingDays = Math.max(0, settings.customerPaymentTerm - settings.vendorPaymentTerm);
+  // In Excel formula: ((D10*(IF(C6<8%,8%,C6))/12)*(C8-C7)) where C8=customer months, C7=vendor months
+  const financingMonths = Math.max(0, settings.customerPaymentTerm - settings.vendorPaymentTerm);
+  const effectiveKiborRate = Math.max(0.08, settings.riskFreeRate);
 
   // Step 1: Preliminary calculations for each row (excluding PG and EM costs)
   const baseItems = items.map((item) => {
@@ -158,9 +160,9 @@ export function calculatePricing(
     const unitPriceInclWht = unitPriceWithProfit * (1 + item.whtRate);
     const unitPriceInclGst = unitPriceInclWht * (1 + item.gstRate);
 
-    // Unit Cost of Capital based on risk free rate and payment terms difference
+    // Unit Cost of Capital based on risk free rate (min 8%) and payment terms difference in months (/12)
     const unitCostOfCapital =
-      financingDays > 0 ? unitCostPkr * settings.riskFreeRate * (financingDays / 365) : 0;
+      financingMonths > 0 ? (unitCostPkr * effectiveKiborRate / 12) * financingMonths : 0;
 
     return {
       item,

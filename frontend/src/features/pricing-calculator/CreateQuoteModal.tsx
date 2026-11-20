@@ -118,7 +118,7 @@ export function CreateQuoteModal({
       {/* Modal */}
       <div className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 bg-gradient-to-r from-brand-50 to-slate-50 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Create Quote from Calculator</h2>
             <p className="text-xs text-slate-500">

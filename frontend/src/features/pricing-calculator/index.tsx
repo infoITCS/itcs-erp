@@ -31,6 +31,8 @@ export default function PricingCalculatorPage() {
     return calculatePricing(items, settings);
   }, [items, settings]);
 
+  const activeItemsCount = calculatedItems.filter((i) => i.qty > 0).length;
+
   // Line item manipulation helpers
   const handleAddItem = () => {
     const newItem: LineItem = {
@@ -131,20 +133,22 @@ export default function PricingCalculatorPage() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `sales-pricing-quote-${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute("download", `itcs-pricing-quote-${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   const handleCopyQuoteSummary = () => {
-    const text = `--- SALES PRICING QUOTE SUMMARY ---
+    const text = `--- ITCS SALES PRICING QUOTE SUMMARY ---
 Overall Total (Incl. GST): PKR ${summary.overallTotalInclGstPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ($${summary.overallTotalInclGstUsd.toFixed(2)} USD)
 Overall Total (Excl. GST): PKR ${summary.overallTotalExclGstPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ($${summary.overallTotalExclGstUsd.toFixed(2)} USD)
-Total GST: PKR ${summary.totalGstPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-Net Projected Profit: PKR ${summary.netProfitPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${summary.profitMarginPercent.toFixed(1)}%)
-Target Margin: ${(settings.profitMargin * 100).toFixed(1)}% | Risk-Free Rate: ${(settings.riskFreeRate * 100).toFixed(2)}%
-Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsdRate}`;
+Total Sales Tax (GST): PKR ${summary.totalGstPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+Total Withholding Tax (WHT): PKR ${summary.totalWhtPkr.toFixed(2)}
+Net Projected Profit: PKR ${summary.netProfitPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${summary.profitMarginPercent.toFixed(1)}% ROI)
+Target Margin: ${(settings.profitMargin * 100).toFixed(1)}% | Risk-Free Benchmark: ${(settings.riskFreeRate * 100).toFixed(2)}%
+Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Open Market: PKR ${settings.forexUsdRate} | Credit Card USD: PKR ${summary.creditCardUsdRate.toFixed(2)}
+Financing Period: ${Math.max(0, settings.customerPaymentTerm - settings.vendorPaymentTerm)} Month(s)`;
 
     navigator.clipboard.writeText(text);
     setCopiedQuote(true);
@@ -152,72 +156,106 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
   };
 
   return (
-    <section className="mx-auto flex w-full max-w-[1550px] flex-col gap-6">
-      {/* Header */}
+    <section className="mx-auto flex w-full max-w-[1600px] flex-col gap-6">
+      {/* ── TOP LIVE FINANCIAL TICKER ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-5 py-3 text-xs text-slate-800 shadow-sm">
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+            <span className="font-bold tracking-wide uppercase text-[11px] text-slate-600">Engine Status:</span>
+            <span className="rounded bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-bold text-slate-800 border border-slate-200">
+              Joint Solver Active
+            </span>
+          </div>
+          <div className="hidden h-3 w-px bg-slate-200 sm:block" />
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-500">Forex Open Market:</span>
+            <span className="font-mono font-bold text-slate-900">PKR {settings.forexUsdRate.toFixed(2)}</span>
+          </div>
+          <div className="hidden h-3 w-px bg-slate-200 sm:block" />
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-500">Bank TT/DD:</span>
+            <span className="font-mono font-bold text-slate-900">PKR {settings.bankUsdRate.toFixed(2)}</span>
+          </div>
+          <div className="hidden h-3 w-px bg-slate-200 sm:block" />
+          <div className="flex items-center gap-1.5">
+            <span className="text-slate-500">Credit Card (+6.5%):</span>
+            <span className="font-mono font-bold text-slate-900">PKR {summary.creditCardUsdRate.toFixed(2)}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsKiborOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition border border-slate-200"
+          >
+            <svg className="h-3 w-3 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M3 3v18h18" />
+              <path d="m19 9-5 5-4-4-3 3" />
+            </svg>
+            KIBOR: <span className="font-mono text-slate-900 font-bold">{(settings.riskFreeRate * 100).toFixed(2)}%</span>
+          </button>
+          <span className="text-[11px] text-slate-500">
+            Terms: <strong className="text-slate-700">{settings.vendorPaymentTerm}v / {settings.customerPaymentTerm}c Mo.</strong>
+          </span>
+        </div>
+      </div>
+
+      {/* ── HEADER ── */}
       <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-brand-800">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-brand-600" />
+            <span className="h-2 w-2 rounded-full bg-brand-600" />
             <Link to="/sales" className="hover:underline">
-              Sales
+              Sales Module
             </Link>{" "}
-            / Pricing Calculator
+            / Pricing Calculator & CPQ
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+          <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
             Enterprise Sales Pricing Calculator
           </h1>
-          <p className="mt-1 text-xs text-slate-600">
-            Calculate cost of goods, working capital financing, performance guarantees, WHT, and GST with joint solver.
+          <p className="mt-1 text-xs text-slate-600 max-w-3xl">
+            High-precision commercial CPQ engine: working capital cost, tender guarantees (PG/EM joint linear solver), 
+            provincial sales taxes (SST, PST, ICT, KPPRA, BRA), and multi-currency exchange rates.
           </p>
         </div>
 
-        {/* Header Badges & Actions */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Header Action Center */}
+        <div className="flex flex-wrap items-center gap-2.5">
           {summary.hodApprovalRequired ? (
-            <span className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">
-              <svg className="h-3.5 w-3.5 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <div className="flex items-center gap-1.5 rounded-xl border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 shadow-sm animate-pulse">
+              <svg className="h-4 w-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                 <line x1="12" y1="9" x2="12" y2="13" />
                 <line x1="12" y1="17" x2="12.01" y2="17" />
               </svg>
               HoD Approval Mandatory (&lt;8%)
-            </span>
+            </div>
           ) : (
-            <span className="flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
+            <div className="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900 shadow-sm">
               <span className="h-2 w-2 rounded-full bg-emerald-600" />
               Margin Verified: {(settings.profitMargin * 100).toFixed(1)}%
-            </span>
+            </div>
           )}
 
           <Button
             variant="secondary"
-            onClick={() => setIsKiborOpen(true)}
-            className="h-9 gap-1.5 text-xs font-semibold"
-          >
-            <svg className="h-3.5 w-3.5 text-brand-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-              <path d="M3 3v18h18" />
-              <path d="m19 9-5 5-4-4-3 3" />
-            </svg>
-            KIBOR: {(settings.riskFreeRate * 100).toFixed(2)}%
-          </Button>
-
-          <Button
-            variant="secondary"
             onClick={() => setIsSettingsOpen(true)}
-            className="h-9 gap-1.5 text-xs font-semibold"
+            className="h-10 gap-2 text-xs font-bold shadow-sm"
           >
-            <svg className="h-3.5 w-3.5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+            <svg className="h-4 w-4 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
             Calculator Settings
           </Button>
 
-          {/* CREATE QUOTATION — primary CTA */}
+          {/* PRIMARY CALL TO ACTION: CREATE QUOTATION */}
           <Button
             onClick={() => setIsCreateQuoteOpen(true)}
-            disabled={calculatedItems.filter((i) => i.qty > 0).length === 0}
-            className="h-9 gap-1.5 bg-emerald-700 text-xs font-bold hover:bg-emerald-800 disabled:opacity-40"
+            disabled={activeItemsCount === 0}
+            className="h-10 gap-2 bg-emerald-700 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-40 shadow-md ring-2 ring-emerald-600/20"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -225,95 +263,274 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
               <line x1="12" y1="18" x2="12" y2="12" />
               <line x1="9" y1="15" x2="15" y2="15" />
             </svg>
-            Create Quotation
+            Create Quotation ({activeItemsCount})
           </Button>
         </div>
       </header>
 
-      {/* EXECUTIVE KPI SUMMARY CARDS */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {/* Net Profit Card */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Net Profit (PKR)</span>
-            <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">
-              {summary.profitMarginPercent.toFixed(1)}% ROI
-            </span>
-          </div>
-          <p className="mt-2 text-2xl font-black tracking-tight text-emerald-700 sm:text-3xl">
-            PKR {summary.netProfitPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-          <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-            <span>Target Margin: {(settings.profitMargin * 100).toFixed(1)}%</span>
-            <span>Total Cost: PKR {summary.totalCostPkr.toFixed(2)}</span>
-          </div>
-        </div>
+      {/* ── EXECUTIVE KPI DASHBOARD ── */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Net Profit Card - Hero */}
+        <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_6px_16px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_28px_rgba(0,0,0,0.07)]">
+          {/* Top Accent Line */}
+          <div className="absolute inset-x-0 top-0 h-1 bg-emerald-500" />
 
-        {/* Overall Total Including GST */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Overall Total (Incl. GST)</span>
-            <span className="rounded-md bg-brand-50 px-2 py-0.5 text-[11px] font-bold text-brand-700">
-              ${summary.overallTotalInclGstUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
-            </span>
-          </div>
-          <p className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-            PKR {summary.overallTotalInclGstPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-          <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-            <span>Forex Rate: PKR {settings.forexUsdRate}</span>
-            <span>Final Customer Quote</span>
-          </div>
-        </div>
-
-        {/* Overall Total Excluding GST */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Overall Total (Excl. GST)</span>
-            <span className="rounded-md bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-700">
-              ${summary.overallTotalExclGstUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
-            </span>
-          </div>
-          <p className="mt-2 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-            PKR {summary.overallTotalExclGstPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-          <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-            <span>Base Revenue (Gross)</span>
-            <span>Tax-Free Base</span>
-          </div>
-        </div>
-
-        {/* Tax & Guarantees Breakdown */}
-        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Taxes & Guarantees</span>
-            <span className="rounded-md bg-purple-50 px-2 py-0.5 text-[11px] font-bold text-purple-700">Compliance</span>
-          </div>
-          <div className="mt-2 space-y-1">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-800">
-              <span>Total GST:</span>
-              <span className="font-mono text-purple-700">
-                PKR {summary.totalGstPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <div>
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500/20">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  Projected Net Profit
+                </span>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/70 px-2.5 py-0.5 font-mono text-[11px] font-extrabold text-emerald-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                {summary.profitMarginPercent.toFixed(1)}% ROI
               </span>
             </div>
-            <div className="flex items-center justify-between text-[11px] text-slate-600">
-              <span>PG & Capital Cost:</span>
-              <span className="font-mono">
-                PKR {(summary.totalPgCostPkr + summary.totalCostOfCapitalPkr + summary.totalEmCostPkr).toFixed(2)}
-              </span>
+
+            {/* Primary Metric */}
+            <div className="mt-4">
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Net Return</span>
+              <div className="mt-0.5 flex items-baseline gap-1.5">
+                <span className="font-mono text-xs font-bold text-slate-400">PKR</span>
+                <span className="text-[28px] font-black tracking-tight text-slate-900 sm:text-[30px]">
+                  {summary.netProfitPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            {/* Mini Health Bar */}
+            <div className="mt-3 space-y-1">
+              <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500">
+                <span>Benchmark: 8.0%</span>
+                <span className={summary.profitMarginPercent >= 8 ? "text-emerald-700 font-bold" : "text-amber-700 font-bold"}>
+                  {summary.profitMarginPercent >= 8 ? "Compliant" : "HoD Sign-off Req."}
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                  style={{ width: `${Math.min(100, Math.max(10, (summary.profitMarginPercent / 20) * 100))}%` }}
+                />
+              </div>
             </div>
           </div>
-          <div className="mt-2 flex items-center justify-between border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-            <span>Withholding Tax: PKR {summary.totalWhtPkr.toFixed(2)}</span>
-            <span>Net Tax Burden</span>
+
+          {/* Footer Details */}
+          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-2.5 text-[11px] text-slate-500">
+            <span>Target: <strong className="font-semibold text-slate-800">{(settings.profitMargin * 100).toFixed(1)}%</strong></span>
+            <span>Total Cost: <strong className="font-mono font-semibold text-slate-800">PKR {summary.totalCostPkr.toFixed(2)}</strong></span>
+          </div>
+        </div>
+
+        {/* Total Deal Value Including GST */}
+        <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_6px_16px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_28px_rgba(0,0,0,0.07)]">
+          {/* Top Accent Line */}
+          <div className="absolute inset-x-0 top-0 h-1 bg-slate-900" />
+
+          <div>
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-800 ring-1 ring-slate-900/10">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  Total Bid (Incl. GST)
+                </span>
+              </div>
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 font-mono text-[11px] font-bold text-slate-800">
+                ${summary.overallTotalInclGstUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+              </span>
+            </div>
+
+            {/* Primary Metric */}
+            <div className="mt-4">
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Final Commercial Offer</span>
+              <div className="mt-0.5 flex items-baseline gap-1.5">
+                <span className="font-mono text-xs font-bold text-slate-400">PKR</span>
+                <span className="text-[28px] font-black tracking-tight text-slate-950 sm:text-[30px]">
+                  {summary.overallTotalInclGstPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            {/* Tax Split Micro-Bar */}
+            <div className="mt-3 space-y-1">
+              <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500">
+                <span>Pre-Tax: PKR {summary.overallTotalExclGstPkr.toFixed(0)}</span>
+                <span className="font-mono text-slate-700">GST: PKR {summary.totalGstPkr.toFixed(0)}</span>
+              </div>
+              <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full bg-slate-800"
+                  style={{
+                    width: `${summary.overallTotalInclGstPkr > 0 ? (summary.overallTotalExclGstPkr / summary.overallTotalInclGstPkr) * 100 : 85}%`,
+                  }}
+                />
+                <div
+                  className="h-full bg-slate-400"
+                  style={{
+                    width: `${summary.overallTotalInclGstPkr > 0 ? (summary.totalGstPkr / summary.overallTotalInclGstPkr) * 100 : 15}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Details */}
+          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-2.5 text-[11px] text-slate-500">
+            <span>Sales Tax (GST): <strong className="font-mono font-semibold text-slate-800">PKR {summary.totalGstPkr.toFixed(2)}</strong></span>
+            <span className="font-bold text-slate-700">Active Proposal</span>
+          </div>
+        </div>
+
+        {/* Net Revenue Excluding GST */}
+        <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_6px_16px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_28px_rgba(0,0,0,0.07)]">
+          {/* Top Accent Line */}
+          <div className="absolute inset-x-0 top-0 h-1 bg-slate-500" />
+
+          <div>
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-slate-100 text-slate-700 ring-1 ring-slate-900/10">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                  </svg>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  Gross Base (Excl. GST)
+                </span>
+              </div>
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-0.5 font-mono text-[11px] font-bold text-slate-800">
+                ${summary.overallTotalExclGstUsd.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+              </span>
+            </div>
+
+            {/* Primary Metric */}
+            <div className="mt-4">
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">ITCS Invoiced Value</span>
+              <div className="mt-0.5 flex items-baseline gap-1.5">
+                <span className="font-mono text-xs font-bold text-slate-400">PKR</span>
+                <span className="text-[28px] font-black tracking-tight text-slate-900 sm:text-[30px]">
+                  {summary.overallTotalExclGstPkr.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            {/* Cost vs Revenue Micro-Bar */}
+            <div className="mt-3 space-y-1">
+              <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500">
+                <span>Cost: PKR {summary.totalCostPkr.toFixed(0)}</span>
+                <span className="font-mono text-slate-700">Gross Margin: PKR {summary.netProfitPkr.toFixed(0)}</span>
+              </div>
+              <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full bg-slate-600"
+                  style={{
+                    width: `${summary.overallTotalExclGstPkr > 0 ? (summary.totalCostPkr / summary.overallTotalExclGstPkr) * 100 : 80}%`,
+                  }}
+                />
+                <div
+                  className="h-full bg-emerald-500"
+                  style={{
+                    width: `${summary.overallTotalExclGstPkr > 0 ? (summary.netProfitPkr / summary.overallTotalExclGstPkr) * 100 : 20}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Details */}
+          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-2.5 text-[11px] text-slate-500">
+            <span>Pre-Tax Base: <strong className="font-mono font-semibold text-slate-800">PKR {summary.overallTotalExclGstPkr.toFixed(2)}</strong></span>
+            <span className="font-semibold text-slate-600">Company Revenue</span>
+          </div>
+        </div>
+
+        {/* Financing, PG & EM Charges */}
+        <div className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_6px_16px_rgba(0,0,0,0.04)] transition-all duration-300 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_28px_rgba(0,0,0,0.07)]">
+          {/* Top Accent Line */}
+          <div className="absolute inset-x-0 top-0 h-1 bg-indigo-600" />
+
+          <div>
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500/20">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  Financing & Guarantees
+                </span>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200/80 bg-indigo-50/70 px-2.5 py-0.5 font-mono text-[10px] font-bold text-indigo-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+                Joint Linear
+              </span>
+            </div>
+
+            {/* Primary Metric */}
+            <div className="mt-4">
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400">Total Financial Overhead</span>
+              <div className="mt-0.5 flex items-baseline gap-1.5">
+                <span className="font-mono text-xs font-bold text-slate-400">PKR</span>
+                <span className="text-[28px] font-black tracking-tight text-slate-900 sm:text-[30px]">
+                  {(summary.totalCostOfCapitalPkr + summary.totalPgCostPkr + summary.totalEmCostPkr).toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            {/* Financing Gap Micro-Bar */}
+            <div className="mt-3 space-y-1">
+              <div className="flex items-center justify-between text-[10px] font-semibold text-slate-500">
+                <span>Gap: {Math.max(0, settings.customerPaymentTerm - settings.vendorPaymentTerm)} Mo.</span>
+                <span className="font-mono text-slate-700">KIBOR: {(settings.riskFreeRate * 100).toFixed(2)}%</span>
+              </div>
+              <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full bg-indigo-500"
+                  style={{
+                    width: `${summary.totalCostOfCapitalPkr + summary.totalPgCostPkr + summary.totalEmCostPkr > 0 ? (summary.totalCostOfCapitalPkr / (summary.totalCostOfCapitalPkr + summary.totalPgCostPkr + summary.totalEmCostPkr)) * 100 : 50}%`,
+                  }}
+                />
+                <div
+                  className="h-full bg-indigo-300"
+                  style={{
+                    width: `${summary.totalCostOfCapitalPkr + summary.totalPgCostPkr + summary.totalEmCostPkr > 0 ? ((summary.totalPgCostPkr + summary.totalEmCostPkr) / (summary.totalCostOfCapitalPkr + summary.totalPgCostPkr + summary.totalEmCostPkr)) * 100 : 50}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footer Details */}
+          <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-2.5 text-[11px] text-slate-500">
+            <span>Capital: <strong className="font-mono font-semibold text-slate-800">PKR {summary.totalCostOfCapitalPkr.toFixed(2)}</strong></span>
+            <span>PG/EM: <strong className="font-mono font-semibold text-slate-800">PKR {(summary.totalPgCostPkr + summary.totalEmCostPkr).toFixed(2)}</strong></span>
           </div>
         </div>
       </div>
 
-      {/* ACTIONS TOOLBAR */}
+      {/* ── ACTIONS TOOLBAR ── */}
       <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
-          <Button onClick={handleAddItem} className="h-9 gap-1.5 text-xs font-semibold shadow">
+          <Button onClick={handleAddItem} className="h-9 gap-1.5 text-xs font-bold shadow-sm">
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
@@ -333,7 +550,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
             Reset to Sample Template
           </Button>
 
-          {items.length > 0 ? (
+          {items.length > 0 && (
             <button
               type="button"
               onClick={handleClearItems}
@@ -341,7 +558,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
             >
               Clear All Rows
             </button>
-          ) : null}
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -355,7 +572,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                 <svg className="h-3.5 w-3.5 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
-                <span className="text-emerald-700 font-bold">Quote Copied!</span>
+                <span className="text-emerald-700 font-bold">Summary Copied!</span>
               </>
             ) : (
               <>
@@ -384,53 +601,71 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
         </div>
       </div>
 
-      {/* LINE ITEMS TABLE */}
+      {/* ── HIGH-DENSITY COMMERCIAL PRICING TABLE ── */}
       <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-3.5 flex items-center justify-between">
+        <div className="border-b border-slate-200 bg-slate-50/80 px-6 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Quotation Line Items & Tax Architecture</h2>
+            <h2 className="text-sm font-bold text-slate-900">Commercial Line Items & Comprehensive Tax Stack</h2>
             <p className="text-[11px] text-slate-500">
-              Enter unit costs, cost basis, withholding taxes, and provincial GST rates. All values recalculate in real-time.
+              Enter unit costs, cost basis, withholding tax types, and provincial GST regimes. Real-time joint solver recalculation.
             </p>
           </div>
-          <span className="rounded-full bg-slate-200/80 px-2.5 py-0.5 text-xs font-bold text-slate-700">
-            {calculatedItems.length} Items ({calculatedItems.filter((i) => i.qty > 0).length} Active)
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-800">
+              {calculatedItems.length} Total / {activeItemsCount} Active
+            </span>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-slate-200 bg-slate-50/90 text-slate-600 select-none">
-              <tr>
-                <th className="px-3 py-3 font-semibold w-12 text-center">#</th>
-                <th className="px-3 py-3 font-semibold min-w-[200px]">Item Description</th>
-                <th className="px-3 py-3 font-semibold min-w-[140px]">Cost Basis</th>
-                <th className="px-3 py-3 font-semibold min-w-[110px] text-right">Entered Cost</th>
-                <th className="px-3 py-3 font-semibold min-w-[110px] text-right">Unit Cost (PKR)</th>
-                <th className="px-3 py-3 font-semibold w-20 text-center">GST Bill</th>
-                <th className="px-3 py-3 font-semibold min-w-[140px]">Type (WHT)</th>
-                <th className="px-3 py-3 font-semibold min-w-[180px]">GST Region</th>
-                <th className="px-3 py-3 font-semibold w-20 text-center">Qty</th>
-                <th className="px-3 py-3 font-semibold text-right min-w-[110px]">Price w/ Profit</th>
-                <th className="px-3 py-3 font-semibold text-right min-w-[110px]">Price Incl WHT</th>
-                <th className="px-3 py-3 font-semibold text-right min-w-[110px]">Price Incl GST</th>
-                <th className="px-3 py-3 font-semibold text-right min-w-[120px] bg-slate-100/60 font-bold text-slate-900">
-                  Unit Selling Price
+          <table className="w-full text-left text-xs border-collapse">
+            {/* Grouped Header */}
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-extrabold uppercase tracking-wider text-slate-600">
+                <th colSpan={5} className="px-3 py-2 border-r border-slate-200">
+                  1. Line Item & Procurement Cost
                 </th>
-                <th className="px-3 py-3 font-semibold text-right min-w-[110px]">Selling Excl GST</th>
-                <th className="px-3 py-3 font-semibold text-right min-w-[90px]">Unit GST</th>
-                <th className="px-3 py-3 font-semibold text-right min-w-[130px] bg-emerald-50/70 font-bold text-emerald-950">
-                  Total Incl GST
+                <th colSpan={3} className="px-3 py-2 border-r border-slate-200">
+                  2. Tax Architecture & Withholding
                 </th>
-                <th className="px-3 py-3 font-semibold text-center w-24">Actions</th>
+                <th colSpan={5} className="px-3 py-2 border-r border-slate-200">
+                  3. Pricing & Financing Stack (Per Unit)
+                </th>
+                <th colSpan={3} className="px-3 py-2 border-r border-slate-200 text-slate-700">
+                  4. Commercial Customer Price
+                </th>
+                <th className="px-3 py-2 text-center">Actions</th>
+              </tr>
+              <tr className="border-b border-slate-200 bg-white text-slate-700 select-none text-[11px] font-bold">
+                <th className="px-3 py-2.5 w-10 text-center">#</th>
+                <th className="px-3 py-2.5 min-w-[200px]">Item Description</th>
+                <th className="px-3 py-2.5 min-w-[140px]">Cost Basis</th>
+                <th className="px-3 py-2.5 min-w-[100px] text-right">Entered Cost</th>
+                <th className="px-3 py-2.5 min-w-[105px] text-right border-r border-slate-200 font-mono">Cost (PKR)</th>
+                <th className="px-3 py-2.5 w-20 text-center">GST Bill</th>
+                <th className="px-3 py-2.5 min-w-[140px]">Type (WHT)</th>
+                <th className="px-3 py-2.5 min-w-[180px] border-r border-slate-200">GST Region</th>
+                <th className="px-3 py-2.5 w-16 text-center">Qty</th>
+                <th className="px-3 py-2.5 text-right min-w-[105px] font-mono">w/ Profit</th>
+                <th className="px-3 py-2.5 text-right min-w-[105px] font-mono">Incl WHT</th>
+                <th className="px-3 py-2.5 text-right min-w-[105px] font-mono">Incl GST</th>
+                <th className="px-3 py-2.5 text-right min-w-[95px] font-mono border-r border-slate-200">Capital</th>
+                <th className="px-3 py-2.5 text-right min-w-[130px] font-extrabold text-slate-950 font-mono">
+                  Unit Price (Incl Tax)
+                </th>
+                <th className="px-3 py-2.5 text-right min-w-[105px] font-mono">Excl GST</th>
+                <th className="px-3 py-2.5 text-right min-w-[135px] font-bold text-slate-950 font-mono border-r border-slate-200">
+                  Total (Incl GST)
+                </th>
+                <th className="px-3 py-2.5 text-center w-20">Edit</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 font-normal">
+            <tbody className="divide-y divide-slate-100">
               {calculatedItems.length === 0 ? (
                 <tr>
                   <td colSpan={17} className="py-12 text-center text-slate-500">
                     <p className="text-sm font-semibold">No items entered in this quotation.</p>
-                    <p className="mt-1 text-xs">Click "+ Add Line Item" or "Reset to Sample Template" to get started.</p>
+                    <p className="mt-1 text-xs">Click "+ Add Line Item" or "Reset to Sample Template" to start.</p>
                   </td>
                 </tr>
               ) : null}
@@ -440,7 +675,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                 return (
                   <tr
                     key={item.id}
-                    className={`transition hover:bg-slate-50/80 ${!isActive ? "bg-slate-50/40 opacity-60" : ""}`}
+                    className={`transition hover:bg-slate-50/80 ${!isActive ? "bg-slate-50/40 opacity-55" : ""}`}
                   >
                     {/* Index */}
                     <td className="px-3 py-2.5 text-center font-mono text-[11px] text-slate-400">
@@ -453,7 +688,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                         type="text"
                         value={item.name}
                         onChange={(e) => handleUpdateItem(item.id, { name: e.target.value })}
-                        className="h-8 w-full rounded border border-transparent px-2 text-xs font-semibold text-slate-900 hover:border-slate-300 focus:border-brand-500 focus:bg-white focus:outline-none"
+                        className="h-8 w-full rounded-lg border border-transparent px-2 text-xs font-semibold text-slate-900 hover:border-slate-300 focus:border-brand-500 focus:bg-white focus:outline-none transition"
                       />
                     </td>
 
@@ -464,11 +699,11 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                         onChange={(e) =>
                           handleUpdateItem(item.id, { costBasis: e.target.value as CostBasis })
                         }
-                        className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 focus:border-brand-500 focus:outline-none"
+                        className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-800 focus:border-brand-500 focus:outline-none transition"
                       >
-                        <option value="PKR">PKR</option>
-                        <option value="USD - Bank">USD - Bank (TT/DD)</option>
-                        <option value="USD - Credit card">USD - Credit card (+6.5%)</option>
+                        <option value="PKR">PKR (Local)</option>
+                        <option value="USD - Bank">USD - Bank Wire</option>
+                        <option value="USD - Credit card">USD - Credit Card (+6.5%)</option>
                       </select>
                     </td>
 
@@ -484,12 +719,12 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                             enteredUnitCost: Math.max(0, parseFloat(e.target.value) || 0),
                           })
                         }
-                        className="h-8 w-24 rounded border border-slate-200 bg-white px-2 text-right font-mono text-xs font-semibold text-slate-900 focus:border-brand-500 focus:outline-none"
+                        className="h-8 w-24 rounded-lg border border-slate-200 bg-white px-2 text-right font-mono text-xs font-semibold text-slate-900 focus:border-brand-500 focus:outline-none"
                       />
                     </td>
 
                     {/* Unit Cost PKR */}
-                    <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-800">
+                    <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-800 border-r border-slate-200">
                       {item.unitCostPkr.toFixed(2)}
                     </td>
 
@@ -500,7 +735,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                         onChange={(e) =>
                           handleUpdateItem(item.id, { gstBill: e.target.value as "Yes" | "No" })
                         }
-                        className="h-8 rounded border border-slate-200 bg-white px-1.5 text-center text-xs font-semibold text-slate-700 focus:border-brand-500 focus:outline-none"
+                        className="h-8 rounded-lg border border-slate-200 bg-white px-1.5 text-center text-xs font-semibold text-slate-700 focus:border-brand-500 focus:outline-none"
                       >
                         <option value="No">No</option>
                         <option value="Yes">Yes</option>
@@ -518,7 +753,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                             whtRate: selected ? selected.rate : item.whtRate,
                           });
                         }}
-                        className="h-8 w-full rounded border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 focus:border-brand-500 focus:outline-none"
+                        className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 focus:border-brand-500 focus:outline-none"
                       >
                         {WHT_PRESETS.map((p) => (
                           <option key={p.label} value={p.label}>
@@ -529,7 +764,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                     </td>
 
                     {/* GST Region */}
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2.5 border-r border-slate-200">
                       <select
                         value={item.gst}
                         onChange={(e) => {
@@ -539,7 +774,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                             gstRate: selected ? selected.rate : item.gstRate,
                           });
                         }}
-                        className="h-8 w-full rounded border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 focus:border-brand-500 focus:outline-none"
+                        className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800 focus:border-brand-500 focus:outline-none"
                       >
                         {GST_PRESETS.map((g) => (
                           <option key={g.label} value={g.label}>
@@ -561,7 +796,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                             qty: Math.max(0, parseInt(e.target.value, 10) || 0),
                           })
                         }
-                        className="h-8 w-16 rounded border border-slate-200 bg-white px-2 text-center font-mono text-xs font-bold text-slate-900 focus:border-brand-500 focus:outline-none"
+                        className="h-8 w-14 rounded-lg border border-slate-300 bg-white px-1.5 text-center font-mono text-xs font-bold text-slate-900 focus:border-brand-500 focus:outline-none"
                       />
                     </td>
 
@@ -580,8 +815,13 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                       {item.unitPriceInclGst.toFixed(2)}
                     </td>
 
-                    {/* Unit Selling Price Incl Taxes */}
-                    <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-950 bg-slate-100/50">
+                    {/* Capital Cost */}
+                    <td className="px-3 py-2.5 text-right font-mono text-slate-500 border-r border-slate-200">
+                      {item.unitCostOfCapital.toFixed(2)}
+                    </td>
+
+                    {/* Unit Selling Price Incl Taxes (Final Price) */}
+                    <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-950">
                       {item.unitSellingPriceInclTaxes.toFixed(2)}
                     </td>
 
@@ -590,13 +830,8 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                       {item.unitSellingPriceExclGst.toFixed(2)}
                     </td>
 
-                    {/* Unit GST */}
-                    <td className="px-3 py-2.5 text-right font-mono text-purple-700 font-semibold">
-                      {item.unitGst.toFixed(2)}
-                    </td>
-
-                    {/* Total Incl GST */}
-                    <td className="px-3 py-2.5 text-right font-mono font-black text-emerald-800 bg-emerald-50/50">
+                    {/* Total Incl GST (Final Deal Line) */}
+                    <td className="px-3 py-2.5 text-right font-mono font-bold text-slate-950 border-r border-slate-200">
                       {item.totalInclGst.toFixed(2)}
                     </td>
 
@@ -607,7 +842,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                           type="button"
                           onClick={() => handleDuplicateItem(item)}
                           title="Duplicate item"
-                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition"
                         >
                           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
@@ -618,7 +853,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                           type="button"
                           onClick={() => handleRemoveItem(item.id)}
                           title="Delete item"
-                          className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                          className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
                         >
                           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                             <polyline points="3 6 5 6 21 6" />
@@ -631,29 +866,31 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
                 );
               })}
             </tbody>
-            {/* Table Footer Totals */}
+
+            {/* Table Footer Reconciled Summary */}
             <tfoot className="border-t-2 border-slate-300 bg-slate-50 font-bold text-xs text-slate-900">
               <tr>
                 <td colSpan={4} className="px-3 py-3 text-right">
                   Summary Totals:
                 </td>
-                <td className="px-3 py-3 text-right font-mono text-slate-800">
+                <td className="px-3 py-3 text-right font-mono text-slate-800 border-r border-slate-200">
                   PKR {summary.totalCostPkr.toFixed(2)}
                 </td>
-                <td colSpan={4} />
-                <td colSpan={3} className="px-3 py-3 text-right text-slate-500">
-                  Total Excl GST: PKR {summary.overallTotalExclGstPkr.toFixed(2)}
+                <td colSpan={3} className="border-r border-slate-200" />
+                <td className="px-3 py-3 text-center font-mono">
+                  {calculatedItems.reduce((acc, it) => acc + it.qty, 0)}
                 </td>
-                <td className="px-3 py-3 text-right font-mono text-slate-900 bg-slate-200/50">
-                  —
+                <td colSpan={3} />
+                <td className="px-3 py-3 text-right font-mono text-slate-600 border-r border-slate-200">
+                  PKR {summary.totalCostOfCapitalPkr.toFixed(2)}
                 </td>
-                <td className="px-3 py-3 text-right font-mono text-slate-900">
+                <td className="px-3 py-3 text-right font-mono text-slate-700">
+                  Total Excl GST:
+                </td>
+                <td className="px-3 py-3 text-right font-mono text-slate-950 font-bold">
                   {summary.overallTotalExclGstPkr.toFixed(2)}
                 </td>
-                <td className="px-3 py-3 text-right font-mono text-purple-700">
-                  {summary.totalGstPkr.toFixed(2)}
-                </td>
-                <td className="px-3 py-3 text-right font-mono text-emerald-800 text-sm bg-emerald-100/60">
+                <td className="px-3 py-3 text-right font-mono text-slate-950 font-bold text-sm border-r border-slate-200">
                   PKR {summary.overallTotalInclGstPkr.toFixed(2)}
                 </td>
                 <td />
@@ -663,99 +900,7 @@ Bank USD Rate: PKR ${settings.bankUsdRate} | Forex Rate: PKR ${settings.forexUsd
         </div>
       </section>
 
-      {/* CALCULATION CHECKS & FORMULA EXPLANATION */}
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="16" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12.01" y2="8" />
-              </svg>
-            </span>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Tax & Markup Stack</h3>
-          </div>
-          <ul className="mt-3 space-y-2 text-xs text-slate-600">
-            <li className="flex justify-between">
-              <span>Unit Price with Profit:</span>
-              <code className="font-mono font-medium text-slate-800">Cost × (1 + Margin)</code>
-            </li>
-            <li className="flex justify-between">
-              <span>Unit Price Incl. WHT:</span>
-              <code className="font-mono font-medium text-slate-800">Price × (1 + WHT%)</code>
-            </li>
-            <li className="flex justify-between">
-              <span>Unit Price Incl. GST:</span>
-              <code className="font-mono font-medium text-slate-800">WHT Price × (1 + GST%)</code>
-            </li>
-            <li className="flex justify-between">
-              <span>Credit Card Forex:</span>
-              <code className="font-mono font-medium text-slate-800">Bank Rate × 1.065</code>
-            </li>
-          </ul>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-purple-50 text-purple-700">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </span>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Guarantee Joint Solver</h3>
-          </div>
-          <div className="mt-3 space-y-2 text-xs text-slate-600">
-            <div className="flex justify-between">
-              <span>Total before PG/EM:</span>
-              <span className="font-mono font-bold text-slate-800">PKR {summary.totalBeforePgEm.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Eligible Allocation Weight:</span>
-              <span className="font-mono font-bold text-slate-800">PKR {summary.eligibleAllocationWeight.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Effective PG Amount:</span>
-              <span className="font-mono text-purple-700">PKR {summary.effectivePG.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Effective EM Amount:</span>
-              <span className="font-mono text-amber-700">PKR {summary.effectiveEM.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </span>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">Financing & Profitability</h3>
-          </div>
-          <div className="mt-3 space-y-2 text-xs text-slate-600">
-            <div className="flex justify-between">
-              <span>Total Working Capital Cost:</span>
-              <span className="font-mono font-bold text-slate-800">PKR {summary.totalCostOfCapitalPkr.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Total PG Financing Cost:</span>
-              <span className="font-mono font-bold text-slate-800">PKR {summary.totalPgCostPkr.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span>Total EM Financing Cost:</span>
-              <span className="font-mono font-bold text-slate-800">PKR {summary.totalEmCostPkr.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between border-t border-slate-100 pt-1 font-bold text-emerald-800">
-              <span>Net Projected Profit:</span>
-              <span className="font-mono">PKR {summary.netProfitPkr.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* MODALS & DRAWERS */}
+      {/* ── MODALS & DRAWERS ── */}
       <CalculatorSettingsDrawer
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
