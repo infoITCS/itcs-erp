@@ -175,6 +175,11 @@ export default function QuotesPage() {
           </p>
         </div>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+          <Link to="/pricing-calculator">
+            <Button variant="secondary" className="h-10 border-slate-300 px-4 text-xs font-semibold text-slate-700">
+              Pricing Calculator
+            </Button>
+          </Link>
           <Link to="/quotes/new">
             <Button className="h-10 bg-brand-800 px-4 transition hover:bg-brand-900">New Quote</Button>
           </Link>

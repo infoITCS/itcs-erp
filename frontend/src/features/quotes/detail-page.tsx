@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { PrintPreviewModal } from "@/components/documents/PrintPreviewModal.tsx";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog.tsx";
 import { Modal } from "@/components/modals/Modal.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
+import { getCustomer } from "@/features/customers/api.ts";
 import {
   QUOTE_STATUS_TRANSITIONS,
   changeQuoteStatus,
@@ -30,6 +32,7 @@ export default function QuoteDetailPage() {
   const [statusOpen, setStatusOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [convertOpen, setConvertOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [targetStatus, setTargetStatus] = useState<QuoteStatus | "">("");
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -38,6 +41,13 @@ export default function QuoteDetailPage() {
     queryKey: ["quotes", id, "audit"],
     queryFn: () => listQuoteAudit(id),
     enabled: Boolean(id),
+  });
+  // Fetch full customer detail for billing/shipping address + tax number on print
+  const customerId = quote.data?.customerId;
+  const customerDetail = useQuery({
+    queryKey: ["customers", customerId],
+    queryFn: () => getCustomer(customerId as string),
+    enabled: Boolean(customerId),
   });
 
   const refresh = async () => {
@@ -153,6 +163,12 @@ export default function QuoteDetailPage() {
                     Convert to order
                   </Button>
                 ) : null}
+                <Button variant="secondary" onClick={() => setPrintOpen(true)} className="flex items-center gap-1.5">
+                  <svg className="h-4 w-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  Print / PDF
+                </Button>
                 {canDelete ? (
                   <Button variant="ghost" className="text-red-700 hover:bg-red-50" onClick={() => setDeleteOpen(true)}>
                     Delete
@@ -361,6 +377,60 @@ export default function QuoteDetailPage() {
         busy={remove.isPending}
         onConfirm={() => remove.mutate()}
         onCancel={() => setDeleteOpen(false)}
+      />
+
+      <PrintPreviewModal
+        isOpen={printOpen}
+        onClose={() => setPrintOpen(false)}
+        docProps={{
+          type: "QUOTE",
+          documentNumber: row.quoteNumber,
+          date: formatDate(row.issueDate),
+          validUntilOrDueDate: row.validUntil ? formatDate(row.validUntil) : undefined,
+          paymentTerms: row.paymentTerm?.name ?? "Due on receipt",
+          customer: (() => {
+            const cd = customerDetail.data;
+            const billing = cd?.addresses?.find((a) => a.purpose === "BILLING" && a.isPrimary)
+              ?? cd?.addresses?.find((a) => a.purpose === "BILLING")
+              ?? cd?.addresses?.[0];
+            const shipping = cd?.addresses?.find((a) => a.purpose === "SHIPPING" && a.isPrimary)
+              ?? cd?.addresses?.find((a) => a.purpose === "SHIPPING");
+            return {
+              name: row.customer?.displayName ?? "Valued Customer",
+              taxpayerId: cd?.taxNumber ?? row.customerReference ?? undefined,
+              ntn: cd?.taxNumber ?? row.customerReference ?? undefined,
+              billingAddress: billing ? {
+                street: [billing.line1, billing.line2].filter(Boolean).join(", "),
+                city: billing.city,
+                postalCode: billing.postalCode ?? undefined,
+                country: billing.countryCode,
+              } : undefined,
+              shippingAddress: shipping ? {
+                street: [shipping.line1, shipping.line2].filter(Boolean).join(", "),
+                city: shipping.city,
+                postalCode: shipping.postalCode ?? undefined,
+                country: shipping.countryCode,
+              } : undefined,
+            };
+          })(),
+          lines: lines.map((l) => ({
+            id: l.id,
+            name: l.productName || l.productCode || "Item",
+            description: l.description ?? undefined,
+            taxable: Number(l.taxRate || 0) > 0 || Number(l.lineTax || 0) > 0,
+            qty: Number(l.quantity || 1),
+            unit: l.unitOfMeasure ? `/${l.unitOfMeasure.toLowerCase()}` : undefined,
+            unitPrice: Number(l.unitPrice || 0),
+            taxAmount: Number(l.lineTax || 0),
+            amount: Number(l.lineSubtotal || l.lineTotal || 0),
+          })),
+          subtotal: Number(row.subtotal || 0),
+          taxRate: lines.length > 0 && lines[0].taxRate ? Number(lines[0].taxRate) : undefined,
+          taxAmount: Number(row.taxTotal || 0),
+          total: Number(row.total || 0),
+          notes: row.notes ?? undefined,
+          currencyCode: row.currencyCode || "PKR",
+        }}
       />
     </section>
   );

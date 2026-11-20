@@ -80,6 +80,13 @@ export const navItems: NavItem[] = [
     page: lazy(() => import("@/features/quotes/index.tsx")),
   },
   {
+    path: "/pricing-calculator",
+    label: "Pricing Calculator",
+    group: "Sales",
+    permission: "quotes:read",
+    page: lazy(() => import("@/features/pricing-calculator/index.tsx")),
+  },
+  {
     path: "/sales-orders",
     label: "Sales Orders",
     group: "Sales",

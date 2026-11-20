@@ -2,18 +2,24 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button.tsx";
 import { ProfilePanel } from "@/features/profile/index.tsx";
-import { useHasPermission } from "@/hooks/useSession.ts";
+import { DocumentTemplateSettingsPanel } from "@/features/settings/DocumentTemplateSettings.tsx";
+import { useHasPermission, useIsAdmin } from "@/hooks/useSession.ts";
 import { getProviders } from "@/services/auth.ts";
 import { listAuditLogs } from "@/services/audit-logs.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 
-type SettingsTab = "profile" | "audit" | "sign-in";
+type SettingsTab = "profile" | "document-template" | "audit" | "sign-in";
 
 const tabs: Array<{ id: SettingsTab; label: string; description: string; permission?: string }> = [
   {
     id: "profile",
     label: "Profile",
     description: "Your account details, security, organization, and access",
+  },
+  {
+    id: "document-template",
+    label: "Document & Print Template",
+    description: "Configure company logo, legal address, bank wire details, and invoice/quote print format",
   },
   {
     id: "audit",
@@ -200,10 +206,10 @@ function SignInTab() {
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("profile");
   const canReadAudit = useHasPermission("audit-logs:read");
+  const isAdmin = useIsAdmin();
   const visibleTabs = tabs.filter((tab) => {
-    if (tab.permission === "audit-logs:read") {
-      return canReadAudit;
-    }
+    if (tab.id === "document-template") return isAdmin;
+    if (tab.permission === "audit-logs:read") return canReadAudit;
     return true;
   });
   const current = visibleTabs.some((tab) => tab.id === activeTab) ? activeTab : "profile";
@@ -250,6 +256,17 @@ export default function SettingsPage() {
             <p className="text-xs text-slate-500">{currentTab.description}</p>
           </div>
           {current === "profile" ? <ProfilePanel /> : null}
+          {current === "document-template" ? (
+            isAdmin ? <DocumentTemplateSettingsPanel /> : (
+              <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+                <svg className="mx-auto h-10 w-10 text-red-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <p className="mt-3 text-sm font-semibold text-red-800">Admin Access Required</p>
+                <p className="mt-1 text-xs text-red-600">Only administrators can configure the document & print template.</p>
+              </div>
+            )
+          ) : null}
           {current === "audit" ? <AuditTab /> : null}
           {current === "sign-in" ? <SignInTab /> : null}
         </div>

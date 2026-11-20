@@ -65,6 +65,11 @@ export default function SalesDashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {canReadQuotes ? (
+            <Link className="inline-flex h-10 items-center rounded-md border border-brand-300 bg-brand-50/60 px-4 text-sm font-semibold text-brand-800 transition hover:bg-brand-100/60" to="/pricing-calculator">
+              Pricing Calculator
+            </Link>
+          ) : null}
           {canCreateQuote ? (
             <Link className="inline-flex h-10 items-center rounded-md border border-slate-300 px-4 text-sm text-slate-700 transition hover:bg-slate-50" to="/quotes/new">
               New quote
