@@ -768,6 +768,7 @@ function CreateRoleModal({
   const [description, setDescription] = useState(source?.description ?? "");
   const [startFrom, setStartFrom] = useState(source?.id ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   const baseRole = source ?? roles.find((r) => r.id === startFrom) ?? null;
 
   const mutation = useMutation({
@@ -787,9 +788,10 @@ function CreateRoleModal({
   function submit() {
     setError(null);
     if (name.trim().length < 2) {
-      setError("Role name must be at least 2 characters.");
+      setNameError("Role name must be at least 2 characters.");
       return;
     }
+    setNameError(null);
     mutation.mutate();
   }
 
@@ -802,7 +804,19 @@ function CreateRoleModal({
       >
         <div className="flex flex-col gap-1.5">
           <label htmlFor="role-name" className="text-sm font-medium text-slate-700">Role name <span className="text-red-500">*</span></label>
-          <Input id="role-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Regional Sales Manager" className="h-10" autoFocus />
+          <Input
+            id="role-name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setNameError(null);
+            }}
+            error={Boolean(nameError)}
+            placeholder="e.g. Regional Sales Manager"
+            className="h-10"
+            autoFocus
+          />
+          {nameError ? <p role="alert" className="text-xs font-medium text-red-700">{nameError}</p> : null}
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="role-desc" className="text-sm font-medium text-slate-700">Description</label>
@@ -865,6 +879,7 @@ function EditRoleModal({
   const [name, setName] = useState(role.name);
   const [description, setDescription] = useState(role.description ?? "");
   const [error, setError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: () => updateRole(role.id, { name: name.trim(), description: description.trim() || null }),
@@ -875,9 +890,10 @@ function EditRoleModal({
   function submit() {
     setError(null);
     if (name.trim().length < 2) {
-      setError("Role name must be at least 2 characters.");
+      setNameError("Role name must be at least 2 characters.");
       return;
     }
+    setNameError(null);
     mutation.mutate();
   }
 
@@ -890,7 +906,18 @@ function EditRoleModal({
       >
         <div className="flex flex-col gap-1.5">
           <label htmlFor="edit-role-name" className="text-sm font-medium text-slate-700">Role name <span className="text-red-500">*</span></label>
-          <Input id="edit-role-name" value={name} onChange={(e) => setName(e.target.value)} className="h-10" autoFocus />
+          <Input
+            id="edit-role-name"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setNameError(null);
+            }}
+            error={Boolean(nameError)}
+            className="h-10"
+            autoFocus
+          />
+          {nameError ? <p role="alert" className="text-xs font-medium text-red-700">{nameError}</p> : null}
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="edit-role-desc" className="text-sm font-medium text-slate-700">Description</label>

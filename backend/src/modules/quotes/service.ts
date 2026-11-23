@@ -75,7 +75,7 @@ export class QuotesService {
       await this.requirePaymentTerm(organizationId, input.paymentTermId);
     }
 
-    const lines = await this.buildLines(organizationId, input.lines);
+    const lines = await this.buildLines(organizationId, customer.pricesIncludeTax, input.lines);
     const money = computeDocumentMoney(lines);
     const snapshot = await this.computeSnapshot(organizationId, money.total, currencyCode, issueDate);
 
@@ -144,6 +144,7 @@ export class QuotesService {
 
     const lines = await this.buildLines(
       organizationId,
+      customer.pricesIncludeTax,
       input.lines ??
         existing.lines.map((line) => ({
           productId: line.productId ?? undefined,
@@ -257,6 +258,7 @@ export class QuotesService {
         status: ["Only a draft or sent quote can be converted to a sales order"],
       });
     }
+    await this.requireCustomerCanPlaceCreditOrder(organizationId, existing.customerId);
     const order = await this.repository.convertToOrder(organizationId, id, actorId, {
       orderDate: input?.orderDate,
       expectedDeliveryDate: input?.expectedDeliveryDate,
@@ -275,7 +277,11 @@ export class QuotesService {
     return this.audit.list(organizationId, limit, cursor, { entityType: "quote", entityId: id });
   }
 
-  private async buildLines(organizationId: string, input: SalesLineInput[]): Promise<QuoteLineWriteData[]> {
+  private async buildLines(
+    organizationId: string,
+    pricesIncludeTax: boolean,
+    input: SalesLineInput[],
+  ): Promise<QuoteLineWriteData[]> {
     const productIds = unique(input.flatMap((line) => (line.productId ? [line.productId] : [])));
     const products = await this.repository.findProductsByIds(organizationId, productIds);
     const productMap = new Map(products.map((product) => [product.id, product]));
@@ -308,6 +314,7 @@ export class QuotesService {
         unitPrice: line.unitPrice,
         discountPercent: line.discountPercent,
         taxRate: taxRate ?? "0",
+        pricesIncludeTax,
       });
 
       return {
@@ -355,6 +362,18 @@ export class QuotesService {
       throw new ValidationFailedError({ customerId: ["This customer is not active"] });
     }
     return customer;
+  }
+
+  private async requireCustomerCanPlaceCreditOrder(organizationId: string, customerId: string) {
+    const customer = await this.repository.findCustomer(organizationId, customerId);
+    if (!customer) {
+      throw new ValidationFailedError({ customerId: ["Choose an active customer"] });
+    }
+    if (customer.creditHold) {
+      throw new ValidationFailedError({
+        customerId: ["This customer is on credit hold. Clear the hold before converting a quote to a sales order."],
+      });
+    }
   }
 
   private async requireContact(organizationId: string, customerId: string, contactId?: string) {

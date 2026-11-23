@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/utils/cn.ts";
 
 export interface Page<T> {
   items: T[];
@@ -57,6 +58,8 @@ export interface CustomerOption {
   displayName: string;
   currencyCode: string;
   paymentTermId: string | null;
+  creditHold?: boolean;
+  pricesIncludeTax?: boolean;
 }
 
 export interface DocumentLine {
@@ -100,13 +103,14 @@ export function round(value: number): string {
   return value.toFixed(4);
 }
 
-export function computeLineTotals(line: DocumentLineInput) {
+export function computeLineTotals(line: DocumentLineInput, pricesIncludeTax = false) {
   const quantity = Number(line.quantity) || 0;
   const unitPrice = Number(line.unitPrice) || 0;
   const discountPercent = Number(line.discountPercent ?? 0) || 0;
   const taxRate = Number(line.taxRate ?? 0) || 0;
 
-  const lineSubtotal = quantity * unitPrice;
+  const grossSubtotal = quantity * unitPrice;
+  const lineSubtotal = pricesIncludeTax && taxRate > -100 ? (grossSubtotal * 100) / (100 + taxRate) : grossSubtotal;
   const lineDiscount = lineSubtotal * (discountPercent / 100);
   const taxable = lineSubtotal - lineDiscount;
   const lineTax = taxable * (taxRate / 100);
@@ -119,10 +123,10 @@ export function computeLineTotals(line: DocumentLineInput) {
   };
 }
 
-export function computeDocumentTotals(lines: DocumentLineInput[]) {
+export function computeDocumentTotals(lines: DocumentLineInput[], pricesIncludeTax = false) {
   const result = lines.reduce(
     (acc, line) => {
-      const money = computeLineTotals(line);
+      const money = computeLineTotals(line, pricesIncludeTax);
       return {
         subtotal: acc.subtotal + Number(money.lineSubtotal),
         discountTotal: acc.discountTotal + Number(money.lineDiscount),
@@ -245,6 +249,8 @@ export function LinesEditor({
   taxCodes,
   currency,
   disabled,
+  invalidLines,
+  pricesIncludeTax,
 }: {
   lines: DocumentLineInput[];
   onChange: (lines: DocumentLineInput[]) => void;
@@ -252,6 +258,8 @@ export function LinesEditor({
   taxCodes: TaxCodeOption[];
   currency: string;
   disabled?: boolean;
+  invalidLines?: number[];
+  pricesIncludeTax?: boolean;
 }) {
   function update(index: number, patch: Partial<DocumentLineInput>) {
     onChange(lines.map((line, i) => (i === index ? { ...line, ...patch } : line)));
@@ -278,7 +286,7 @@ export function LinesEditor({
       <table className="w-full min-w-[860px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-            <th className="px-2 py-2">Product / description</th>
+            <th className="px-2 py-2">Product / description <span className="text-red-600" aria-hidden="true">*</span></th>
             <th className="w-24 px-2 py-2 text-right">Qty</th>
             <th className="w-32 px-2 py-2 text-right">Unit price</th>
             <th className="w-24 px-2 py-2 text-right">Disc %</th>
@@ -289,13 +297,18 @@ export function LinesEditor({
         </thead>
         <tbody>
           {lines.map((line, index) => {
-            const totals = computeLineTotals(line);
+            const totals = computeLineTotals(line, pricesIncludeTax);
+            const invalid = invalidLines?.includes(index) ?? false;
             return (
               <tr key={index} className="border-b border-slate-100 align-top">
                 <td className="px-2 py-2">
                   <select
                     aria-label={`Product for line ${index + 1}`}
-                    className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm disabled:bg-slate-50"
+                    aria-invalid={invalid || undefined}
+                    className={cn(
+                      "h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm disabled:bg-slate-50",
+                      invalid && "border-red-500 bg-red-50/40",
+                    )}
                     value={line.productId ?? ""}
                     disabled={disabled}
                     onChange={(event) => selectProduct(index, event.target.value)}

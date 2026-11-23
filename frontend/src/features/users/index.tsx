@@ -301,6 +301,7 @@ function PasswordField({
   onChange,
   autoComplete = "new-password",
   placeholder = "At least 12 characters",
+  error,
 }: {
   id: string;
   label: string;
@@ -308,6 +309,7 @@ function PasswordField({
   onChange: (value: string) => void;
   autoComplete?: string;
   placeholder?: string;
+  error?: string;
 }) {
   const [visible, setVisible] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -353,6 +355,7 @@ function PasswordField({
           onChange={(event) => onChange(event.target.value)}
           autoComplete={autoComplete}
           placeholder={placeholder}
+          error={Boolean(error)}
           className="h-10 pr-14 font-mono text-sm"
         />
         <button
@@ -364,6 +367,7 @@ function PasswordField({
           {visible ? "Hide" : "Show"}
         </button>
       </div>
+      {error ? <p role="alert" className="text-xs font-medium text-red-700">{error}</p> : null}
     </div>
   );
 }
@@ -374,10 +378,12 @@ function RolePicker({
   roles,
   selected,
   onChange,
+  error,
 }: {
   roles: Role[];
   selected: string[];
   onChange: (codes: string[]) => void;
+  error?: string;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -438,6 +444,7 @@ function RolePicker({
         })}
       </div>
       {roles.length === 0 ? <p className="text-xs text-slate-500">No roles are available.</p> : null}
+      {error ? <p role="alert" className="text-xs font-medium text-red-700">{error}</p> : null}
     </div>
   );
 }
@@ -678,6 +685,7 @@ function CreateUserModal({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
 
   const mutation = useMutation({
     mutationFn: (input: CreateUserInput) => createUser(input),
@@ -696,24 +704,15 @@ function CreateUserModal({
 
   function submit() {
     setError(null);
-    if (!firstName.trim() || !lastName.trim()) {
-      setError("First and last name are required.");
-      return;
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError("Enter a valid email address.");
-      return;
-    }
-    if (password.length < 12) {
-      setError("Password must be at least 12 characters.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (selectedRoles.length === 0) {
-      setError("Select at least one role.");
+    const nextErrors: Record<string, string> = {};
+    if (!firstName.trim()) nextErrors.firstName = "First name is required.";
+    if (!lastName.trim()) nextErrors.lastName = "Last name is required.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) nextErrors.email = "Enter a valid email address.";
+    if (password.length < 12) nextErrors.password = "Password must be at least 12 characters.";
+    if (password !== confirmPassword) nextErrors.confirmPassword = "Passwords do not match.";
+    if (selectedRoles.length === 0) nextErrors.roles = "Select at least one role.";
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
     mutation.mutate({
@@ -743,11 +742,16 @@ function CreateUserModal({
             <Input
               id="new-first-name"
               value={firstName}
-              onChange={(event) => setFirstName(event.target.value)}
+              onChange={(event) => {
+                setFirstName(event.target.value);
+                setFieldErrors((current) => ({ ...current, firstName: undefined }));
+              }}
+              error={Boolean(fieldErrors.firstName)}
               className="h-10"
               placeholder="e.g. John"
               autoFocus
             />
+            {fieldErrors.firstName ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.firstName}</p> : null}
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="new-last-name" className="text-xs font-semibold uppercase tracking-wider text-slate-700">
@@ -756,10 +760,15 @@ function CreateUserModal({
             <Input
               id="new-last-name"
               value={lastName}
-              onChange={(event) => setLastName(event.target.value)}
+              onChange={(event) => {
+                setLastName(event.target.value);
+                setFieldErrors((current) => ({ ...current, lastName: undefined }));
+              }}
+              error={Boolean(fieldErrors.lastName)}
               className="h-10"
               placeholder="e.g. Doe"
             />
+            {fieldErrors.lastName ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.lastName}</p> : null}
           </div>
         </div>
 
@@ -767,15 +776,20 @@ function CreateUserModal({
           <label htmlFor="new-email" className="text-xs font-semibold uppercase tracking-wider text-slate-700">
             Work email <span className="text-red-500">*</span>
           </label>
-          <Input
-            id="new-email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="h-10"
-            placeholder="user@company.com"
-          />
-        </div>
+            <Input
+              id="new-email"
+              type="email"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setFieldErrors((current) => ({ ...current, email: undefined }));
+              }}
+              error={Boolean(fieldErrors.email)}
+              className="h-10"
+              placeholder="user@company.com"
+            />
+            {fieldErrors.email ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.email}</p> : null}
+          </div>
 
         <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
           <PasswordField
@@ -785,7 +799,9 @@ function CreateUserModal({
             onChange={(val) => {
               setPassword(val);
               setConfirmPassword(val);
+              setFieldErrors((current) => ({ ...current, password: undefined, confirmPassword: undefined }));
             }}
+            error={fieldErrors.password}
           />
           <div className="flex flex-col gap-1.5">
             <label htmlFor="new-password-confirm" className="text-xs font-semibold uppercase tracking-wider text-slate-700">
@@ -795,15 +811,20 @@ function CreateUserModal({
               id="new-password-confirm"
               type="password"
               value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              onChange={(event) => {
+                setConfirmPassword(event.target.value);
+                setFieldErrors((current) => ({ ...current, confirmPassword: undefined }));
+              }}
+              error={Boolean(fieldErrors.confirmPassword)}
               className="h-10 font-mono text-sm"
               autoComplete="new-password"
               placeholder="Re-enter password"
             />
+            {fieldErrors.confirmPassword ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.confirmPassword}</p> : null}
           </div>
         </div>
 
-        <RolePicker roles={roles} selected={selectedRoles} onChange={setSelectedRoles} />
+        <RolePicker roles={roles} selected={selectedRoles} onChange={setSelectedRoles} error={fieldErrors.roles} />
 
         {error ? <p className="text-xs font-semibold text-red-600 bg-red-50 p-2.5 rounded-lg border border-red-200">{error}</p> : null}
         {mutation.isError ? <p className="text-xs font-semibold text-red-600 bg-red-50 p-2.5 rounded-lg border border-red-200">{getApiErrorMessage(mutation.error)}</p> : null}
@@ -845,6 +866,7 @@ function EditUserModal({
   const [status, setStatus] = useState<AccountStatus>(user.status);
   const [selectedRoles, setSelectedRoles] = useState<string[]>(user.userRoles.map((link) => link.role.code));
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const isSelf = user.id === currentUserId;
 
   const mutation = useMutation({
@@ -857,12 +879,12 @@ function EditUserModal({
 
   function submit() {
     setError(null);
-    if (!firstName.trim() || !lastName.trim()) {
-      setError("First and last name are required.");
-      return;
-    }
-    if (selectedRoles.length === 0) {
-      setError("Select at least one role.");
+    const nextErrors: Record<string, string> = {};
+    if (!firstName.trim()) nextErrors.firstName = "First name is required.";
+    if (!lastName.trim()) nextErrors.lastName = "Last name is required.";
+    if (selectedRoles.length === 0) nextErrors.roles = "Select at least one role.";
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
     if (isSelf && status !== "ACTIVE") {
@@ -900,9 +922,14 @@ function EditUserModal({
             <Input
               id="edit-first-name"
               value={firstName}
-              onChange={(event) => setFirstName(event.target.value)}
+              onChange={(event) => {
+                setFirstName(event.target.value);
+                setFieldErrors((current) => ({ ...current, firstName: undefined }));
+              }}
+              error={Boolean(fieldErrors.firstName)}
               className="h-10"
             />
+            {fieldErrors.firstName ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.firstName}</p> : null}
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="edit-last-name" className="text-xs font-semibold uppercase tracking-wider text-slate-700">
@@ -911,9 +938,14 @@ function EditUserModal({
             <Input
               id="edit-last-name"
               value={lastName}
-              onChange={(event) => setLastName(event.target.value)}
+              onChange={(event) => {
+                setLastName(event.target.value);
+                setFieldErrors((current) => ({ ...current, lastName: undefined }));
+              }}
+              error={Boolean(fieldErrors.lastName)}
               className="h-10"
             />
+            {fieldErrors.lastName ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.lastName}</p> : null}
           </div>
         </div>
 
@@ -935,7 +967,7 @@ function EditUserModal({
           {isSelf && <p className="text-xs text-slate-500">You cannot change your own account status.</p>}
         </div>
 
-        <RolePicker roles={roles} selected={selectedRoles} onChange={setSelectedRoles} />
+        <RolePicker roles={roles} selected={selectedRoles} onChange={setSelectedRoles} error={fieldErrors.roles} />
         {isSelf && !selectedRoles.includes("admin") && (
           <p className="text-xs font-semibold text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
             Removing your own administrator role is restricted.
@@ -976,6 +1008,7 @@ function ResetPasswordModal({
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
 
   const mutation = useMutation({
     mutationFn: (newPassword: string) => resetUserPassword(user.id, newPassword),
@@ -987,12 +1020,11 @@ function ResetPasswordModal({
 
   function submit() {
     setError(null);
-    if (password.length < 12) {
-      setError("Password must be at least 12 characters.");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+    const nextErrors: Record<string, string> = {};
+    if (password.length < 12) nextErrors.password = "Password must be at least 12 characters.";
+    if (password !== confirmPassword) nextErrors.confirmPassword = "Passwords do not match.";
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
     mutation.mutate(password);
@@ -1011,7 +1043,17 @@ function ResetPasswordModal({
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
           Set a new security password for <strong className="text-slate-900">{user.email}</strong>. Any active sessions for this account will be automatically revoked.
         </div>
-        <PasswordField id="reset-password" label="New password" value={password} onChange={(val) => { setPassword(val); setConfirmPassword(val); }} />
+        <PasswordField
+          id="reset-password"
+          label="New password"
+          value={password}
+          onChange={(val) => {
+            setPassword(val);
+            setConfirmPassword(val);
+            setFieldErrors((current) => ({ ...current, password: undefined, confirmPassword: undefined }));
+          }}
+          error={fieldErrors.password}
+        />
         <div className="flex flex-col gap-1.5">
           <label htmlFor="reset-password-confirm" className="text-xs font-semibold uppercase tracking-wider text-slate-700">
             Confirm new password <span className="text-red-500">*</span>
@@ -1020,11 +1062,16 @@ function ResetPasswordModal({
             id="reset-password-confirm"
             type="password"
             value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
+            onChange={(event) => {
+              setConfirmPassword(event.target.value);
+              setFieldErrors((current) => ({ ...current, confirmPassword: undefined }));
+            }}
+            error={Boolean(fieldErrors.confirmPassword)}
             className="h-10 font-mono text-sm"
             autoComplete="new-password"
             placeholder="Confirm password"
           />
+          {fieldErrors.confirmPassword ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.confirmPassword}</p> : null}
         </div>
 
         {error ? <p className="text-xs font-semibold text-red-600 bg-red-50 p-2.5 rounded-lg border border-red-200">{error}</p> : null}

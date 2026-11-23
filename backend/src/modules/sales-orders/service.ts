@@ -88,7 +88,7 @@ export class SalesOrdersService {
       }
     }
 
-    const lines = await this.buildLines(organizationId, input.lines);
+    const lines = await this.buildLines(organizationId, customer.pricesIncludeTax, input.lines);
     const money = computeDocumentMoney(lines);
     const snapshot = await this.computeSnapshot(organizationId, money.total, currencyCode, orderDate);
 
@@ -169,6 +169,7 @@ export class SalesOrdersService {
 
     const lines = await this.buildLines(
       organizationId,
+      customer.pricesIncludeTax,
       input.lines ??
         existing.lines.map((line) => ({
           productId: line.productId ?? undefined,
@@ -303,7 +304,11 @@ export class SalesOrdersService {
     return this.audit.list(organizationId, limit, cursor, { entityType: "sales-order", entityId: id });
   }
 
-  private async buildLines(organizationId: string, input: SalesLineInput[]): Promise<SalesOrderLineWriteData[]> {
+  private async buildLines(
+    organizationId: string,
+    pricesIncludeTax: boolean,
+    input: SalesLineInput[],
+  ): Promise<SalesOrderLineWriteData[]> {
     const productIds = unique(input.flatMap((line) => (line.productId ? [line.productId] : [])));
     const products = await this.repository.findProductsByIds(organizationId, productIds);
     const productMap = new Map(products.map((product) => [product.id, product]));
@@ -336,6 +341,7 @@ export class SalesOrdersService {
         unitPrice: line.unitPrice,
         discountPercent: line.discountPercent,
         taxRate: taxRate ?? "0",
+        pricesIncludeTax,
       });
 
       return {
@@ -381,6 +387,11 @@ export class SalesOrdersService {
     }
     if (customer.status !== "ACTIVE") {
       throw new ValidationFailedError({ customerId: ["This customer is not active"] });
+    }
+    if (customer.creditHold) {
+      throw new ValidationFailedError({
+        customerId: ["This customer is on credit hold. Clear the hold before creating or updating a sales order."],
+      });
     }
     return customer;
   }

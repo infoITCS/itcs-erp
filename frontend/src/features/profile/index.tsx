@@ -268,10 +268,24 @@ function Detail({
   );
 }
 
-function FieldLabel({ htmlFor, children }: { htmlFor: string; children: ReactNode }) {
+function FieldLabel({
+  htmlFor,
+  children,
+  required,
+  error,
+}: {
+  htmlFor: string;
+  children: ReactNode;
+  required?: boolean;
+  error?: boolean;
+}) {
   return (
-    <label htmlFor={htmlFor} className="text-xs font-semibold text-slate-700">
+    <label
+      htmlFor={htmlFor}
+      className={`text-xs font-semibold ${error ? "text-red-700" : "text-slate-700"}`}
+    >
       {children}
+      {required ? <span className="ml-0.5 text-red-600" aria-hidden="true">*</span> : null}
     </label>
   );
 }
@@ -308,6 +322,7 @@ function SecuritySection({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [signOutOpen, setSignOutOpen] = useState(false);
 
   const change = useMutation({
@@ -339,20 +354,13 @@ function SecuritySection({
 
   function submit() {
     setError(null);
-    if (!currentPassword) {
-      setError("Enter your current password.");
-      return;
-    }
-    if (newPassword.length < 12) {
-      setError("The new password must be at least 12 characters.");
-      return;
-    }
-    if (newPassword === currentPassword) {
-      setError("The new password must be different from the current password.");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("New passwords do not match.");
+    const nextErrors: Record<string, string> = {};
+    if (!currentPassword) nextErrors.currentPassword = "Enter your current password.";
+    if (newPassword.length < 12) nextErrors.newPassword = "The new password must be at least 12 characters.";
+    if (newPassword && newPassword === currentPassword) nextErrors.newPassword = "Use a password different from the current one.";
+    if (newPassword !== confirmPassword) nextErrors.confirmPassword = "New passwords do not match.";
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
     change.mutate();
@@ -401,38 +409,59 @@ function SecuritySection({
             }}
           >
             <div className="flex flex-col gap-1.5">
-              <FieldLabel htmlFor="security-current-password">Current password</FieldLabel>
+              <FieldLabel htmlFor="security-current-password" required error={Boolean(fieldErrors.currentPassword)}>
+                Current password
+              </FieldLabel>
               <Input
                 id="security-current-password"
                 type="password"
                 value={currentPassword}
-                onChange={(event) => setCurrentPassword(event.target.value)}
+                onChange={(event) => {
+                  setCurrentPassword(event.target.value);
+                  setFieldErrors((current) => ({ ...current, currentPassword: undefined }));
+                }}
+                error={Boolean(fieldErrors.currentPassword)}
                 className="h-10"
                 autoComplete="current-password"
               />
+              {fieldErrors.currentPassword ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.currentPassword}</p> : null}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <FieldLabel htmlFor="security-new-password">New password</FieldLabel>
+                <FieldLabel htmlFor="security-new-password" required error={Boolean(fieldErrors.newPassword)}>
+                  New password
+                </FieldLabel>
                 <Input
                   id="security-new-password"
                   type="password"
                   value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
+                  onChange={(event) => {
+                    setNewPassword(event.target.value);
+                    setFieldErrors((current) => ({ ...current, newPassword: undefined }));
+                  }}
+                  error={Boolean(fieldErrors.newPassword)}
                   className="h-10"
                   autoComplete="new-password"
                 />
+                {fieldErrors.newPassword ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.newPassword}</p> : null}
               </div>
               <div className="flex flex-col gap-1.5">
-                <FieldLabel htmlFor="security-confirm-password">Confirm new password</FieldLabel>
+                <FieldLabel htmlFor="security-confirm-password" required error={Boolean(fieldErrors.confirmPassword)}>
+                  Confirm new password
+                </FieldLabel>
                 <Input
                   id="security-confirm-password"
                   type="password"
                   value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  onChange={(event) => {
+                    setConfirmPassword(event.target.value);
+                    setFieldErrors((current) => ({ ...current, confirmPassword: undefined }));
+                  }}
+                  error={Boolean(fieldErrors.confirmPassword)}
                   className="h-10"
                   autoComplete="new-password"
                 />
+                {fieldErrors.confirmPassword ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.confirmPassword}</p> : null}
               </div>
             </div>
 
@@ -551,6 +580,7 @@ function OrganizationSection({
   const [name, setName] = useState(organization.name);
   const [baseCurrency, setBaseCurrency] = useState(organization.baseCurrencyCode);
   const [editError, setEditError] = useState<string | null>(null);
+  const [editFieldErrors, setEditFieldErrors] = useState<Record<string, string | undefined>>({});
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -572,6 +602,7 @@ function OrganizationSection({
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
       setEditing(false);
       setEditError(null);
+      setEditFieldErrors({});
     },
     onError: (error) => setEditError(errorText(error)),
   });
@@ -595,12 +626,11 @@ function OrganizationSection({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setEditError(null);
-    if (!name.trim()) {
-      setEditError("Organization name is required.");
-      return;
-    }
-    if (!/^[A-Za-z]{3}$/.test(baseCurrency.trim())) {
-      setEditError("Choose a valid three-letter base currency.");
+    const nextErrors: Record<string, string> = {};
+    if (!name.trim()) nextErrors.name = "Organization name is required.";
+    if (!/^[A-Za-z]{3}$/.test(baseCurrency.trim())) nextErrors.baseCurrency = "Choose a valid three-letter base currency.";
+    setEditFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
     save.mutate({
@@ -654,14 +684,21 @@ function OrganizationSection({
             <form className="flex flex-col gap-4" noValidate onSubmit={submit}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-1.5 sm:col-span-2">
-                  <FieldLabel htmlFor="organization-name">Organization name</FieldLabel>
+                  <FieldLabel htmlFor="organization-name" required error={Boolean(editFieldErrors.name)}>
+                    Organization name
+                  </FieldLabel>
                   <Input
                     id="organization-name"
                     value={name}
-                    onChange={(event) => setName(event.target.value)}
+                    onChange={(event) => {
+                      setName(event.target.value);
+                      setEditFieldErrors((current) => ({ ...current, name: undefined }));
+                    }}
+                    error={Boolean(editFieldErrors.name)}
                     className="h-10"
                     maxLength={160}
                   />
+                  {editFieldErrors.name ? <p role="alert" className="text-xs font-medium text-red-700">{editFieldErrors.name}</p> : null}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <FieldLabel htmlFor="organization-code">Organization code</FieldLabel>
@@ -677,11 +714,17 @@ function OrganizationSection({
                   </p>
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <FieldLabel htmlFor="organization-currency">Base currency</FieldLabel>
+                  <FieldLabel htmlFor="organization-currency" required error={Boolean(editFieldErrors.baseCurrency)}>
+                    Base currency
+                  </FieldLabel>
                   <select
                     id="organization-currency"
                     value={baseCurrency}
-                    onChange={(event) => setBaseCurrency(event.target.value)}
+                    aria-invalid={Boolean(editFieldErrors.baseCurrency) || undefined}
+                    onChange={(event) => {
+                      setBaseCurrency(event.target.value);
+                      setEditFieldErrors((current) => ({ ...current, baseCurrency: undefined }));
+                    }}
                     className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:border-slate-500"
                   >
                     {!selectedCurrencyVisible ? (
@@ -693,6 +736,9 @@ function OrganizationSection({
                       </option>
                     ))}
                   </select>
+                  {editFieldErrors.baseCurrency ? (
+                    <p role="alert" className="text-xs font-medium text-red-700">{editFieldErrors.baseCurrency}</p>
+                  ) : null}
                   {currencies.isError ? (
                     <p className="text-[11px] text-rose-700">
                       {getApiErrorMessage(currencies.error)}
@@ -863,6 +909,7 @@ export function ProfilePanel() {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [removePhotoOpen, setRemovePhotoOpen] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -922,8 +969,11 @@ export function ProfilePanel() {
   function submitProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaveError(null);
-    if (!form.firstName.trim() || !form.lastName.trim()) {
-      setSaveError("First name and last name are required.");
+    const nextErrors: Record<string, string> = {};
+    if (!form.firstName.trim()) nextErrors.firstName = "First name is required.";
+    if (!form.lastName.trim()) nextErrors.lastName = "Last name is required.";
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
     save.mutate({
@@ -1167,26 +1217,40 @@ export function ProfilePanel() {
               <form className="flex flex-col gap-4" noValidate onSubmit={submitProfile}>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="flex flex-col gap-1.5">
-                    <FieldLabel htmlFor="profile-first-name">First name</FieldLabel>
+                    <FieldLabel htmlFor="profile-first-name" required error={Boolean(fieldErrors.firstName)}>
+                      First name
+                    </FieldLabel>
                     <Input
                       id="profile-first-name"
                       value={form.firstName}
-                      onChange={(event) => setForm({ ...form, firstName: event.target.value })}
+                      onChange={(event) => {
+                        setForm({ ...form, firstName: event.target.value });
+                        setFieldErrors((current) => ({ ...current, firstName: undefined }));
+                      }}
+                      error={Boolean(fieldErrors.firstName)}
                       className="h-10"
                       autoComplete="given-name"
                       maxLength={100}
                     />
+                    {fieldErrors.firstName ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.firstName}</p> : null}
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <FieldLabel htmlFor="profile-last-name">Last name</FieldLabel>
+                    <FieldLabel htmlFor="profile-last-name" required error={Boolean(fieldErrors.lastName)}>
+                      Last name
+                    </FieldLabel>
                     <Input
                       id="profile-last-name"
                       value={form.lastName}
-                      onChange={(event) => setForm({ ...form, lastName: event.target.value })}
+                      onChange={(event) => {
+                        setForm({ ...form, lastName: event.target.value });
+                        setFieldErrors((current) => ({ ...current, lastName: undefined }));
+                      }}
+                      error={Boolean(fieldErrors.lastName)}
                       className="h-10"
                       autoComplete="family-name"
                       maxLength={100}
                     />
+                    {fieldErrors.lastName ? <p role="alert" className="text-xs font-medium text-red-700">{fieldErrors.lastName}</p> : null}
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <FieldLabel htmlFor="profile-phone">Phone</FieldLabel>

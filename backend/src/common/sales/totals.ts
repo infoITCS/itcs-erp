@@ -7,6 +7,7 @@ export interface LineMoneyInput {
   unitPrice: string;
   discountPercent?: string;
   taxRate?: string;
+  pricesIncludeTax?: boolean;
 }
 
 export interface LineMoney {
@@ -33,7 +34,10 @@ export function computeLineMoney(input: LineMoneyInput): LineMoney {
   const discountPercent = new Prisma.Decimal(input.discountPercent ?? "0");
   const taxRate = new Prisma.Decimal(input.taxRate ?? "0");
 
-  const lineSubtotal = round(quantity.mul(unitPrice));
+  const grossSubtotal = round(quantity.mul(unitPrice));
+  const lineSubtotal = input.pricesIncludeTax
+    ? round(grossSubtotal.mul(100).div(new Prisma.Decimal(100).add(taxRate)))
+    : grossSubtotal;
   const lineDiscount = round(lineSubtotal.mul(discountPercent).div(100));
   const net = lineSubtotal.sub(lineDiscount);
   const lineTax = round(net.mul(taxRate).div(100));

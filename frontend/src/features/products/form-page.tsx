@@ -69,7 +69,7 @@ export default function ProductFormPage() {
   const units = useQuery({ queryKey: ["units-of-measure"], queryFn: listUnitsOfMeasure });
   const categories = useQuery({ queryKey: ["categories"], queryFn: listCategories });
   const taxCodes = useQuery({ queryKey: ["tax-codes"], queryFn: listTaxCodes });
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: empty });
+  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: empty, mode: "onTouched" });
   const productType = form.watch("productType");
 
   useEffect(() => {
@@ -131,22 +131,22 @@ export default function ProductFormPage() {
         <FormField label="Code" htmlFor="code" error={form.formState.errors.code?.message}>
           <Input id="code" {...form.register("code")} placeholder="Optional" disabled={Boolean(id)} />
         </FormField>
-        <FormField label="Name" htmlFor="name" error={form.formState.errors.name?.message}>
+        <FormField label="Name" htmlFor="name" error={form.formState.errors.name?.message} required>
           <Input id="name" {...form.register("name")} />
         </FormField>
-        <FormField label="Type" htmlFor="productType" error={form.formState.errors.productType?.message}>
+        <FormField label="Type" htmlFor="productType" error={form.formState.errors.productType?.message} required>
           <select id="productType" className="h-9 rounded-md border border-slate-300 px-3 text-sm" {...form.register("productType")}>
             <option value="PHYSICAL_PRODUCT">Physical product</option>
             <option value="SERVICE">Service</option>
           </select>
         </FormField>
-        <FormField label="Status" htmlFor="status" error={form.formState.errors.status?.message}>
+        <FormField label="Status" htmlFor="status" error={form.formState.errors.status?.message} required>
           <select id="status" className="h-9 rounded-md border border-slate-300 px-3 text-sm" {...form.register("status")}>
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </select>
         </FormField>
-        <FormField label="Unit of measure" htmlFor="unitOfMeasureId" error={form.formState.errors.unitOfMeasureId?.message}>
+        <FormField label="Unit of measure" htmlFor="unitOfMeasureId" error={form.formState.errors.unitOfMeasureId?.message} required>
           <select id="unitOfMeasureId" className="h-9 rounded-md border border-slate-300 px-3 text-sm" {...form.register("unitOfMeasureId")}>
             <option value="">Select UOM</option>
             {(units.data ?? []).map((unit) => (

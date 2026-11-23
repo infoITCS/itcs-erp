@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { ValidationFailedError } from "../src/common/errors/app-error";
 import { addDays, computeDocumentMoney, computeLineMoney } from "../src/common/sales/totals";
+import { QuotesService } from "../src/modules/quotes/service";
 import { assertQuoteTransition } from "../src/modules/quotes/types";
+import { SalesOrdersService } from "../src/modules/sales-orders/service";
 import { assertSalesOrderTransition } from "../src/modules/sales-orders/types";
 import { assertInvoiceTransition } from "../src/modules/invoices/types";
 import { applyPaymentDelta } from "../src/modules/payments/status";
@@ -32,6 +35,23 @@ describe("sales totals", () => {
       discountTotal: "20.0000",
       taxTotal: "14.0000",
       total: "244.0000",
+    });
+  });
+
+  it("extracts VAT from tax-inclusive prices instead of adding it again", () => {
+    const line = computeLineMoney({
+      quantity: "1",
+      unitPrice: "100",
+      discountPercent: "10",
+      taxRate: "17",
+      pricesIncludeTax: true,
+    });
+
+    assert.deepEqual(line, {
+      lineSubtotal: "85.4701",
+      lineDiscount: "8.5470",
+      lineTax: "13.0769",
+      lineTotal: "90.0000",
     });
   });
 
@@ -110,5 +130,102 @@ describe("payment allocation", () => {
     });
 
     assert.deepEqual(result, { amountPaid: "0.0000", status: "OVERDUE" });
+  });
+});
+
+describe("credit hold enforcement", () => {
+  const meta = { ipAddress: null, userAgent: null };
+  const heldCustomer = {
+    id: "11111111-1111-4111-8111-111111111111",
+    customerNumber: "CUS-00001",
+    displayName: "Held Customer",
+    status: "ACTIVE",
+    currencyCode: "PKR",
+    paymentTermId: null,
+    creditHold: true,
+  };
+
+  function rejectsCreditHold(error: unknown): boolean {
+    return (
+      error instanceof ValidationFailedError &&
+      Boolean(error.errors?.customerId?.[0]?.includes("credit hold"))
+    );
+  }
+
+  it("blocks sales order creation for a held customer", async () => {
+    let created = false;
+    const service = new SalesOrdersService(
+      {
+        async findCustomer() {
+          return heldCustomer;
+        },
+        async create() {
+          created = true;
+          return {};
+        },
+      } as never,
+      {} as never,
+    );
+
+    await assert.rejects(
+      () => service.create("org-1", "actor-1", { customerId: heldCustomer.id, lines: [] } as never, meta),
+      rejectsCreditHold,
+    );
+    assert.equal(created, false);
+  });
+
+  it("blocks editing an existing sales order for a held customer", async () => {
+    let updated = false;
+    const service = new SalesOrdersService(
+      {
+        async findById() {
+          return { id: "order-1", customerId: heldCustomer.id, status: "DRAFT" };
+        },
+        async findCustomer() {
+          return heldCustomer;
+        },
+        async update() {
+          updated = true;
+          return {};
+        },
+      } as never,
+      {} as never,
+    );
+
+    await assert.rejects(
+      () => service.update("org-1", "actor-1", "order-1", { customerId: heldCustomer.id } as never, meta),
+      rejectsCreditHold,
+    );
+    assert.equal(updated, false);
+  });
+
+  it("blocks converting a quote to an order for a held customer", async () => {
+    let converted = false;
+    const service = new QuotesService(
+      {
+        async findById() {
+          return {
+            id: "quote-1",
+            quoteNumber: "QT-00001",
+            customerId: heldCustomer.id,
+            status: "DRAFT",
+          };
+        },
+        async findCustomer() {
+          return heldCustomer;
+        },
+        async convertToOrder() {
+          converted = true;
+          return {};
+        },
+      } as never,
+      {} as never,
+    );
+
+    await assert.rejects(
+      () => service.convertToOrder("org-1", "actor-1", "quote-1", undefined, meta),
+      rejectsCreditHold,
+    );
+    assert.equal(converted, false);
   });
 });

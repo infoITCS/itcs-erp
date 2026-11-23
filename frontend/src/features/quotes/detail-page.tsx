@@ -183,6 +183,13 @@ export default function QuoteDetailPage() {
             This quote was deleted on {row.deletedAt.slice(0, 10)}.
           </p>
         ) : null}
+        {!row.deletedAt && (row.customer?.creditHold || customerDetail.data?.creditHold) ? (
+          <p role="status" className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <span className="font-semibold">Credit hold:</span>{" "}
+            {customerDetail.data?.displayName ?? row.customer?.displayName ?? "This customer"} is on credit hold. Convert to order is blocked until the account is reviewed.{" "}
+            <Link className="font-medium underline" to={`/customers/${row.customerId}`}>View customer</Link>
+          </p>
+        ) : null}
         {actionError ? (
           <p role="alert" className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
             {actionError}

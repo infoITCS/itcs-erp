@@ -50,6 +50,7 @@ export interface QuoteCustomerRef {
   displayName: string;
   email: string | null;
   status: string;
+  creditHold?: boolean;
 }
 
 export interface Quote {

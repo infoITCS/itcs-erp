@@ -105,7 +105,6 @@ const formSchema = z.object({
   priority: z.enum(customerPriorities),
   legalName: z.string().trim().max(200),
   displayName: z.string().trim().min(1, "Customer name is required").max(200),
-  middleName: z.string().trim().max(100),
   industry: z.string().trim().max(120),
   employeeCount: employeeCountValue,
   incorporationStatus: z.enum(incorporationStatuses).or(z.literal("")),
@@ -127,7 +126,6 @@ const formSchema = z.object({
   identityDocumentNumber: z.string().trim().max(40),
   taxExempt: z.boolean(),
   pricesIncludeTax: z.boolean(),
-  emailMarketingOptIn: z.boolean(),
   creditHold: z.boolean(),
   creditLimit: amount,
   preferredPaymentMethod: z.enum(paymentMethods).or(z.literal("")),
@@ -194,7 +192,6 @@ const emptyValues: FormValues = {
   priority: "NORMAL",
   legalName: "",
   displayName: "",
-  middleName: "",
   industry: "",
   employeeCount: "",
   incorporationStatus: "",
@@ -216,7 +213,6 @@ const emptyValues: FormValues = {
   identityDocumentNumber: "",
   taxExempt: false,
   pricesIncludeTax: false,
-  emailMarketingOptIn: false,
   creditHold: false,
   creditLimit: "0",
   preferredPaymentMethod: "",
@@ -255,7 +251,7 @@ export default function CustomerFormPage() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: { ...emptyValues, ...draftValues },
-    mode: "onBlur",
+    mode: "onTouched",
   });
   const addresses = useFieldArray({ control: form.control, name: "addresses", keyName: "fieldKey" });
   const contacts = useFieldArray({ control: form.control, name: "contacts", keyName: "fieldKey" });
@@ -416,22 +412,19 @@ export default function CustomerFormPage() {
                   ))}
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <FormField label="Customer / full name" htmlFor="displayName" error={form.formState.errors.displayName?.message}>
+                  <FormField label="Customer / full name" htmlFor="displayName" error={form.formState.errors.displayName?.message} required>
                     <Input id="displayName" autoComplete={entityType === "COMPANY" ? "organization" : "name"} {...form.register("displayName")} />
                   </FormField>
-                  {entityType === "COMPANY" ? <FormField label="Registered legal name" htmlFor="legalName" error={form.formState.errors.legalName?.message}>
+                  {entityType === "COMPANY" ? <FormField label="Registered legal name" htmlFor="legalName" error={form.formState.errors.legalName?.message} required>
                     <Input id="legalName" autoComplete="organization" {...form.register("legalName")} />
                   </FormField> : null}
-                  {entityType === "INDIVIDUAL" ? <FormField label="Middle name" htmlFor="middleName" error={form.formState.errors.middleName?.message}>
-                    <Input id="middleName" autoComplete="additional-name" {...form.register("middleName")} />
-                  </FormField> : null}
-                  <FormField label="Customer segment" htmlFor="customerType" error={form.formState.errors.customerType?.message}>
+                  <FormField label="Customer segment" htmlFor="customerType" error={form.formState.errors.customerType?.message} required>
                     <select id="customerType" className={selectClass} {...form.register("customerType")}>
                       <option value="B2B">B2B</option><option value="B2C">B2C</option><option value="WHOLESALE">Wholesale</option>
                       <option value="COMPANY">Company (legacy)</option><option value="INDIVIDUAL">Individual (legacy)</option>
                     </select>
                   </FormField>
-                  <FormField label="Country" htmlFor="countryCode" error={form.formState.errors.countryCode?.message}>
+                  <FormField label="Country" htmlFor="countryCode" error={form.formState.errors.countryCode?.message} required>
                     <select id="countryCode" className={selectClass} {...form.register("countryCode")}>
                       {countries.map((country) => <option key={country.code} value={country.code}>{country.name} ({country.code})</option>)}
                     </select>
@@ -453,7 +446,7 @@ export default function CustomerFormPage() {
                   <FormField label="Taxpayer ID / NTN" htmlFor="taxNumber" error={form.formState.errors.taxNumber?.message}>
                     <Input id="taxNumber" autoComplete="off" {...form.register("taxNumber")} />
                   </FormField>
-                  <FormField label="Account status" htmlFor="status" error={form.formState.errors.status?.message}>
+                  <FormField label="Account status" htmlFor="status" error={form.formState.errors.status?.message} required>
                     <select id="status" className={selectClass} {...form.register("status")}>
                       <option value="ACTIVE">Active</option><option value="HOLD">On hold</option><option value="INACTIVE">Inactive</option>
                     </select>
@@ -494,7 +487,7 @@ export default function CustomerFormPage() {
                 <div className="flex flex-col divide-y divide-slate-200">
                   {addresses.fields.map((field, index) => (
                     <div key={field.fieldKey} className="grid gap-4 py-5 first:pt-0 md:grid-cols-2">
-                      <FormField label="Address purpose" htmlFor={`address-purpose-${index}`} error={form.formState.errors.addresses?.[index]?.purpose?.message}>
+                      <FormField label="Address purpose" htmlFor={`address-purpose-${index}`} error={form.formState.errors.addresses?.[index]?.purpose?.message} required>
                         <select id={`address-purpose-${index}`} className={selectClass} {...form.register(`addresses.${index}.purpose`)}>
                           <option value="BILLING">Billing</option>{!sameAsBilling ? <option value="SHIPPING">Shipping / delivery</option> : null}
                         </select>
@@ -502,13 +495,13 @@ export default function CustomerFormPage() {
                       <FormField label="Label" htmlFor={`address-label-${index}`} error={form.formState.errors.addresses?.[index]?.label?.message}>
                         <Input id={`address-label-${index}`} placeholder="Head office, warehouse…" {...form.register(`addresses.${index}.label`)} />
                       </FormField>
-                      <FormField label="Street address" htmlFor={`address-line1-${index}`} error={form.formState.errors.addresses?.[index]?.line1?.message}>
+                      <FormField label="Street address" htmlFor={`address-line1-${index}`} error={form.formState.errors.addresses?.[index]?.line1?.message} required>
                         <Input id={`address-line1-${index}`} {...form.register(`addresses.${index}.line1`)} />
                       </FormField>
                       <FormField label="Address line 2" htmlFor={`address-line2-${index}`} error={form.formState.errors.addresses?.[index]?.line2?.message}>
                         <Input id={`address-line2-${index}`} {...form.register(`addresses.${index}.line2`)} />
                       </FormField>
-                      <FormField label="City" htmlFor={`address-city-${index}`} error={form.formState.errors.addresses?.[index]?.city?.message}>
+                      <FormField label="City" htmlFor={`address-city-${index}`} error={form.formState.errors.addresses?.[index]?.city?.message} required>
                         <Input id={`address-city-${index}`} {...form.register(`addresses.${index}.city`)} />
                       </FormField>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -519,7 +512,7 @@ export default function CustomerFormPage() {
                           <Input id={`address-postal-${index}`} {...form.register(`addresses.${index}.postalCode`)} />
                         </FormField>
                       </div>
-                      <FormField label="Country" htmlFor={`address-country-${index}`} error={form.formState.errors.addresses?.[index]?.countryCode?.message}>
+                      <FormField label="Country" htmlFor={`address-country-${index}`} error={form.formState.errors.addresses?.[index]?.countryCode?.message} required>
                         <select id={`address-country-${index}`} className={selectClass} {...form.register(`addresses.${index}.countryCode`)}>
                           {countries.map((country) => <option key={country.code} value={country.code}>{country.name}</option>)}
                         </select>
@@ -559,10 +552,10 @@ export default function CustomerFormPage() {
                         <Input id={`contact-department-${index}`} placeholder="Finance, procurement…" {...form.register(`contacts.${index}.department`)} />
                       </FormField>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <FormField label="First name" htmlFor={`contact-first-${index}`} error={form.formState.errors.contacts?.[index]?.firstName?.message}>
+                        <FormField label="First name" htmlFor={`contact-first-${index}`} error={form.formState.errors.contacts?.[index]?.firstName?.message} required>
                           <Input id={`contact-first-${index}`} {...form.register(`contacts.${index}.firstName`)} />
                         </FormField>
-                        <FormField label="Last name" htmlFor={`contact-last-${index}`} error={form.formState.errors.contacts?.[index]?.lastName?.message}>
+                        <FormField label="Last name" htmlFor={`contact-last-${index}`} error={form.formState.errors.contacts?.[index]?.lastName?.message} required>
                           <Input id={`contact-last-${index}`} {...form.register(`contacts.${index}.lastName`)} />
                         </FormField>
                       </div>
@@ -635,7 +628,7 @@ export default function CustomerFormPage() {
                       <option value="">Not rated</option>{customerRatings.map((rating) => <option key={rating} value={rating}>{labelFor(rating)}</option>)}
                     </select>
                   </FormField>
-                  <FormField label="Priority" htmlFor="priority" error={form.formState.errors.priority?.message}>
+                  <FormField label="Priority" htmlFor="priority" error={form.formState.errors.priority?.message} required>
                     <select id="priority" className={selectClass} {...form.register("priority")}>
                       {customerPriorities.map((priority) => <option key={priority} value={priority}>{labelFor(priority)}</option>)}
                     </select>
@@ -651,10 +644,6 @@ export default function CustomerFormPage() {
                     </select>
                   </FormField>
                 </div>
-                <label className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                  <input type="checkbox" className="mt-0.5 accent-brand-800" {...form.register("emailMarketingOptIn")} />
-                  <span><span className="block font-medium text-slate-900">Email marketing consent</span><span className="mt-1 block text-xs text-slate-500">Record consent only when explicitly granted.</span></span>
-                </label>
               </section>
             ) : null}
 
@@ -663,7 +652,7 @@ export default function CustomerFormPage() {
                 <section className="flex flex-col gap-4">
                   <SectionHeading title="Commercial defaults" description="Currency, pricing, payment method and credit policy." />
                   <div className="grid gap-4 md:grid-cols-2">
-                    <FormField label="Currency" htmlFor="currencyCode" error={form.formState.errors.currencyCode?.message}>
+                    <FormField label="Currency" htmlFor="currencyCode" error={form.formState.errors.currencyCode?.message} required>
                       <select id="currencyCode" className={selectClass} {...form.register("currencyCode")}>
                         <option value="PKR">PKR · Pakistani Rupee</option><option value="USD">USD · US Dollar</option><option value="EUR">EUR · Euro</option><option value="GBP">GBP · British Pound</option><option value="AED">AED · UAE Dirham</option>
                       </select>
@@ -734,7 +723,7 @@ export default function CustomerFormPage() {
                   </div>
                   <label className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                     <input type="checkbox" className="mt-0.5 accent-amber-800" {...form.register("creditHold")} />
-                    <span><span className="block font-medium">Place account on credit hold</span><span className="mt-1 block text-xs text-amber-800">Prevent additional credit sales until reviewed.</span></span>
+                    <span><span className="block font-medium">Place account on credit hold</span><span className="mt-1 block text-xs text-amber-800">New sales orders and quote-to-order conversions will be blocked until the hold is cleared.</span></span>
                   </label>
                 </section>
 
@@ -757,12 +746,12 @@ export default function CustomerFormPage() {
                     <input type="checkbox" className="mt-0.5 accent-brand-800" {...form.register("taxExempt")} />
                     <span><span className="block font-medium text-slate-900">Tax exempt</span><span className="mt-1 block text-xs text-slate-500">An exemption code is required when this is enabled.</span></span>
                   </label>
-                  {form.watch("taxExempt") ? <FormField label="Exemption code" htmlFor="taxExemptionCode" error={form.formState.errors.taxExemptionCode?.message}>
+                  {form.watch("taxExempt") ? <FormField label="Exemption code" htmlFor="taxExemptionCode" error={form.formState.errors.taxExemptionCode?.message} required>
                     <Input id="taxExemptionCode" autoComplete="off" {...form.register("taxExemptionCode")} />
                   </FormField> : null}
                   <label className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
                     <input type="checkbox" className="mt-0.5 accent-brand-800" {...form.register("pricesIncludeTax")} />
-                    <span><span className="block font-medium text-slate-900">Product prices include tax</span><span className="mt-1 block text-xs text-slate-500">Enable when quoted line prices already include VAT.</span></span>
+                    <span><span className="block font-medium text-slate-900">Product prices include tax</span><span className="mt-1 block text-xs text-slate-500">Enable when line prices already include VAT. Quotes, orders and invoices will extract tax from the price instead of adding it again.</span></span>
                   </label>
                 </section>
                 <FormField label="Internal notes and remarks" htmlFor="notes" error={form.formState.errors.notes?.message}>
@@ -846,7 +835,6 @@ function toFormValues(customer: CustomerDetail): FormValues {
     priority: customer.priority,
     legalName: customer.legalName,
     displayName: customer.displayName,
-    middleName: customer.middleName ?? "",
     industry: customer.industry ?? "",
     employeeCount: customer.employeeCount == null ? "" : String(customer.employeeCount),
     incorporationStatus: customer.incorporationStatus ?? "",
@@ -868,7 +856,6 @@ function toFormValues(customer: CustomerDetail): FormValues {
     identityDocumentNumber: customer.identityDocumentNumber ?? "",
     taxExempt: customer.taxExempt,
     pricesIncludeTax: customer.pricesIncludeTax,
-    emailMarketingOptIn: customer.emailMarketingOptIn,
     creditHold: customer.creditHold,
     creditLimit: customer.creditLimit,
     preferredPaymentMethod: customer.preferredPaymentMethod ?? "",
@@ -932,7 +919,6 @@ function toWrite(values: FormValues, editing: boolean): CustomerWrite {
     assignedSalesRepId: values.assignedSalesRepId || (editing ? null : undefined),
     legalName: values.entityType === "INDIVIDUAL" ? values.displayName : values.legalName,
     displayName: values.displayName,
-    middleName: values.entityType === "INDIVIDUAL" ? values.middleName || (editing ? null : undefined) : editing ? null : undefined,
     email: values.email || (editing ? null : undefined),
     phone: values.phone || (editing ? null : undefined),
     countryCode: values.countryCode.toUpperCase(),
@@ -946,7 +932,6 @@ function toWrite(values: FormValues, editing: boolean): CustomerWrite {
     identityDocumentNumber: values.entityType === "INDIVIDUAL" ? values.identityDocumentNumber || (editing ? null : undefined) : editing ? null : undefined,
     taxExempt: values.taxExempt,
     pricesIncludeTax: values.pricesIncludeTax,
-    emailMarketingOptIn: values.emailMarketingOptIn,
     creditHold: values.creditHold,
     status: values.status,
     creditLimit: values.creditLimit,
@@ -992,7 +977,7 @@ function readDraft(key: string): Partial<FormValues> | null {
 }
 
 function tabHasErrors(tab: FormTab, errors: FieldErrors<FormValues>): boolean {
-  if (tab === "basic") return Boolean(errors.entityType || errors.customerType || errors.legalName || errors.displayName || errors.middleName || errors.customerCode || errors.email || errors.phone || errors.countryCode || errors.website || errors.taxNumber || errors.identityDocumentType || errors.identityDocumentNumber);
+  if (tab === "basic") return Boolean(errors.entityType || errors.customerType || errors.legalName || errors.displayName || errors.customerCode || errors.email || errors.phone || errors.countryCode || errors.website || errors.taxNumber || errors.identityDocumentType || errors.identityDocumentNumber);
   if (tab === "addresses") return Boolean(errors.addresses);
   if (tab === "contacts") return Boolean(errors.contacts);
   if (tab === "business") return Boolean(errors.customerCategory || errors.rating || errors.priority || errors.employeeCount || errors.incorporationStatus || errors.businessRegistrationDate || errors.registrationNumber || errors.leadSource || errors.assignedSalesRepId);

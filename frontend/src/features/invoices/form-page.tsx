@@ -38,6 +38,7 @@ export default function InvoiceFormPage() {
   const [terms, setTerms] = useState("");
   const [lines, setLines] = useState<DocumentLineInput[]>([emptyLine()]);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ customerId?: string; lines?: string }>({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -70,10 +71,13 @@ export default function InvoiceFormPage() {
     );
   }, [existing.data]);
 
-  const totals = computeDocumentTotals(lines);
+  const selectedCustomer = formOptions.data?.customers.find((item) => item.id === customerId);
+  const pricesIncludeTax = Boolean(selectedCustomer?.pricesIncludeTax);
+  const totals = computeDocumentTotals(lines, pricesIncludeTax);
 
   function selectCustomer(value: string) {
     setCustomerId(value);
+    setFieldErrors((current) => ({ ...current, customerId: undefined }));
     const customer = formOptions.data?.customers.find((item) => item.id === value);
     if (customer) {
       setCurrencyCode(customer.currencyCode);
@@ -83,13 +87,14 @@ export default function InvoiceFormPage() {
 
   async function submit() {
     setError(null);
+    setFieldErrors({});
     if (!customerId) {
-      setError("Choose a customer.");
+      setFieldErrors({ customerId: "Choose a customer." });
       return;
     }
     const invalid = lines.findIndex((line) => !line.productId && !line.productName);
     if (invalid >= 0) {
-      setError(`Line ${invalid + 1}: choose a product.`);
+      setFieldErrors({ lines: `Line ${invalid + 1}: choose a product.` });
       return;
     }
     const body: InvoiceCreateWrite = {
@@ -154,7 +159,7 @@ export default function InvoiceFormPage() {
       <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 sm:p-5">
         <fieldset className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <legend className="mb-1 text-sm font-semibold text-slate-900">Invoice details</legend>
-          <FormField label="Customer" htmlFor="customerId">
+          <FormField label="Customer" htmlFor="customerId" error={fieldErrors.customerId} required>
             <select
               id="customerId"
               className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
@@ -231,15 +236,28 @@ export default function InvoiceFormPage() {
         </fieldset>
 
         <div className="border-t border-slate-100 pt-4">
-          <h2 className="mb-2 text-sm font-semibold text-slate-900">Lines</h2>
+          <h2 className="mb-2 text-sm font-semibold text-slate-900">
+            Lines
+            {pricesIncludeTax ? <span className="ml-2 text-xs font-medium text-amber-700">Tax-inclusive prices — VAT is extracted, not added</span> : null}
+          </h2>
           <LinesEditor
             lines={lines}
-            onChange={setLines}
+            onChange={(updated) => {
+              setLines(updated);
+              setFieldErrors((current) => ({ ...current, lines: undefined }));
+            }}
             products={formOptions.data?.products ?? []}
             taxCodes={formOptions.data?.taxCodes ?? []}
             currency={currencyCode}
             disabled={busy}
+            invalidLines={lines.flatMap((line, index) => (!line.productId && !line.productName ? [index] : []))}
+            pricesIncludeTax={pricesIncludeTax}
           />
+          {fieldErrors.lines ? (
+            <p role="alert" className="mt-2 text-sm text-red-700">
+              {fieldErrors.lines}
+            </p>
+          ) : null}
           <dl className="ml-auto mt-4 grid max-w-xs grid-cols-2 gap-y-1 text-sm">
             <dt className="text-slate-500">Subtotal</dt>
             <dd className="text-right tabular-nums text-slate-800">{formatMoney(totals.subtotal, currencyCode)}</dd>

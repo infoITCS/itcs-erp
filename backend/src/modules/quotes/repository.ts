@@ -57,7 +57,7 @@ const quoteListSelect = {
   deletedAt: true,
   createdAt: true,
   updatedAt: true,
-  customer: { select: { id: true, customerNumber: true, displayName: true, email: true, status: true } },
+  customer: { select: { id: true, customerNumber: true, displayName: true, email: true, status: true, creditHold: true } },
   contact: { select: { id: true, displayName: true, email: true } },
   opportunity: { select: { id: true, opportunityNumber: true, title: true, stage: true } },
   owner: { select: { id: true, firstName: true, lastName: true, email: true } },
@@ -134,6 +134,7 @@ export class QuotesRepository extends BaseRepository {
         currencyCode: true,
         paymentTermId: true,
         creditHold: true,
+        pricesIncludeTax: true,
       },
     });
   }
@@ -225,7 +226,7 @@ export class QuotesRepository extends BaseRepository {
         where: { organizationId, deletedAt: null, status: "ACTIVE" },
         orderBy: { displayName: "asc" },
         take: 500,
-        select: { id: true, customerNumber: true, displayName: true, currencyCode: true, paymentTermId: true },
+        select: { id: true, customerNumber: true, displayName: true, currencyCode: true, paymentTermId: true, creditHold: true, pricesIncludeTax: true },
       }),
       this.db.user.findMany({
         where: { status: "ACTIVE", memberships: { some: { organizationId, status: "ACTIVE" } } },

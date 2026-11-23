@@ -80,6 +80,7 @@ export function LoginPage() {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
+    mode: "onTouched",
   });
 
   return (
@@ -157,25 +158,26 @@ export function LoginPage() {
         >
           <div className="flex flex-col gap-1.5">
             <label htmlFor="email" className="text-sm font-medium text-slate-700">
-              Work email
+              Work email <span className="text-red-600" aria-hidden="true">*</span>
             </label>
             <Input
               id="email"
               type="email"
               autoComplete="username"
               placeholder="name@itcs.com.pk"
+              error={Boolean(form.formState.errors.email)}
               className="h-11 rounded-xl border-slate-300 px-3.5 focus:border-brand-600 focus:ring-4 focus:ring-brand-600/10"
               {...form.register("email")}
             />
             {form.formState.errors.email ? (
-              <p className="text-sm text-red-700">{form.formState.errors.email.message}</p>
+              <p role="alert" className="text-sm text-red-700">{form.formState.errors.email.message}</p>
             ) : null}
           </div>
 
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <label htmlFor="password" className="text-sm font-medium text-slate-700">
-                Password
+                Password <span className="text-red-600" aria-hidden="true">*</span>
               </label>
               <span className="text-xs text-slate-400">Admin-managed</span>
             </div>
@@ -185,6 +187,7 @@ export function LoginPage() {
                 type={showPassword ? "text" : "password"}
                 autoComplete="current-password"
                 placeholder="Enter your password"
+                error={Boolean(form.formState.errors.password)}
                 className="h-11 rounded-xl border-slate-300 px-3.5 pr-16 focus:border-brand-600 focus:ring-4 focus:ring-brand-600/10"
                 {...form.register("password")}
               />
@@ -198,7 +201,7 @@ export function LoginPage() {
               </button>
             </div>
             {form.formState.errors.password ? (
-              <p className="text-sm text-red-700">{form.formState.errors.password.message}</p>
+              <p role="alert" className="text-sm text-red-700">{form.formState.errors.password.message}</p>
             ) : null}
           </div>
 

@@ -80,7 +80,7 @@ export default function OpportunityFormPage() {
     enabled: Boolean(id),
   });
   const formOptions = useQuery({ queryKey: ["opportunities", "form-options"], queryFn: getOpportunityFormOptions });
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: empty });
+  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: empty, mode: "onTouched" });
   const mode = form.watch("mode");
   const customerId = form.watch("customerId");
 
@@ -181,7 +181,7 @@ export default function OpportunityFormPage() {
           }
         })}
       >
-        <FormField label="Title" htmlFor="title" error={form.formState.errors.title?.message}>
+        <FormField label="Title" htmlFor="title" error={form.formState.errors.title?.message} required>
           <Input id="title" {...form.register("title")} />
         </FormField>
         <FormField label="Description" htmlFor="description">
@@ -228,7 +228,7 @@ export default function OpportunityFormPage() {
         )}
 
         {showCustomerPicker ? (
-          <FormField label="Customer" htmlFor="customerId" error={form.formState.errors.customerId?.message}>
+          <FormField label="Customer" htmlFor="customerId" error={form.formState.errors.customerId?.message} required>
             <select
               id="customerId"
               className="h-9 w-full rounded-md border border-slate-300 px-3 text-sm"
@@ -268,6 +268,7 @@ export default function OpportunityFormPage() {
               label="Prospect display name"
               htmlFor="prospectDisplayName"
               error={form.formState.errors.prospectDisplayName?.message}
+              required
             >
               <Input id="prospectDisplayName" {...form.register("prospectDisplayName")} />
             </FormField>
@@ -336,7 +337,7 @@ export default function OpportunityFormPage() {
           <FormField label="Estimated value" htmlFor="estimatedValue" error={form.formState.errors.estimatedValue?.message}>
             <Input id="estimatedValue" placeholder="0.0000" {...form.register("estimatedValue")} />
           </FormField>
-          <FormField label="Currency" htmlFor="currencyCode" error={form.formState.errors.currencyCode?.message}>
+          <FormField label="Currency" htmlFor="currencyCode" error={form.formState.errors.currencyCode?.message} required>
             <Input id="currencyCode" maxLength={3} {...form.register("currencyCode")} />
           </FormField>
           <FormField label="Probability %" htmlFor="probabilityPercent">

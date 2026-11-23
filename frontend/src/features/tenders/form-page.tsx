@@ -71,7 +71,7 @@ export default function TenderFormPage() {
     queryKey: ["tenders", "form-options"],
     queryFn: getTenderFormOptions,
   });
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: empty });
+  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: empty, mode: "onTouched" });
   const customerId = form.watch("customerId");
   const customerRef = useRef("");
 
@@ -152,10 +152,10 @@ export default function TenderFormPage() {
         })}
       >
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_220px]">
-          <FormField label="Title" htmlFor="title" error={form.formState.errors.title?.message}>
+          <FormField label="Title" htmlFor="title" error={form.formState.errors.title?.message} required>
             <Input id="title" placeholder="Network refresh and maintenance" {...form.register("title")} />
           </FormField>
-          <FormField label="Status" htmlFor="status">
+          <FormField label="Status" htmlFor="status" required>
             <select
               id="status"
               className="h-9 w-full rounded-md border border-slate-300 px-3 text-sm"
@@ -203,6 +203,7 @@ export default function TenderFormPage() {
             label="Customer"
             htmlFor="customerId"
             error={form.formState.errors.customerId?.message}
+            required
           >
             <select
               id="customerId"
@@ -250,6 +251,7 @@ export default function TenderFormPage() {
             label="Estimated value"
             htmlFor="estimatedValue"
             error={form.formState.errors.estimatedValue?.message}
+            required
           >
             <Input id="estimatedValue" inputMode="decimal" placeholder="0.0000" {...form.register("estimatedValue")} />
           </FormField>
@@ -257,6 +259,7 @@ export default function TenderFormPage() {
             label="Currency"
             htmlFor="currencyCode"
             error={form.formState.errors.currencyCode?.message}
+            required
           >
             <Input id="currencyCode" maxLength={3} {...form.register("currencyCode")} />
           </FormField>

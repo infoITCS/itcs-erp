@@ -21,6 +21,20 @@
   --color-canvas: #f8fafc;
 }
 
+[data-invalid="true"] :is(input, select, textarea),
+:is(input, select, textarea)[aria-invalid="true"],
+:is(input, select, textarea):user-invalid {
+  border-color: #ef4444;
+  background-color: rgb(254 242 242 / 0.5);
+}
+
+[data-invalid="true"] :is(input, select, textarea):focus,
+:is(input, select, textarea)[aria-invalid="true"]:focus,
+:is(input, select, textarea):user-invalid:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgb(239 68 68 / 0.15);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

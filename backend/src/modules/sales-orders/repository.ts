@@ -148,6 +148,7 @@ export class SalesOrdersRepository extends BaseRepository {
         currencyCode: true,
         paymentTermId: true,
         creditHold: true,
+        pricesIncludeTax: true,
       },
     });
   }
@@ -239,7 +240,7 @@ export class SalesOrdersRepository extends BaseRepository {
         where: { organizationId, deletedAt: null, status: "ACTIVE" },
         orderBy: { displayName: "asc" },
         take: 500,
-        select: { id: true, customerNumber: true, displayName: true, currencyCode: true, paymentTermId: true },
+        select: { id: true, customerNumber: true, displayName: true, currencyCode: true, paymentTermId: true, creditHold: true, pricesIncludeTax: true },
       }),
       this.db.user.findMany({
         where: { status: "ACTIVE", memberships: { some: { organizationId, status: "ACTIVE" } } },

@@ -110,7 +110,7 @@ export default function CustomerDetailPage() {
                   <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{customerTypeLabel(customer.data.customerType)}</span>
                   {customer.data.customerCategory ? <span className="rounded-md bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-800">{labelFor(customer.data.customerCategory)}</span> : null}
                   <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{customer.data.countryCode} · {customer.data.currencyCode}</span>
-                  {customer.data.creditHold ? <span className="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Credit hold</span> : null}
+                  {customer.data.creditHold ? <span title="New sales orders and quote-to-order conversions are blocked" className="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Credit hold</span> : null}
                 </div>
               </div>
               <div className="flex w-full shrink-0 gap-2 sm:w-auto">
@@ -198,7 +198,7 @@ export default function CustomerDetailPage() {
                 <h2 className="text-base font-semibold text-slate-950">Account details</h2>
                 <dl className="mt-4 flex flex-col divide-y divide-slate-100">
                   <DetailRow label="Credit limit" value={`${customer.data.currencyCode} ${customer.data.creditLimit}`} />
-                  <DetailRow label="Credit status" value={customer.data.creditHold ? "On hold" : "Available"} />
+                  <DetailRow label="Credit status" value={customer.data.creditHold ? "On hold — new credit sales blocked" : "Available"} />
                   <DetailRow label="Opening balance" value={`${customer.data.currencyCode} ${customer.data.openingBalance}`} />
                   <DetailRow label="Balance date" value={customer.data.openingBalanceDate ? new Date(customer.data.openingBalanceDate).toLocaleDateString() : "Not set"} />
                   <DetailRow label="Payment terms" value={customer.data.paymentTermId ? "Configured" : "Organization default"} />
@@ -216,7 +216,6 @@ export default function CustomerDetailPage() {
                   <DetailRow label="Employees" value={customer.data.employeeCount == null ? "Not set" : customer.data.employeeCount.toLocaleString()} />
                   <DetailRow label="Incorporation" value={customer.data.incorporationStatus ? labelFor(customer.data.incorporationStatus) : "Not set"} />
                   <DetailRow label="Registered" value={customer.data.businessRegistrationDate ? new Date(customer.data.businessRegistrationDate).toLocaleDateString() : "Not set"} />
-                  <DetailRow label="Marketing consent" value={customer.data.emailMarketingOptIn ? "Opted in" : "Not opted in"} />
                   <DetailRow label="Delivery address" value={customer.data.sameAsBilling ? "Same as billing" : "Separate address"} />
                 </dl>
               </section>
@@ -228,6 +227,7 @@ export default function CustomerDetailPage() {
                   <DetailRow label="Tax number" value={customer.data.taxNumber || "Not set"} />
                   <DetailRow label="Sales tax group" value={customer.data.defaultTaxCodeId ? "Configured" : "Organization default"} />
                   <DetailRow label="Tax status" value={customer.data.taxExempt ? "Exempt" : "Standard"} />
+                  <DetailRow label="Price basis" value={customer.data.pricesIncludeTax ? "Tax inclusive — VAT extracted from line prices" : "Tax exclusive — VAT added on top"} />
                   {customer.data.taxExempt ? <DetailRow label="Exemption code" value={customer.data.taxExemptionCode || "Not set"} /> : null}
                 </dl>
               </section>
@@ -539,6 +539,7 @@ const addressSchema = z.object({
 });
 
 function ContactForm({ error, onSubmit }: { error: string | null; onSubmit: (body: ContactWrite) => Promise<void> }) {
+  const [fieldError, setFieldError] = useState<string | null>(null);
   return (
     <form
       id="contact-form"
@@ -556,8 +557,10 @@ function ContactForm({ error, onSubmit }: { error: string | null; onSubmit: (bod
           isPrimary: form.get("isPrimary") === "on",
         });
         if (!parsed.success) {
+          setFieldError(parsed.error.issues[0]?.message ?? "Check the contact details");
           return;
         }
+        setFieldError(null);
         void onSubmit({
           firstName: parsed.data.firstName,
           lastName: parsed.data.lastName,
@@ -571,10 +574,10 @@ function ContactForm({ error, onSubmit }: { error: string | null; onSubmit: (bod
     >
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField label="First name" htmlFor="firstName">
-          <Input id="firstName" name="firstName" required />
+          <Input id="firstName" name="firstName" required aria-invalid={fieldError ? true : undefined} />
         </FormField>
         <FormField label="Last name" htmlFor="lastName">
-          <Input id="lastName" name="lastName" required />
+          <Input id="lastName" name="lastName" required aria-invalid={fieldError ? true : undefined} />
         </FormField>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -597,6 +600,7 @@ function ContactForm({ error, onSubmit }: { error: string | null; onSubmit: (bod
         <input type="checkbox" name="isPrimary" />
         Primary contact
       </label>
+      {fieldError ? <p role="alert" className="text-sm text-red-700">{fieldError}</p> : null}
       {error ? <p className="text-sm text-red-700">{error}</p> : null}
     </form>
   );

@@ -52,7 +52,7 @@ export default function ResellerFormPage() {
     queryFn: () => getReseller(id as string),
     enabled: Boolean(id),
   });
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: empty });
+  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: empty, mode: "onTouched" });
 
   useEffect(() => {
     if (!existing.data) {
@@ -104,10 +104,10 @@ export default function ResellerFormPage() {
           }
         })}
       >
-        <FormField label="Legal name" htmlFor="legalName" error={form.formState.errors.legalName?.message}>
+        <FormField label="Legal name" htmlFor="legalName" error={form.formState.errors.legalName?.message} required>
           <Input id="legalName" {...form.register("legalName")} />
         </FormField>
-        <FormField label="Display name" htmlFor="displayName" error={form.formState.errors.displayName?.message}>
+        <FormField label="Display name" htmlFor="displayName" error={form.formState.errors.displayName?.message} required>
           <Input id="displayName" {...form.register("displayName")} />
         </FormField>
         <FormField label="Email" htmlFor="email" error={form.formState.errors.email?.message}>
@@ -120,24 +120,24 @@ export default function ResellerFormPage() {
           <Input id="website" placeholder="https://example.com" {...form.register("website")} />
         </FormField>
         <div className="grid gap-4 md:grid-cols-2">
-          <FormField label="Country" htmlFor="countryCode" error={form.formState.errors.countryCode?.message}>
+          <FormField label="Country" htmlFor="countryCode" error={form.formState.errors.countryCode?.message} required>
             <Input id="countryCode" maxLength={2} {...form.register("countryCode")} />
           </FormField>
-          <FormField label="Currency" htmlFor="currencyCode" error={form.formState.errors.currencyCode?.message}>
+          <FormField label="Currency" htmlFor="currencyCode" error={form.formState.errors.currencyCode?.message} required>
             <Input id="currencyCode" maxLength={3} {...form.register("currencyCode")} />
           </FormField>
         </div>
         <FormField label="Tax / VAT number" htmlFor="taxNumber">
           <Input id="taxNumber" {...form.register("taxNumber")} />
         </FormField>
-        <FormField label="Status" htmlFor="status">
+        <FormField label="Status" htmlFor="status" required>
           <select id="status" className="h-9 rounded-md border border-slate-300 px-3 text-sm" {...form.register("status")}>
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
             <option value="SUSPENDED">Suspended</option>
           </select>
         </FormField>
-        <FormField label="Price list code" htmlFor="priceListCode" error={form.formState.errors.priceListCode?.message}>
+        <FormField label="Price list code" htmlFor="priceListCode" error={form.formState.errors.priceListCode?.message} required>
           <Input id="priceListCode" {...form.register("priceListCode")} />
         </FormField>
         <div className="grid gap-4 md:grid-cols-2">

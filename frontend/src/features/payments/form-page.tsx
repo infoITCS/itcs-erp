@@ -32,6 +32,7 @@ export default function PaymentFormPage() {
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ invoiceId?: string; amount?: string }>({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -70,6 +71,7 @@ export default function PaymentFormPage() {
 
   function selectInvoice(value: string) {
     setInvoiceId(value);
+    setFieldErrors((current) => ({ ...current, invoiceId: undefined }));
     const invoice = formOptions.data?.invoices.find((item) => item.id === value);
     if (invoice) {
       setAmount(invoice.balance);
@@ -79,12 +81,13 @@ export default function PaymentFormPage() {
 
   async function submit() {
     setError(null);
+    setFieldErrors({});
     if (!invoiceId) {
-      setError("Choose an invoice.");
+      setFieldErrors({ invoiceId: "Choose an invoice." });
       return;
     }
     if (!amount || Number(amount) <= 0) {
-      setError("Enter an amount greater than zero.");
+      setFieldErrors({ amount: "Enter an amount greater than zero." });
       return;
     }
     setBusy(true);
@@ -139,7 +142,7 @@ export default function PaymentFormPage() {
       <div className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4 sm:p-5">
         <fieldset className="grid gap-3 sm:grid-cols-2">
           <legend className="mb-1 text-sm font-semibold text-slate-900">Payment details</legend>
-          <FormField label="Invoice" htmlFor="invoiceId">
+          <FormField label="Invoice" htmlFor="invoiceId" error={fieldErrors.invoiceId} required>
             <select
               id="invoiceId"
               className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-50"
@@ -183,13 +186,16 @@ export default function PaymentFormPage() {
               onChange={(event) => setReceivedDate(event.target.value)}
             />
           </FormField>
-          <FormField label="Amount" htmlFor="amount">
+          <FormField label="Amount" htmlFor="amount" error={fieldErrors.amount} required>
             <Input
               id="amount"
               inputMode="decimal"
               value={amount}
               placeholder="0.0000"
-              onChange={(event) => setAmount(event.target.value)}
+              onChange={(event) => {
+                setAmount(event.target.value);
+                setFieldErrors((current) => ({ ...current, amount: undefined }));
+              }}
             />
           </FormField>
           <FormField label="Reference" htmlFor="reference">

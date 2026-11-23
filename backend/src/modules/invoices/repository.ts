@@ -139,6 +139,7 @@ export class InvoicesRepository extends BaseRepository {
         status: true,
         currencyCode: true,
         paymentTermId: true,
+        pricesIncludeTax: true,
       },
     });
   }
@@ -230,7 +231,7 @@ export class InvoicesRepository extends BaseRepository {
         where: { organizationId, deletedAt: null, status: "ACTIVE" },
         orderBy: { displayName: "asc" },
         take: 500,
-        select: { id: true, customerNumber: true, displayName: true, currencyCode: true, paymentTermId: true },
+        select: { id: true, customerNumber: true, displayName: true, currencyCode: true, paymentTermId: true, pricesIncludeTax: true },
       }),
       this.db.user.findMany({
         where: { status: "ACTIVE", memberships: { some: { organizationId, status: "ACTIVE" } } },

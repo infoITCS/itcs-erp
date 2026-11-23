@@ -30,12 +30,14 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
   const owners: LeadOwnerRef[] = formOptions.data?.owners ?? [];
   const [mode, setMode] = useState<"ACCOUNT" | "PROSPECT">("ACCOUNT");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [values, setValues] = useState(() => defaults(lead));
 
   useEffect(() => {
     if (open) {
       setMode("ACCOUNT");
       setError(null);
+      setFieldErrors({});
       setValues(defaults(lead));
     }
   }, [open, lead]);
@@ -56,24 +58,19 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
 
   function update<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
+    setFieldErrors((current) => ({ ...current, [key]: undefined }));
   }
 
   function submit() {
     setError(null);
-    if (!values.title.trim()) {
-      setError("Enter an opportunity title.");
-      return;
-    }
-    if (mode === "ACCOUNT" && !values.legalName.trim()) {
-      setError("Enter the legal name for the customer account.");
-      return;
-    }
-    if (mode === "PROSPECT" && !values.prospectDisplayName.trim()) {
-      setError("Enter a prospect display name.");
-      return;
-    }
-    if (!values.contactFirstName.trim() || !values.contactLastName.trim()) {
-      setError("Enter the contact first and last name.");
+    const nextErrors: Record<string, string> = {};
+    if (!values.title.trim()) nextErrors.title = "Enter an opportunity title.";
+    if (mode === "ACCOUNT" && !values.legalName.trim()) nextErrors.legalName = "Enter the legal name for the customer account.";
+    if (mode === "PROSPECT" && !values.prospectDisplayName.trim()) nextErrors.prospectDisplayName = "Enter a prospect display name.";
+    if (!values.contactFirstName.trim()) nextErrors.contactFirstName = "Enter the contact first name.";
+    if (!values.contactLastName.trim()) nextErrors.contactLastName = "Enter the contact last name.";
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
       return;
     }
 
@@ -167,7 +164,7 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
         {mode === "ACCOUNT" ? (
           <fieldset className="grid gap-3 rounded-md border border-slate-200 p-3 sm:grid-cols-2">
             <legend className="px-1 text-sm font-semibold text-slate-900">Customer account</legend>
-            <FormField label="Legal name" htmlFor="legalName">
+            <FormField label="Legal name" htmlFor="legalName" error={fieldErrors.legalName} required>
               <Input id="legalName" value={values.legalName} onChange={(e) => update("legalName", e.target.value)} />
             </FormField>
             <FormField label="Display name" htmlFor="accountDisplayName">
@@ -233,7 +230,7 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
         ) : (
           <fieldset className="grid gap-3 rounded-md border border-slate-200 p-3 sm:grid-cols-2">
             <legend className="px-1 text-sm font-semibold text-slate-900">Prospect</legend>
-            <FormField label="Prospect display name" htmlFor="prospectDisplayName">
+            <FormField label="Prospect display name" htmlFor="prospectDisplayName" error={fieldErrors.prospectDisplayName} required>
               <Input
                 id="prospectDisplayName"
                 value={values.prospectDisplayName}
@@ -277,7 +274,7 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
         <fieldset className="grid gap-3 rounded-md border border-slate-200 p-3 sm:grid-cols-2">
           <legend className="px-1 text-sm font-semibold text-slate-900">Opportunity</legend>
           <div className="sm:col-span-2">
-            <FormField label="Title" htmlFor="opportunityTitle">
+            <FormField label="Title" htmlFor="opportunityTitle" error={fieldErrors.title} required>
               <Input id="opportunityTitle" value={values.title} onChange={(e) => update("title", e.target.value)} />
             </FormField>
           </div>
@@ -351,14 +348,14 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
         {mode === "ACCOUNT" ? (
           <fieldset className="grid gap-3 rounded-md border border-slate-200 p-3 sm:grid-cols-2">
             <legend className="px-1 text-sm font-semibold text-slate-900">Primary contact</legend>
-            <FormField label="First name" htmlFor="contactFirstName">
+            <FormField label="First name" htmlFor="contactFirstName" error={fieldErrors.contactFirstName} required>
               <Input
                 id="contactFirstName"
                 value={values.contactFirstName}
                 onChange={(e) => update("contactFirstName", e.target.value)}
               />
             </FormField>
-            <FormField label="Last name" htmlFor="contactLastName">
+            <FormField label="Last name" htmlFor="contactLastName" error={fieldErrors.contactLastName} required>
               <Input
                 id="contactLastName"
                 value={values.contactLastName}

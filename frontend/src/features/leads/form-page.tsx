@@ -75,7 +75,7 @@ export default function LeadFormPage() {
     enabled: Boolean(id),
   });
   const formOptions = useQuery({ queryKey: ["leads", "form-options"], queryFn: getLeadFormOptions });
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: empty });
+  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: empty, mode: "onTouched" });
 
   useEffect(() => {
     if (!existing.data) {
@@ -145,10 +145,10 @@ export default function LeadFormPage() {
 
         <fieldset className="grid gap-3 sm:grid-cols-2">
           <legend className="mb-1 text-sm font-semibold text-slate-900">Contact details</legend>
-          <FormField label="First name" htmlFor="firstName" error={form.formState.errors.firstName?.message}>
+          <FormField label="First name" htmlFor="firstName" error={form.formState.errors.firstName?.message} required>
             <Input id="firstName" {...form.register("firstName")} />
           </FormField>
-          <FormField label="Last name" htmlFor="lastName" error={form.formState.errors.lastName?.message}>
+          <FormField label="Last name" htmlFor="lastName" error={form.formState.errors.lastName?.message} required>
             <Input id="lastName" {...form.register("lastName")} />
           </FormField>
           <FormField label="Display name" htmlFor="displayName" error={form.formState.errors.displayName?.message}>
@@ -173,7 +173,7 @@ export default function LeadFormPage() {
 
         <fieldset className="grid gap-3 sm:grid-cols-2">
           <legend className="mb-1 text-sm font-semibold text-slate-900">Qualification</legend>
-          <FormField label="Source" htmlFor="source" error={form.formState.errors.source?.message}>
+          <FormField label="Source" htmlFor="source" error={form.formState.errors.source?.message} required>
             <select
               id="source"
               className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-slate-500"
@@ -216,10 +216,10 @@ export default function LeadFormPage() {
               ))}
             </select>
           </FormField>
-          <FormField label="Country code" htmlFor="countryCode" error={form.formState.errors.countryCode?.message}>
+          <FormField label="Country code" htmlFor="countryCode" error={form.formState.errors.countryCode?.message} required>
             <Input id="countryCode" maxLength={2} className="uppercase" {...form.register("countryCode")} />
           </FormField>
-          <FormField label="Currency" htmlFor="currencyCode" error={form.formState.errors.currencyCode?.message}>
+          <FormField label="Currency" htmlFor="currencyCode" error={form.formState.errors.currencyCode?.message} required>
             <Input id="currencyCode" maxLength={3} className="uppercase" {...form.register("currencyCode")} />
           </FormField>
           <FormField label="Next action" htmlFor="nextAction">
