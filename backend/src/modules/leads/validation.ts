@@ -179,6 +179,14 @@ export const leadAnalyticsQuerySchema = z.object({
   period: z.enum(COMPARISON_PERIODS).default("90d"),
 });
 
+const includeDeletedQuery = z
+  .enum(["true", "false"])
+  .optional()
+  .transform((value) => value === "true");
+
+export const leadRecordQuerySchema = z.object({ includeDeleted: includeDeletedQuery });
+export const leadAuditQuerySchema = listQuerySchema.extend({ includeDeleted: includeDeletedQuery });
+
 export const leadIdParamSchema = z.object({ id: z.uuid() });
 
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
@@ -187,3 +195,5 @@ export type ChangeLeadStatusInput = z.infer<typeof changeLeadStatusSchema>;
 export type ConvertLeadInput = z.infer<typeof convertLeadSchema>;
 export type LeadListQuery = z.infer<typeof leadListQuerySchema>;
 export type LeadAnalyticsQuery = z.infer<typeof leadAnalyticsQuerySchema>;
+export type LeadRecordQuery = z.infer<typeof leadRecordQuerySchema>;
+export type LeadAuditQuery = z.infer<typeof leadAuditQuerySchema>;

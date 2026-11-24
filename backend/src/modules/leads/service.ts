@@ -34,7 +34,7 @@ export class LeadsService {
   ) {}
 
   async list(organizationId: string, query: LeadListQuery, permissions: string[]) {
-    if (query.includeDeleted && !canSeeDeleted(permissions)) {
+    if (query.includeDeleted && !canSeeDeletedLeads(permissions)) {
       throw new ForbiddenError();
     }
     const sort = (query.sort ?? "createdAt") as LeadSort;
@@ -58,8 +58,8 @@ export class LeadsService {
     return toLeadPage(rows, query.limit, sort);
   }
 
-  async get(organizationId: string, id: string) {
-    const lead = await this.repository.findById(organizationId, id);
+  async get(organizationId: string, id: string, includeDeleted = false) {
+    const lead = await this.repository.findById(organizationId, id, includeDeleted);
     if (!lead) {
       throw new NotFoundError("Lead not found");
     }
@@ -427,8 +427,18 @@ export class LeadsService {
     };
   }
 
-  async listAudit(organizationId: string, id: string, limit: number, cursor?: string) {
-    await this.get(organizationId, id);
+  async listAudit(
+    organizationId: string,
+    id: string,
+    limit: number,
+    cursor?: string,
+    includeDeleted = false,
+    permissions: string[] = [],
+  ) {
+    if (includeDeleted && !canSeeDeletedLeads(permissions)) {
+      throw new ForbiddenError();
+    }
+    await this.get(organizationId, id, includeDeleted);
     return this.audit.list(organizationId, limit, cursor, { entityType: "lead", entityId: id });
   }
 
@@ -513,7 +523,7 @@ export class LeadsService {
   }
 }
 
-function canSeeDeleted(permissions: string[]): boolean {
+export function canSeeDeletedLeads(permissions: string[]): boolean {
   return permissions.includes("leads:delete") || permissions.includes("leads:restore");
 }
 

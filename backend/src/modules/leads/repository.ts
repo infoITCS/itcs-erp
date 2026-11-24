@@ -224,10 +224,12 @@ export class LeadsRepository extends BaseRepository {
       where: { id, organizationId, deletedAt: null },
       data: {
         status: data.status,
-        ...(data.status === "QUALIFIED" ? { qualifiedAt: now, unqualifiedAt: null, unqualifiedReason: null } : {}),
+        ...(data.status === "QUALIFIED"
+          ? { qualifiedAt: now, unqualifiedAt: null, unqualifiedReason: null }
+          : { qualifiedAt: null }),
         ...(data.status === "UNQUALIFIED"
           ? { unqualifiedAt: now, unqualifiedReason: data.unqualifiedReason ?? null }
-          : {}),
+          : { unqualifiedAt: null, unqualifiedReason: null }),
         ...(data.nextAction !== undefined ? { nextAction: data.nextAction } : {}),
         ...(data.nextActionDueAt !== undefined ? { nextActionDueAt: new Date(data.nextActionDueAt) } : {}),
         updatedById: actorId,

@@ -1,16 +1,17 @@
 import type { Request, Response } from "express";
 import { UnauthorizedError } from "../../common/errors/app-error";
-import type { ListQuery } from "../../common/pagination/list-query";
 import { sendSuccess } from "../../common/utils/api-response";
 import { asyncHandler } from "../../common/utils/async-handler";
 import type { RequestMeta } from "../auth/types";
-import type { LeadsService } from "./service";
+import { canSeeDeletedLeads, type LeadsService } from "./service";
 import type {
   ChangeLeadStatusInput,
   ConvertLeadInput,
   CreateLeadInput,
   LeadAnalyticsQuery,
+  LeadAuditQuery,
   LeadListQuery,
+  LeadRecordQuery,
   UpdateLeadInput,
 } from "./validation";
 
@@ -60,7 +61,13 @@ export class LeadsController {
 
   get = asyncHandler(async (req: Request, res: Response) => {
     const params = req.validated?.params as { id: string };
-    const lead = await this.leadsService.get(organizationId(req), params.id);
+    const query = req.validated?.query as LeadRecordQuery;
+    const permissions = req.auth?.permissions ?? [];
+    const lead = await this.leadsService.get(
+      organizationId(req),
+      params.id,
+      Boolean(query.includeDeleted) && canSeeDeletedLeads(permissions),
+    );
     sendSuccess(res, { message: "Lead", data: lead });
   });
 
@@ -105,8 +112,15 @@ export class LeadsController {
 
   listAudit = asyncHandler(async (req: Request, res: Response) => {
     const params = req.validated?.params as { id: string };
-    const query = req.validated?.query as ListQuery;
-    const page = await this.leadsService.listAudit(organizationId(req), params.id, query.limit, query.cursor);
+    const query = req.validated?.query as LeadAuditQuery;
+    const page = await this.leadsService.listAudit(
+      organizationId(req),
+      params.id,
+      query.limit,
+      query.cursor,
+      query.includeDeleted,
+      req.auth?.permissions ?? [],
+    );
     sendSuccess(res, { message: "Lead audit log", data: page });
   });
 }

@@ -309,8 +309,8 @@ export function getLeadFormOptions(): Promise<LeadFormOptions> {
   return data(http.get<ApiSuccess<LeadFormOptions>>("/api/v1/leads/form-options"));
 }
 
-export function getLead(id: string): Promise<Lead> {
-  return data(http.get<ApiSuccess<Lead>>(`/api/v1/leads/${id}`));
+export function getLead(id: string, includeDeleted = false): Promise<Lead> {
+  return data(http.get<ApiSuccess<Lead>>(`/api/v1/leads/${id}`, { params: { includeDeleted: includeDeleted ? "true" : undefined } }));
 }
 
 export function createLead(body: LeadCreateWrite): Promise<Lead> {
@@ -337,8 +337,19 @@ export function convertLead(id: string, body: ConvertLeadWrite): Promise<Lead> {
   return data(http.post(`/api/v1/leads/${id}/convert`, body));
 }
 
-export function listLeadAudit(id: string): Promise<Page<AuditEvent>> {
-  return data(http.get(`/api/v1/leads/${id}/audit`, { params: { limit: 20 } }));
+export function listLeadAudit(
+  id: string,
+  params: { cursor?: string; limit?: number; includeDeleted?: boolean } = {},
+): Promise<Page<AuditEvent>> {
+  return data(
+    http.get(`/api/v1/leads/${id}/audit`, {
+      params: {
+        limit: params.limit ?? 20,
+        cursor: params.cursor,
+        includeDeleted: params.includeDeleted ? "true" : undefined,
+      },
+    }),
+  );
 }
 
 export function leadStatusLabel(status: string): string {
@@ -353,6 +364,10 @@ export function leadSourceLabel(source: string): string {
     .split("_")
     .map((part) => part[0] + part.slice(1).toLowerCase())
     .join(" ");
+}
+
+export function leadPriorityLabel(priority: string): string {
+  return priority[0] + priority.slice(1).toLowerCase();
 }
 
 export function formatMoney(amount: string | number, currency: string): string {

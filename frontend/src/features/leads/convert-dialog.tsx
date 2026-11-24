@@ -67,8 +67,25 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
     if (!values.title.trim()) nextErrors.title = "Enter an opportunity title.";
     if (mode === "ACCOUNT" && !values.legalName.trim()) nextErrors.legalName = "Enter the legal name for the customer account.";
     if (mode === "PROSPECT" && !values.prospectDisplayName.trim()) nextErrors.prospectDisplayName = "Enter a prospect display name.";
-    if (!values.contactFirstName.trim()) nextErrors.contactFirstName = "Enter the contact first name.";
-    if (!values.contactLastName.trim()) nextErrors.contactLastName = "Enter the contact last name.";
+    if (!validMoney(values.estimatedValue)) nextErrors.estimatedValue = "Enter a non-negative amount with up to 4 decimals.";
+    if (!validCode(values.currencyCode, 3)) nextErrors.currencyCode = "Use a three-letter currency code.";
+    if (values.expectedCloseDate && !validDate(values.expectedCloseDate)) nextErrors.expectedCloseDate = "Choose a valid close date.";
+    if (values.nextActionDueAt && !validDateTime(values.nextActionDueAt)) nextErrors.nextActionDueAt = "Choose a valid due date.";
+    if (mode === "ACCOUNT") {
+      if (!validEmail(values.email)) nextErrors.email = "Enter a valid account email.";
+      if (!validPhone(values.phone)) nextErrors.phone = "Enter a valid account phone.";
+      if (!validUrl(values.website)) nextErrors.website = "Enter an http or https URL.";
+      if (!validCode(values.countryCode, 2)) nextErrors.countryCode = "Use a two-letter country code.";
+      if (!validCode(values.customerCurrencyCode, 3)) nextErrors.customerCurrencyCode = "Use a three-letter currency code.";
+      if (!values.contactFirstName.trim()) nextErrors.contactFirstName = "Enter the contact first name.";
+      if (!values.contactLastName.trim()) nextErrors.contactLastName = "Enter the contact last name.";
+      if (!validEmail(values.contactEmail)) nextErrors.contactEmail = "Enter a valid contact email.";
+      if (!validPhone(values.contactPhone)) nextErrors.contactPhone = "Enter a valid contact phone.";
+    } else {
+      if (!validEmail(values.prospectEmail)) nextErrors.prospectEmail = "Enter a valid prospect email.";
+      if (!validPhone(values.prospectPhone)) nextErrors.prospectPhone = "Enter a valid prospect phone.";
+      if (!validCode(values.prospectCountryCode, 2)) nextErrors.prospectCountryCode = "Use a two-letter country code.";
+    }
     setFieldErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       return;
@@ -199,16 +216,16 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
                 <option value="WHOLESALE">Wholesale</option>
               </select>
             </FormField>
-            <FormField label="Account email" htmlFor="accountEmail">
+            <FormField label="Account email" htmlFor="accountEmail" error={fieldErrors.email}>
               <Input id="accountEmail" type="email" value={values.email} onChange={(e) => update("email", e.target.value)} />
             </FormField>
-            <FormField label="Account phone" htmlFor="accountPhone">
+            <FormField label="Account phone" htmlFor="accountPhone" error={fieldErrors.phone}>
               <Input id="accountPhone" value={values.phone} onChange={(e) => update("phone", e.target.value)} />
             </FormField>
-            <FormField label="Website" htmlFor="accountWebsite">
+            <FormField label="Website" htmlFor="accountWebsite" error={fieldErrors.website}>
               <Input id="accountWebsite" value={values.website} onChange={(e) => update("website", e.target.value)} />
             </FormField>
-            <FormField label="Country code" htmlFor="accountCountry">
+            <FormField label="Country code" htmlFor="accountCountry" error={fieldErrors.countryCode}>
               <Input
                 id="accountCountry"
                 maxLength={2}
@@ -217,7 +234,7 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
                 onChange={(e) => update("countryCode", e.target.value)}
               />
             </FormField>
-            <FormField label="Account currency" htmlFor="accountCurrency">
+            <FormField label="Account currency" htmlFor="accountCurrency" error={fieldErrors.customerCurrencyCode}>
               <Input
                 id="accountCurrency"
                 maxLength={3}
@@ -244,7 +261,7 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
                 onChange={(e) => update("prospectLegalName", e.target.value)}
               />
             </FormField>
-            <FormField label="Email" htmlFor="prospectEmail">
+            <FormField label="Email" htmlFor="prospectEmail" error={fieldErrors.prospectEmail}>
               <Input
                 id="prospectEmail"
                 type="email"
@@ -252,14 +269,14 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
                 onChange={(e) => update("prospectEmail", e.target.value)}
               />
             </FormField>
-            <FormField label="Phone" htmlFor="prospectPhone">
+            <FormField label="Phone" htmlFor="prospectPhone" error={fieldErrors.prospectPhone}>
               <Input
                 id="prospectPhone"
                 value={values.prospectPhone}
                 onChange={(e) => update("prospectPhone", e.target.value)}
               />
             </FormField>
-            <FormField label="Country code" htmlFor="prospectCountry">
+            <FormField label="Country code" htmlFor="prospectCountry" error={fieldErrors.prospectCountryCode}>
               <Input
                 id="prospectCountry"
                 maxLength={2}
@@ -278,7 +295,7 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
               <Input id="opportunityTitle" value={values.title} onChange={(e) => update("title", e.target.value)} />
             </FormField>
           </div>
-          <FormField label="Estimated value" htmlFor="opportunityValue">
+            <FormField label="Estimated value" htmlFor="opportunityValue" error={fieldErrors.estimatedValue}>
             <Input
               id="opportunityValue"
               inputMode="decimal"
@@ -286,7 +303,7 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
               onChange={(e) => update("estimatedValue", e.target.value)}
             />
           </FormField>
-          <FormField label="Currency" htmlFor="opportunityCurrency">
+            <FormField label="Currency" htmlFor="opportunityCurrency" error={fieldErrors.currencyCode}>
             <Input
               id="opportunityCurrency"
               maxLength={3}
@@ -295,7 +312,7 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
               onChange={(e) => update("currencyCode", e.target.value)}
             />
           </FormField>
-          <FormField label="Expected close" htmlFor="opportunityClose">
+            <FormField label="Expected close" htmlFor="opportunityClose" error={fieldErrors.expectedCloseDate}>
             <Input
               id="opportunityClose"
               type="date"
@@ -325,7 +342,7 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
               onChange={(e) => update("nextAction", e.target.value)}
             />
           </FormField>
-          <FormField label="Next action due" htmlFor="opportunityActionDue">
+            <FormField label="Next action due" htmlFor="opportunityActionDue" error={fieldErrors.nextActionDueAt}>
             <Input
               id="opportunityActionDue"
               type="datetime-local"
@@ -369,7 +386,7 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
                 onChange={(e) => update("contactJobTitle", e.target.value)}
               />
             </FormField>
-            <FormField label="Email" htmlFor="contactEmail">
+            <FormField label="Email" htmlFor="contactEmail" error={fieldErrors.contactEmail}>
               <Input
                 id="contactEmail"
                 type="email"
@@ -377,7 +394,7 @@ export function ConvertLeadDialog({ lead, open, onClose, onConverted }: ConvertD
                 onChange={(e) => update("contactEmail", e.target.value)}
               />
             </FormField>
-            <FormField label="Phone" htmlFor="contactPhone">
+            <FormField label="Phone" htmlFor="contactPhone" error={fieldErrors.contactPhone}>
               <Input
                 id="contactPhone"
                 value={values.contactPhone}
@@ -441,6 +458,40 @@ interface FormValues {
   nextAction: string;
   nextActionDueAt: string;
   notes: string;
+}
+
+function validEmail(value: string): boolean {
+  return !value.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+function validPhone(value: string): boolean {
+  return !value.trim() || /^[+()\-.\s\d]{6,30}$/.test(value.trim());
+}
+
+function validUrl(value: string): boolean {
+  if (!value.trim()) return true;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function validCode(value: string, length: number): boolean {
+  return !value.trim() || new RegExp(`^[A-Za-z]{${length}}$`).test(value.trim());
+}
+
+function validMoney(value: string): boolean {
+  return !value.trim() || /^\d+(?:\.\d{1,4})?$/.test(value.trim());
+}
+
+function validDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime());
+}
+
+function validDateTime(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value) && !Number.isNaN(new Date(value).getTime());
 }
 
 function defaults(lead: Lead): FormValues {

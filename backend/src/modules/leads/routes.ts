@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { listQuerySchema } from "../../common/pagination/list-query";
 import { validate } from "../../common/validation/validate";
 import { authenticate } from "../../middleware/authenticate";
 import { requirePermission } from "../../middleware/authorize";
@@ -9,8 +8,10 @@ import {
   convertLeadSchema,
   createLeadSchema,
   leadAnalyticsQuerySchema,
+  leadAuditQuerySchema,
   leadIdParamSchema,
   leadListQuerySchema,
+  leadRecordQuerySchema,
   updateLeadSchema,
 } from "./validation";
 
@@ -28,7 +29,12 @@ export function createLeadsRouter(controller: LeadsController): Router {
   router.get("/form-options", requirePermission("leads:read"), controller.formOptions);
   router.post("/", requirePermission("leads:create"), validate({ body: createLeadSchema }), controller.create);
 
-  router.get("/:id", requirePermission("leads:read"), validate({ params: leadIdParamSchema }), controller.get);
+  router.get(
+    "/:id",
+    requirePermission("leads:read"),
+    validate({ params: leadIdParamSchema, query: leadRecordQuerySchema }),
+    controller.get,
+  );
   router.patch(
     "/:id",
     requirePermission("leads:update"),
@@ -63,7 +69,7 @@ export function createLeadsRouter(controller: LeadsController): Router {
   router.get(
     "/:id/audit",
     requirePermission("leads:read"),
-    validate({ params: leadIdParamSchema, query: listQuerySchema }),
+    validate({ params: leadIdParamSchema, query: leadAuditQuerySchema }),
     controller.listAudit,
   );
 
