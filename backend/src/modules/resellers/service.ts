@@ -2,27 +2,30 @@ import type { Prisma } from "@prisma/client";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from "../../common/errors/app-error";
 import { assertDecimalString } from "../../common/money/decimal";
 import { toCursorPage } from "../../common/pagination/cursor";
+import type { AuditLogsService } from "../audit-logs/service";
 import type { AuditWriter } from "../audit-logs/types";
 import type { RequestMeta } from "../auth/types";
 import { toResellerPage, type ResellerSort } from "./page";
 import type { ResellersRepository } from "./repository";
+import { RESELLERS_MODULE } from "./types";
 import type {
   AddressInput,
   ContactBody,
   ContactListQuery,
   CreateResellerInput,
   ResellerListQuery,
+  UpdateAddressInput,
   UpdateContactInput,
   UpdateResellerInput,
 } from "./validation";
 
-const RESELLERS = "resellers";
+type ResellerAuditWriter = AuditWriter & Pick<AuditLogsService, "list">;
 const PERCENT_SCALE = 4;
 
 export class ResellersService {
   constructor(
     private readonly repository: ResellersRepository,
-    private readonly audit: AuditWriter,
+    private readonly audit: ResellerAuditWriter,
   ) {}
 
   async list(organizationId: string, query: ResellerListQuery, permissions: string[]) {
@@ -48,6 +51,15 @@ export class ResellersService {
     return toResellerPage(rows, query.limit, sort);
   }
 
+  async formOptions(organizationId: string) {
+    return this.repository.formOptions(organizationId);
+  }
+
+  async listAudit(organizationId: string, id: string, limit: number, cursor?: string) {
+    await this.get(organizationId, id);
+    return this.audit.list(organizationId, limit, cursor, { entityType: "reseller", entityId: id, module: RESELLERS_MODULE });
+  }
+
   async get(organizationId: string, id: string) {
     const reseller = await this.repository.findById(organizationId, id);
     if (!reseller) {
@@ -57,6 +69,7 @@ export class ResellersService {
   }
 
   async create(organizationId: string, actorId: string, input: CreateResellerInput, meta: RequestMeta) {
+    await this.ensureUnique(organizationId, input.email, input.displayName);
     await this.requireCurrency(input.currencyCode);
     const discount = normalizePercent(input.defaultDiscountPercent, "defaultDiscountPercent");
     const commission = normalizePercent(input.defaultCommissionPercent, "defaultCommissionPercent");
@@ -102,6 +115,7 @@ export class ResellersService {
       await this.requireCurrency(input.currencyCode);
     }
     const existing = await this.get(organizationId, id);
+    await this.ensureUnique(organizationId, input.email, input.displayName, id);
     const normalized: UpdateResellerInput = {
       ...input,
       defaultDiscountPercent:
@@ -222,7 +236,7 @@ export class ResellersService {
     actorId: string,
     resellerId: string,
     addressId: string,
-    input: AddressInput,
+    input: UpdateAddressInput,
     meta: RequestMeta,
   ) {
     await this.get(organizationId, resellerId);
@@ -296,12 +310,20 @@ export class ResellersService {
       isPrimary: contact.isPrimary,
     });
     if (input.isPrimary && previousPrimary && previousPrimary.id !== contact.id) {
-      await this.record(organizationId, actorId, "resellers.contact.updated", "reseller_contact", contact.id, meta, {
-        resellerId,
-        contactId: contact.id,
-        previousContactId: previousPrimary.id,
-        isPrimary: true,
-      });
+      await this.record(
+        organizationId,
+        actorId,
+        "resellers.contact.updated",
+        "reseller_contact",
+        previousPrimary.id,
+        meta,
+        {
+          resellerId,
+          contactId: previousPrimary.id,
+          previousContactId: previousPrimary.id,
+          isPrimary: false,
+        },
+      );
     }
     return contact;
   }
@@ -418,6 +440,24 @@ export class ResellersService {
     return { id: customerId, resellerId: null };
   }
 
+  private async ensureUnique(
+    organizationId: string,
+    email: string | null | undefined,
+    displayName: string | null | undefined,
+    exceptId?: string,
+  ) {
+    if (email && typeof this.repository.emailExists === "function" && (await this.repository.emailExists(organizationId, email, exceptId))) {
+      throw new ConflictError("A reseller with this email already exists");
+    }
+    if (
+      displayName &&
+      typeof this.repository.displayNameExists === "function" &&
+      (await this.repository.displayNameExists(organizationId, displayName, exceptId))
+    ) {
+      throw new ConflictError("A reseller with this display name already exists");
+    }
+  }
+
   private async requireCurrency(code: string) {
     if (!(await this.repository.currencyIsActive(code))) {
       throw new ValidationFailedError({ currencyCode: ["Choose an active currency"] });
@@ -438,7 +478,7 @@ export class ResellersService {
       organizationId,
       userId: actorId,
       action,
-      module: RESELLERS,
+      module: RESELLERS_MODULE,
       entityType,
       entityId,
       oldValues,

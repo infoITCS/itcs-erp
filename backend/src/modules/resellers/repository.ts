@@ -6,7 +6,16 @@ import { cursorFilter, decodeCursor } from "../../common/pagination/cursor";
 import { contactDisplayName } from "../contacts/names";
 import { buildResellerListWhere, type ResellerListFilter } from "./list-filter";
 import { decodeResellerCursor, resellerCursorWhere, type ResellerSort } from "./page";
-import type { AddressInput, ContactBody, CreateResellerInput, UpdateContactInput, UpdateResellerInput } from "./validation";
+import type {
+  AddressInput,
+  ContactBody,
+  CreateResellerInput,
+  UpdateAddressInput,
+  UpdateContactInput,
+  UpdateResellerInput,
+} from "./validation";
+
+const countryCodes = "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(" ");
 
 const resellerSelect = {
   id: true,
@@ -116,6 +125,58 @@ export class ResellersRepository extends BaseRepository {
     return currency?.isActive === true;
   }
 
+  async emailExists(organizationId: string, email: string | null | undefined, exceptId?: string): Promise<boolean> {
+    if (!email) {
+      return false;
+    }
+    const row = await this.db.reseller.findFirst({
+      where: {
+        organizationId,
+        email: { equals: email, mode: "insensitive" },
+        deletedAt: null,
+        ...(exceptId ? { NOT: { id: exceptId } } : {}),
+      },
+      select: { id: true },
+    });
+    return row !== null;
+  }
+
+  async displayNameExists(organizationId: string, displayName: string | null | undefined, exceptId?: string): Promise<boolean> {
+    if (!displayName) {
+      return false;
+    }
+    const row = await this.db.reseller.findFirst({
+      where: {
+        organizationId,
+        displayName: { equals: displayName, mode: "insensitive" },
+        deletedAt: null,
+        ...(exceptId ? { NOT: { id: exceptId } } : {}),
+      },
+      select: { id: true },
+    });
+    return row !== null;
+  }
+
+  async formOptions(organizationId: string) {
+    const [currencies, rows] = await Promise.all([
+      this.db.currency.findMany({
+        where: { isActive: true },
+        orderBy: { code: "asc" },
+        select: { code: true, name: true },
+      }),
+      this.db.reseller.findMany({
+        where: { organizationId, deletedAt: null },
+        orderBy: [{ countryCode: "asc" }, { priceListCode: "asc" }],
+        select: { countryCode: true, priceListCode: true },
+      }),
+    ]);
+    return {
+      currencies,
+      countries: [...countryCodes].sort(),
+      priceLists: [...new Set(rows.map((row) => row.priceListCode))].sort(),
+    };
+  }
+
   async create(organizationId: string, actorId: string, input: CreateResellerInput) {
     try {
       const id = await this.transaction(async (tx) => {
@@ -151,7 +212,7 @@ export class ResellersRepository extends BaseRepository {
                     displayName: contactDisplayName(
                       input.primaryContact.firstName,
                       input.primaryContact.lastName,
-                      input.primaryContact.displayName,
+                      input.primaryContact.displayName ?? undefined,
                     ),
                     jobTitle: input.primaryContact.jobTitle ?? null,
                     department: input.primaryContact.department ?? null,
@@ -182,7 +243,7 @@ export class ResellersRepository extends BaseRepository {
       return null;
     }
     await this.db.reseller.update({
-      where: { id },
+      where: { id, organizationId },
       data: {
         ...(input.legalName !== undefined ? { legalName: input.legalName } : {}),
         ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
@@ -255,23 +316,25 @@ export class ResellersRepository extends BaseRepository {
     resellerId: string,
     addressId: string,
     actorId: string,
-    input: AddressInput,
+    input: UpdateAddressInput,
   ) {
     const current = await this.db.resellerAddress.findFirst({
       where: { id: addressId, resellerId, organizationId, deletedAt: null },
-      select: { id: true },
+      select: addressSelect,
     });
     if (!current) {
       return null;
     }
+    const purpose = input.purpose ?? current.purpose;
+    const isPrimary = input.isPrimary ?? current.isPrimary;
     try {
       return await this.transaction(async (tx) => {
-        if (input.isPrimary) {
+        if (isPrimary) {
           await tx.resellerAddress.updateMany({
             where: {
               resellerId,
               organizationId,
-              purpose: input.purpose,
+              purpose,
               deletedAt: null,
               isPrimary: true,
               NOT: { id: addressId },
@@ -280,17 +343,17 @@ export class ResellersRepository extends BaseRepository {
           });
         }
         return tx.resellerAddress.update({
-          where: { id: addressId },
+          where: { id: addressId, resellerId, organizationId },
           data: {
-            purpose: input.purpose,
-            isPrimary: input.isPrimary ?? false,
-            label: input.label ?? null,
-            line1: input.line1,
-            line2: input.line2 ?? null,
-            city: input.city,
-            region: input.region ?? null,
-            postalCode: input.postalCode ?? null,
-            countryCode: input.countryCode,
+            purpose,
+            isPrimary,
+            label: input.label !== undefined ? input.label ?? null : current.label,
+            line1: input.line1 ?? current.line1,
+            line2: input.line2 !== undefined ? input.line2 ?? null : current.line2,
+            city: input.city ?? current.city,
+            region: input.region !== undefined ? input.region ?? null : current.region,
+            postalCode: input.postalCode !== undefined ? input.postalCode ?? null : current.postalCode,
+            countryCode: input.countryCode ?? current.countryCode,
             updatedById: actorId,
           },
           select: addressSelect,
@@ -310,7 +373,7 @@ export class ResellersRepository extends BaseRepository {
       return null;
     }
     await this.db.resellerAddress.update({
-      where: { id: addressId },
+      where: { id: addressId, resellerId, organizationId },
       data: { deletedAt: new Date(), updatedById: actorId },
     });
     return existing;
@@ -360,7 +423,7 @@ export class ResellersRepository extends BaseRepository {
             resellerId,
             firstName: input.firstName,
             lastName: input.lastName,
-            displayName: contactDisplayName(input.firstName, input.lastName, input.displayName),
+            displayName: contactDisplayName(input.firstName, input.lastName, input.displayName ?? undefined),
             jobTitle: input.jobTitle ?? null,
             department: input.department ?? null,
             email: input.email ?? null,
@@ -402,7 +465,7 @@ export class ResellersRepository extends BaseRepository {
           });
         }
         return tx.resellerContact.update({
-          where: { id },
+          where: { id, organizationId, resellerId: existing.resellerId },
           data: {
             ...(input.firstName !== undefined ? { firstName: input.firstName } : {}),
             ...(input.lastName !== undefined ? { lastName: input.lastName } : {}),
@@ -433,7 +496,7 @@ export class ResellersRepository extends BaseRepository {
       return null;
     }
     await this.db.resellerContact.update({
-      where: { id },
+      where: { id, organizationId, resellerId: existing.resellerId },
       data: { deletedAt: new Date(), updatedById: actorId },
     });
     return existing;
@@ -466,16 +529,29 @@ export class ResellersRepository extends BaseRepository {
   async findCustomerForAssign(organizationId: string, customerId: string) {
     return this.db.customer.findFirst({
       where: { id: customerId, organizationId, deletedAt: null },
-      select: { id: true, displayName: true, customerNumber: true, resellerId: true },
+      select: {
+        id: true,
+        displayName: true,
+        legalName: true,
+        customerNumber: true,
+        status: true,
+        email: true,
+        countryCode: true,
+        createdAt: true,
+        resellerId: true,
+      },
     });
   }
 
   async assignCustomer(organizationId: string, resellerId: string, customerId: string, actorId: string) {
     const result = await this.db.customer.updateMany({
-      where: { id: customerId, organizationId, deletedAt: null },
+      where: { id: customerId, organizationId, deletedAt: null, resellerId: null },
       data: { resellerId, updatedById: actorId },
     });
-    return result.count === 1;
+    if (result.count !== 1) {
+      throw new ConflictError("This customer was assigned to another reseller");
+    }
+    return true;
   }
 
   async unassignCustomer(organizationId: string, resellerId: string, customerId: string, actorId: string) {

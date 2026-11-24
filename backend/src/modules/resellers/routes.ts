@@ -2,6 +2,7 @@ import { Router } from "express";
 import { validate } from "../../common/validation/validate";
 import { authenticate } from "../../middleware/authenticate";
 import { requirePermission } from "../../middleware/authorize";
+import { auditListQuerySchema } from "../audit-logs/validation";
 import type { ResellersController } from "./controller";
 import {
   addressIdParamSchema,
@@ -13,6 +14,7 @@ import {
   customerAssignParamSchema,
   resellerIdParamSchema,
   resellerListQuerySchema,
+  updateAddressSchema,
   updateContactSchema,
   updateResellerSchema,
 } from "./validation";
@@ -22,6 +24,7 @@ export function createResellersRouter(controller: ResellersController): Router {
   router.use(authenticate);
 
   router.get("/", requirePermission("resellers:read"), validate({ query: resellerListQuerySchema }), controller.list);
+  router.get("/form-options", requirePermission("resellers:read"), controller.formOptions);
   router.post("/", requirePermission("resellers:create"), validate({ body: createResellerSchema }), controller.create);
 
   router.get(
@@ -39,7 +42,7 @@ export function createResellersRouter(controller: ResellersController): Router {
   router.patch(
     "/:id/addresses/:addressId",
     requirePermission("resellers:update"),
-    validate({ params: addressIdParamSchema, body: addressInputSchema }),
+    validate({ params: addressIdParamSchema, body: updateAddressSchema }),
     controller.updateAddress,
   );
   router.delete(
@@ -81,6 +84,12 @@ export function createResellersRouter(controller: ResellersController): Router {
     controller.unassignCustomer,
   );
 
+  router.get(
+    "/:id/audit",
+    requirePermission("resellers:read"),
+    validate({ params: resellerIdParamSchema, query: auditListQuerySchema }),
+    controller.listAudit,
+  );
   router.get("/:id", requirePermission("resellers:read"), validate({ params: resellerIdParamSchema }), controller.get);
   router.patch(
     "/:id",

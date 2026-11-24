@@ -25,25 +25,28 @@ function optionalText(max: number) {
     .string()
     .trim()
     .max(max)
+    .nullable()
     .optional()
-    .transform((value) => (value ? value : undefined));
+    .transform((value) => (value === "" ? undefined : value));
 }
 
 const optionalEmail = z
   .string()
   .trim()
   .max(320)
+  .nullable()
   .optional()
-  .transform((value) => (value ? value.toLowerCase() : undefined))
-  .refine((value) => value === undefined || z.email().safeParse(value).success, "Enter a valid email");
+  .transform((value) => (value ? value.toLowerCase() : value === "" ? undefined : value))
+  .refine((value) => value === undefined || value === null || z.email().safeParse(value).success, "Enter a valid email");
 
 const optionalWebsite = z
   .string()
   .trim()
   .max(200)
+  .nullable()
   .optional()
-  .transform((value) => (value ? value : undefined))
-  .refine((value) => value === undefined || /^https?:\/\/\S+$/i.test(value), "Enter an http or https URL");
+  .transform((value) => (value ? value : value === "" ? undefined : value))
+  .refine((value) => value === undefined || value === null || /^https?:\/\/\S+$/i.test(value), "Enter an http or https URL");
 
 const percentString = z
   .string()
@@ -63,6 +66,10 @@ export const addressInputSchema = z.strictObject({
   region: optionalText(120),
   postalCode: optionalText(20),
   countryCode,
+});
+
+export const updateAddressSchema = addressInputSchema.partial().refine((value) => Object.keys(value).length > 0, {
+  message: "Provide a field to update",
 });
 
 export const contactBodySchema = z.strictObject({
@@ -162,6 +169,7 @@ export const contactListQuerySchema = listQuerySchema.extend({
 });
 
 export type AddressInput = z.infer<typeof addressInputSchema>;
+export type UpdateAddressInput = z.infer<typeof updateAddressSchema>;
 export type ContactBody = z.infer<typeof contactBodySchema>;
 export type UpdateContactInput = z.infer<typeof updateContactSchema>;
 export type CreateResellerInput = z.infer<typeof createResellerSchema>;

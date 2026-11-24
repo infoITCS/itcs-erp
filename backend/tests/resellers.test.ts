@@ -4,8 +4,15 @@ import type { NextFunction, Request, Response } from "express";
 import { requirePermission } from "../src/middleware/authorize";
 import type { AuditEntry } from "../src/modules/audit-logs/types";
 import { buildResellerListWhere } from "../src/modules/resellers/list-filter";
+import { ResellersRepository } from "../src/modules/resellers/repository";
 import { ResellersService } from "../src/modules/resellers/service";
-import { createResellerSchema, resellerListQuerySchema } from "../src/modules/resellers/validation";
+import { RESELLERS_MODULE } from "../src/modules/resellers/types";
+import {
+  createResellerSchema,
+  resellerListQuerySchema,
+  updateAddressSchema,
+  updateResellerSchema,
+} from "../src/modules/resellers/validation";
 
 const orgId = "8d6c1b2a-4e3f-4a1b-9c2d-1a2b3c4d5e6f";
 const actorId = "6f0b9c3e-1c0a-4f0a-9c1e-6d5b2a9e8f11";
@@ -32,6 +39,20 @@ describe("reseller validation", () => {
       assert.equal(created.data.priceListCode, "RESELLER_GOLD");
     }
     assert.equal(resellerListQuerySchema.safeParse({ limit: "101" }).success, false);
+  });
+
+  it("accepts partial address updates and nullable field clearing", () => {
+    const partial = updateAddressSchema.safeParse({ city: "Lahore" });
+    assert.equal(partial.success, true);
+    assert.equal(updateAddressSchema.safeParse({}).success, false);
+
+    const update = updateResellerSchema.safeParse({ email: null, taxNumber: null, defaultDiscountPercent: null });
+    assert.equal(update.success, true);
+    if (update.success) {
+      assert.equal(update.data.email, null);
+      assert.equal(update.data.taxNumber, null);
+      assert.equal(update.data.defaultDiscountPercent, null);
+    }
   });
 
   it("rejects a percentage above 100", async () => {
@@ -89,6 +110,53 @@ describe("reseller service", () => {
     const reseller = await service.create(orgId, actorId, validReseller as never, meta);
     assert.equal(reseller.resellerNumber, "RSL-2026-00001");
     assert.equal(audits[0]?.action, "resellers.created");
+  });
+
+  it("rejects duplicate emails before any pricing validation", async () => {
+    const service = new ResellersService(
+      {
+        async emailExists() {
+          return true;
+        },
+        async displayNameExists() {
+          return false;
+        },
+        async currencyIsActive() {
+          assert.fail("currency should not be checked for duplicate input");
+        },
+      } as never,
+      recorder([]),
+    );
+
+    await assert.rejects(
+      () => service.create(orgId, actorId, { ...validReseller, email: "taken@example.com" } as never, meta),
+      /email already exists/,
+    );
+  });
+
+  it("scopes audit listing to this reseller", async () => {
+    let captured: { limit?: number; cursor?: string; filter?: unknown } = {};
+    const service = new ResellersService(
+      {
+        async findById() {
+          return { id: "r1" };
+        },
+      } as never,
+      {
+        ...recorder([]),
+        async list(_organizationId: string, limit: number, cursor: string | undefined, filter: unknown) {
+          captured = { limit, cursor, filter };
+          return { items: [], pageInfo: { limit, hasNextPage: false, nextCursor: null } };
+        },
+      } as never,
+    );
+
+    await service.listAudit(orgId, "r1", 25, "next-cursor");
+    assert.deepEqual(captured, {
+      limit: 25,
+      cursor: "next-cursor",
+      filter: { entityType: "reseller", entityId: "r1", module: RESELLERS_MODULE },
+    });
   });
 
   it("rejects assigning a customer to a suspended reseller", async () => {
@@ -251,6 +319,94 @@ describe("reseller service", () => {
 
     await service.update(orgId, actorId, "r1", { priceListCode: "RESELLER", defaultDiscountPercent: "5.0000" }, meta);
     assert.ok(audits.some((entry) => entry.action === "resellers.pricing.changed"));
+  });
+});
+
+describe("reseller repository", () => {
+  it("only assigns customers that are still unassigned", async () => {
+    let where: Record<string, unknown> = {};
+    const repository = new ResellersRepository({
+      customer: {
+        async updateMany(args: { where: Record<string, unknown> }) {
+          where = args.where;
+          return { count: 0 };
+        },
+      },
+    } as never);
+
+    await assert.rejects(
+      () => repository.assignCustomer(orgId, "reseller-1", "customer-1", actorId),
+      /assigned to another reseller/,
+    );
+    assert.deepEqual(where, { id: "customer-1", organizationId: orgId, deletedAt: null, resellerId: null });
+  });
+
+  it("returns the full country list and only active currencies for forms", async () => {
+    const repository = new ResellersRepository({
+      currency: {
+        async findMany() {
+          return [{ code: "PKR", name: "Pakistani Rupee" }];
+        },
+      },
+      reseller: {
+        async findMany() {
+          return [{ countryCode: "PK", priceListCode: "STANDARD" }];
+        },
+      },
+    } as never);
+
+    const options = await repository.formOptions(orgId);
+    assert.deepEqual(options.currencies, [{ code: "PKR", name: "Pakistani Rupee" }]);
+    assert.ok(options.countries.includes("PK"));
+    assert.ok(options.countries.includes("US"));
+    assert.ok(options.countries.length > 100);
+    assert.deepEqual(options.priceLists, ["STANDARD"]);
+  });
+
+  it("merges partial address updates and clears nullable fields", async () => {
+    const current = {
+      id: "address-1",
+      purpose: "BILLING",
+      isPrimary: false,
+      label: "Office",
+      line1: "12 Main Street",
+      line2: "Suite 4",
+      city: "Karachi",
+      region: "Sindh",
+      postalCode: "74000",
+      countryCode: "PK",
+    };
+    let updateArgs: { where: Record<string, unknown>; data: Record<string, unknown> } = { where: {}, data: {} };
+    const repository = new ResellersRepository({
+      resellerAddress: {
+        async findFirst() {
+          return current;
+        },
+      },
+      async $transaction<T>(fn: (tx: unknown) => Promise<T>) {
+        return fn({
+          resellerAddress: {
+            async updateMany() {
+              return { count: 0 };
+            },
+            async update(args: { where: Record<string, unknown>; data: Record<string, unknown> }) {
+              updateArgs = args;
+              return { ...current, ...args.data };
+            },
+          },
+        });
+      },
+    } as never);
+
+    const updated = await repository.updateAddress(orgId, "reseller-1", "address-1", actorId, {
+      city: "Lahore",
+      line2: null,
+    } as never);
+    assert.equal(updated?.city, "Lahore");
+    assert.equal(updated?.line1, "12 Main Street");
+    assert.equal(updated?.line2, null);
+    assert.equal(updated?.postalCode, "74000");
+    assert.deepEqual(updateArgs.where, { id: "address-1", resellerId: "reseller-1", organizationId: orgId });
   });
 });
 

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { UnauthorizedError } from "../../common/errors/app-error";
 import { asyncHandler } from "../../common/utils/async-handler";
 import { sendSuccess } from "../../common/utils/api-response";
+import type { AuditListQuery } from "../audit-logs/validation";
 import type { RequestMeta } from "../auth/types";
 import type { ResellersService } from "./service";
 import type {
@@ -10,6 +11,7 @@ import type {
   ContactListQuery,
   CreateResellerInput,
   ResellerListQuery,
+  UpdateAddressInput,
   UpdateContactInput,
   UpdateResellerInput,
 } from "./validation";
@@ -39,6 +41,11 @@ export class ResellersController {
     const query = req.validated?.query as ResellerListQuery;
     const page = await this.resellersService.list(organizationId(req), query, req.auth?.permissions ?? []);
     sendSuccess(res, { message: "Resellers", data: page });
+  });
+
+  formOptions = asyncHandler(async (req: Request, res: Response) => {
+    const options = await this.resellersService.formOptions(organizationId(req));
+    sendSuccess(res, { message: "Reseller form options", data: options });
   });
 
   get = asyncHandler(async (req: Request, res: Response) => {
@@ -93,7 +100,7 @@ export class ResellersController {
 
   updateAddress = asyncHandler(async (req: Request, res: Response) => {
     const params = req.validated?.params as { id: string; addressId: string };
-    const body = req.validated?.body as AddressInput;
+    const body = req.validated?.body as UpdateAddressInput;
     const address = await this.resellersService.updateAddress(
       organizationId(req),
       actorId(req),
@@ -159,6 +166,13 @@ export class ResellersController {
     const params = req.validated?.params as { id: string };
     const result = await this.resellersService.removeContact(organizationId(req), actorId(req), params.id, meta(req));
     sendSuccess(res, { message: "Contact deleted", data: result });
+  });
+
+  listAudit = asyncHandler(async (req: Request, res: Response) => {
+    const params = req.validated?.params as { id: string };
+    const query = req.validated?.query as AuditListQuery;
+    const page = await this.resellersService.listAudit(organizationId(req), params.id, query.limit, query.cursor);
+    sendSuccess(res, { message: "Reseller audit", data: page });
   });
 
   listCustomers = asyncHandler(async (req: Request, res: Response) => {
