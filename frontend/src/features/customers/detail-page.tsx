@@ -88,46 +88,60 @@ export default function CustomerDetailPage() {
 
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-      {customer.isPending ? <p className="text-sm text-slate-500">Loading customer…</p> : null}
-      {customer.isError ? <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">{getApiErrorMessage(customer.error)}</p> : null}
+      {customer.isPending ? (
+        <div className="animate-pulse space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+          <span className="block h-3 w-32 rounded bg-slate-100" />
+          <span className="block h-8 w-72 max-w-full rounded bg-slate-200" />
+          <span className="block h-3 w-96 max-w-full rounded bg-slate-100" />
+        </div>
+      ) : null}
+      {customer.isError ? <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{getApiErrorMessage(customer.error)}</p> : null}
       {customer.data ? (
         <>
-          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-slate-500">
-            <Link to="/customers" className="hover:text-slate-900">Customers</Link>
-            <span aria-hidden="true">/</span>
-            <span className="font-medium text-slate-700">{customer.data.customerNumber}</span>
+          <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs font-medium text-slate-500">
+            <Link to="/customers" className="transition hover:text-brand-800">Customers</Link>
+            <span aria-hidden="true" className="text-slate-300">/</span>
+            <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] text-slate-600">{customer.data.customerNumber}</span>
           </nav>
 
-          <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-5 p-5 md:p-7">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase text-brand-800">Customer profile</p>
-                <h1 className="mt-2 break-words text-2xl font-semibold text-slate-950 md:text-3xl">{customer.data.displayName}</h1>
-                {customer.data.legalName !== customer.data.displayName ? <p className="mt-1 text-sm text-slate-600">{customer.data.legalName}</p> : null}
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <StatusBadge status={customer.data.status} />
-                  <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{customer.data.entityType === "INDIVIDUAL" ? "Individual" : "Company"}</span>
-                  <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{customerTypeLabel(customer.data.customerType)}</span>
-                  {customer.data.customerCategory ? <span className="rounded-md bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-800">{labelFor(customer.data.customerCategory)}</span> : null}
-                  <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{customer.data.countryCode} · {customer.data.currencyCode}</span>
-                  {customer.data.creditHold ? <span title="New sales orders and quote-to-order conversions are blocked" className="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Credit hold</span> : null}
+          <section className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+            <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-700 via-brand-500 to-sky-400" />
+            <div className="flex flex-wrap items-start justify-between gap-5 p-5 pt-6 md:p-7 md:pt-8">
+              <div className="flex min-w-0 items-start gap-4">
+                <span className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-xl font-bold text-brand-700 ring-1 ring-brand-100 sm:flex">
+                  {customer.data.displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("")}
+                </span>
+                <div className="min-w-0">
+                  <p className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700">
+                    <span className="h-1.5 w-1.5 rounded-full bg-brand-600" /> Customer profile
+                  </p>
+                  <h1 className="break-words text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">{customer.data.displayName}</h1>
+                  {customer.data.legalName !== customer.data.displayName ? <p className="mt-1 text-sm text-slate-600">{customer.data.legalName}</p> : null}
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <StatusBadge status={customer.data.status} />
+                    <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">{customer.data.entityType === "INDIVIDUAL" ? "Individual" : "Company"}</span>
+                    <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">{customerTypeLabel(customer.data.customerType)}</span>
+                    {customer.data.customerCategory ? <span className="rounded-md bg-brand-50 px-2.5 py-1 text-[11px] font-semibold text-brand-800">{labelFor(customer.data.customerCategory)}</span> : null}
+                    <span className="rounded-md bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">{customer.data.countryCode} · {customer.data.currencyCode}</span>
+                    {customer.data.creditHold ? <span title="New sales orders and quote-to-order conversions are blocked" className="rounded-md bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">Credit hold</span> : null}
+                  </div>
                 </div>
               </div>
               <div className="flex w-full shrink-0 gap-2 sm:w-auto">
-                <Link to={`/customers/${id}/edit`} className="inline-flex h-9 flex-1 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 sm:flex-none">
+                <Link to={`/customers/${id}/edit`} className="inline-flex h-10 flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 sm:flex-none">
                   Edit customer
                 </Link>
-                <Button variant="secondary" onClick={() => setPendingDelete({ kind: "customer" })} className="flex-1 text-red-700 hover:bg-red-50 sm:flex-none">
+                <Button variant="secondary" onClick={() => setPendingDelete({ kind: "customer" })} className="h-10 flex-1 rounded-lg border-rose-200 text-sm font-semibold text-rose-700 hover:bg-rose-50 sm:flex-none">
                   Delete
                 </Button>
               </div>
             </div>
-            <div className="grid gap-4 border-t border-slate-200 bg-slate-50/70 px-5 py-4 sm:grid-cols-2 md:grid-cols-3 md:px-7">
+            <div className="grid gap-5 border-t border-slate-200/80 bg-slate-50/60 px-5 py-5 sm:grid-cols-2 md:grid-cols-3 md:px-7">
               <ContactDetail label="Email" value={customer.data.email} href={customer.data.email ? `mailto:${customer.data.email}` : undefined} />
               <ContactDetail label="Phone" value={customer.data.phone} href={customer.data.phone ? `tel:${customer.data.phone}` : undefined} />
               <ContactDetail label="Website" value={customer.data.website} href={customer.data.website ?? undefined} />
             </div>
-            {customer.data.notes ? <p className="border-t border-slate-200 px-5 py-4 text-sm leading-6 text-slate-600 md:px-7">{customer.data.notes}</p> : null}
+            {customer.data.notes ? <p className="border-t border-slate-200/80 px-5 py-4 text-sm leading-6 text-slate-600 md:px-7">{customer.data.notes}</p> : null}
           </section>
 
           <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -141,7 +155,7 @@ export default function CustomerDetailPage() {
                 {customer.data.addresses.length === 0 ? <EmptySection>No addresses have been added.</EmptySection> : null}
                 <ul className="grid gap-3 md:grid-cols-2">
                   {customer.data.addresses.map((address) => (
-                    <li key={address.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                    <li key={address.id} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition hover:border-brand-200 hover:shadow-md">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
@@ -172,7 +186,7 @@ export default function CustomerDetailPage() {
                 {contacts.data && contacts.data.items.length === 0 ? <EmptySection>No contacts have been added.</EmptySection> : null}
                 <ul className="flex flex-col gap-3">
                   {contacts.data?.items.map((contact) => (
-                    <li key={contact.id} className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
+                    <li key={contact.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm transition hover:border-brand-200 hover:shadow-md sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
                       <div className="flex min-w-0 items-center gap-3">
                         <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50 text-sm font-semibold text-brand-800">{contact.displayName.split(/\s+/).map((part) => part[0]).slice(0, 2).join("").toUpperCase()}</span>
                         <div className="min-w-0">
@@ -234,20 +248,23 @@ export default function CustomerDetailPage() {
             </aside>
           </div>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm md:p-7">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm md:p-7">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-slate-950">Recent activity</h2>
-              <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{audit.data?.items.length ?? 0} events</span>
+              <div>
+                <h2 className="text-base font-bold tracking-tight text-slate-950">Recent activity</h2>
+                <p className="mt-1 text-xs text-slate-500">Latest changes to this account</p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-slate-600">{audit.data?.items.length ?? 0} events</span>
             </div>
             {audit.isPending ? <p className="mt-4 text-sm text-slate-500">Loading activity…</p> : null}
-            {audit.isError ? <p role="alert" className="mt-4 text-sm text-red-700">{getApiErrorMessage(audit.error)}</p> : null}
-            {audit.data && audit.data.items.length === 0 ? <p className="mt-4 text-sm text-slate-500">No activity yet.</p> : null}
-            <ol className="mt-5 grid gap-x-8 gap-y-4 md:grid-cols-2 xl:grid-cols-3">
+            {audit.isError ? <p role="alert" className="mt-4 text-sm text-rose-700">{getApiErrorMessage(audit.error)}</p> : null}
+            {audit.data && audit.data.items.length === 0 ? <p className="mt-4 rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No activity yet.</p> : null}
+            <ol className="mt-5 grid gap-x-8 gap-y-4 border-t border-slate-100 pt-5 md:grid-cols-2 xl:grid-cols-3">
               {audit.data?.items.map((event) => (
-                <li key={event.id} className="relative border-l border-slate-200 pb-4 pl-4 last:pb-0">
+                <li key={event.id} className="relative border-l border-slate-200 pb-3 pl-4 last:pb-0">
                   <span aria-hidden="true" className="absolute -left-1 top-1 h-2 w-2 rounded-full bg-brand-700 ring-4 ring-white" />
-                  <p className="text-sm font-medium text-slate-800">{formatActivityAction(event.action)}</p>
-                  <time className="mt-1 block text-xs text-slate-500" dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time>
+                  <p className="text-sm font-semibold text-slate-800">{formatActivityAction(event.action)}</p>
+                  <time className="mt-1 block text-[11px] text-slate-500" dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time>
                 </li>
               ))}
             </ol>
@@ -354,19 +371,24 @@ export default function CustomerDetailPage() {
 
 function StatusBadge({ status }: { status: "ACTIVE" | "INACTIVE" | "HOLD" }) {
   const styles = status === "ACTIVE"
-    ? "bg-emerald-50 text-emerald-800"
+    ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
     : status === "HOLD"
-      ? "bg-amber-50 text-amber-800"
-      : "bg-slate-100 text-slate-700";
+      ? "bg-amber-50 text-amber-800 ring-amber-200"
+      : "bg-slate-100 text-slate-600 ring-slate-200";
+  const dot = status === "ACTIVE" ? "bg-emerald-500" : status === "HOLD" ? "bg-amber-500" : "bg-slate-400";
   const label = status === "HOLD" ? "On hold" : status[0] + status.slice(1).toLowerCase();
-  return <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${styles}`}>{label}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${styles}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} /> {label}
+    </span>
+  );
 }
 
 function ContactDetail({ label, value, href }: { label: string; value: string | null; href?: string }) {
   return (
     <div className="min-w-0">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      {href ? <a href={href} className="mt-1 block break-words text-sm font-medium text-slate-800 underline decoration-slate-300 underline-offset-2 hover:text-brand-800">{value}</a> : <p className="mt-1 break-words text-sm font-medium text-slate-800">{value || "Not provided"}</p>}
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{label}</p>
+      {href ? <a href={href} className="mt-1.5 block break-words text-sm font-semibold text-slate-800 decoration-brand-300 underline-offset-4 hover:text-brand-800 hover:underline">{value}</a> : <p className="mt-1.5 break-words text-sm font-semibold text-slate-800">{value || "Not provided"}</p>}
     </div>
   );
 }
@@ -374,9 +396,9 @@ function ContactDetail({ label, value, href }: { label: string; value: string | 
 function SectionHeading({ title, count, action }: { title: string; count: number; action: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-2">
-        <h2 className="truncate text-lg font-semibold text-slate-950">{title}</h2>
-        <span className="shrink-0 rounded-md bg-slate-200/70 px-2 py-0.5 text-xs font-semibold text-slate-600">{count}</span>
+      <div className="flex min-w-0 items-center gap-2.5">
+        <h2 className="truncate text-base font-bold tracking-tight text-slate-950">{title}</h2>
+        <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-600">{count}</span>
       </div>
       <div className="shrink-0">{action}</div>
     </div>
@@ -384,14 +406,14 @@ function SectionHeading({ title, count, action }: { title: string; count: number
 }
 
 function EmptySection({ children }: { children: ReactNode }) {
-  return <p className="rounded-md border border-dashed border-slate-300 bg-white px-4 py-8 text-center text-sm text-slate-500">{children}</p>;
+  return <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-4 py-8 text-center text-sm text-slate-500">{children}</p>;
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
-      <dt className="text-sm text-slate-500">{label}</dt>
-      <dd className="max-w-[60%] break-words text-right text-sm font-medium text-slate-800">{value}</dd>
+      <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</dt>
+      <dd className="max-w-[60%] break-words text-right text-sm font-semibold text-slate-800">{value}</dd>
     </div>
   );
 }

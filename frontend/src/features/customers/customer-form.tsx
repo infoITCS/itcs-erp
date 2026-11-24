@@ -361,26 +361,32 @@ export default function CustomerFormPage() {
 
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <div className="flex min-w-0 flex-col gap-2">
-          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800"><span className="h-2 w-2 rounded-full bg-brand-600" />CRM / Directory</p>
-          <div>
-            <h1 className="text-3xl font-semibold text-slate-950">{id ? "Edit customer" : "New customer"}</h1>
-            <p className="mt-1 text-sm text-slate-600">Customer number is assigned automatically when submitted.</p>
+      <header className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+        <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-700 via-brand-500 to-sky-400" />
+        <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-4">
+            <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700 ring-1 ring-brand-100 sm:flex">
+              <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="8.5" cy="7" r="4" /><line x1="20" y1="8" x2="20" y2="14" /><line x1="17" y1="11" x2="23" y2="11" /></svg>
+            </span>
+            <div className="min-w-0">
+              <p className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700"><span className="h-1.5 w-1.5 rounded-full bg-brand-600" />CRM / Directory</p>
+              <h1 className="text-3xl font-bold tracking-tight text-slate-950">{id ? "Edit customer" : "New customer"}</h1>
+              <p className="mt-1.5 text-sm text-slate-600">Customer number is assigned automatically when submitted.</p>
+            </div>
           </div>
+          <Link to={id ? `/customers/${id}` : "/customers"} className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-brand-300 hover:bg-brand-50/50 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 sm:w-auto">
+            Cancel
+          </Link>
         </div>
-        <Link to={id ? `/customers/${id}` : "/customers"} className="inline-flex h-10 w-full items-center justify-center rounded-md border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-700 focus-visible:ring-offset-2 sm:w-auto">
-          Cancel
-        </Link>
       </header>
 
       {id && existing.isPending ? <p className="py-8 text-sm text-slate-500">Loading customer details…</p> : null}
-      {existing.isError ? <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{getApiErrorMessage(existing.error)}</p> : null}
-      {options.isError ? <p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{getApiErrorMessage(options.error)} Sales reps, terms and tax groups may be unavailable.</p> : null}
+      {existing.isError ? <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{getApiErrorMessage(existing.error)}</p> : null}
+      {options.isError ? <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{getApiErrorMessage(options.error)} Sales reps, terms and tax groups may be unavailable.</p> : null}
 
       {showForm ? (
-        <form noValidate onSubmit={form.handleSubmit(submit, handleInvalid)} className="flex flex-col gap-0 rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div role="tablist" aria-label="Customer form sections" className="flex overflow-x-auto rounded-t-lg border-b border-slate-200 bg-slate-50 xl:grid xl:grid-cols-5 xl:overflow-visible">
+        <form noValidate onSubmit={form.handleSubmit(submit, handleInvalid)} className="flex flex-col gap-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
+          <div role="tablist" aria-label="Customer form sections" className="flex overflow-x-auto border-b border-slate-200 bg-slate-50/70 xl:grid xl:grid-cols-5 xl:overflow-visible">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -761,8 +767,8 @@ export default function CustomerFormPage() {
             ) : null}
           </div>
 
-          {form.formState.errors.root?.message ? <p role="alert" className="mx-5 mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 md:mx-8">{form.formState.errors.root.message}</p> : null}
-          <footer className="flex flex-wrap items-center justify-between gap-3 rounded-b-lg border-t border-slate-200 bg-slate-50 px-4 py-3 sm:px-5 sm:py-4 md:px-8">
+          {form.formState.errors.root?.message ? <p role="alert" className="mx-5 mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 md:mx-8">{form.formState.errors.root.message}</p> : null}
+          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50/70 px-4 py-3 sm:px-5 sm:py-4 md:px-8">
             <div className="flex min-h-5 flex-1 items-center text-sm text-slate-500" aria-live="polite">{draftMessage || (form.formState.isDirty ? "Unsaved changes" : "")}</div>
             <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
               <Button type="button" variant="secondary" disabled={form.formState.isSubmitting} onClick={saveDraft} className="flex-1 sm:flex-none">Save as Draft</Button>
@@ -813,7 +819,7 @@ export default function CustomerFormPage() {
 }
 
 function SectionHeading({ title, description }: { title: string; description: string }) {
-  return <div className="border-l-2 border-brand-700 pl-3"><h2 className="text-lg font-semibold text-slate-950">{title}</h2><p className="mt-1 text-sm text-slate-600">{description}</p></div>;
+  return <div className="border-l-2 border-brand-600 pl-3"><h2 className="text-base font-bold tracking-tight text-slate-950">{title}</h2><p className="mt-1 text-sm leading-6 text-slate-600">{description}</p></div>;
 }
 
 function emptyAddress(purpose: "BILLING" | "SHIPPING" = "BILLING") {

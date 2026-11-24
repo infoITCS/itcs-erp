@@ -68,6 +68,14 @@ export default function CustomersPage() {
     setCursors([undefined]);
   }
 
+  function clearFilters() {
+    setQ("");
+    setStatus("");
+    setCustomerType("");
+    setIncludeDeleted(false);
+    resetPage();
+  }
+
   function nextPage() {
     const next = customers.data?.pageInfo.nextCursor;
     if (next) {
@@ -134,6 +142,7 @@ export default function CustomersPage() {
           setIncludeDeleted(value);
           resetPage();
         }}
+        onClearFilters={clearFilters}
         onNext={nextPage}
         onPrevious={previousPage}
         onDelete={(customer) => {

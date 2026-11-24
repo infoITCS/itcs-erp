@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { navItems, type NavItem } from "@/app/router/nav.tsx";
 import { UserAvatar } from "@/components/ui/UserAvatar.tsx";
 import { useSessionUser, useImpersonation, hasPermission } from "@/hooks/useSession.ts";
@@ -31,6 +31,8 @@ function readCollapsedGroups(): Set<string> {
 function groupElementId(group: string): string {
   return `nav-group-${group.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 }
+
+const PricingCalculator = lazy(() => import("@/features/pricing-calculator/index.tsx"));
 
 const SIDEBAR_COLLAPSED_KEY = "itcs-erp-sidebar-collapsed";
 
@@ -70,10 +72,13 @@ export function AppLayout() {
   const [collapsed, setCollapsed] = useState(readSidebarCollapsed);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(readCollapsedGroups);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [calculatorMounted, setCalculatorMounted] = useState(false);
   const [railTooltip, setRailTooltip] = useState<{ label: string; top: number } | null>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const railCollapsed = collapsed && isDesktop;
-  const visibleItems = navItems.filter((item) => hasPermission(user, item.permission));
+  const visibleItems = navItems.filter((item) => !item.hidden && hasPermission(user, item.permission));
+  const canUseCalculator = hasPermission(user, "quotes:read");
   const groups: string[] = [];
   for (const item of visibleItems) {
     if (!groups.includes(item.group)) {
@@ -115,11 +120,34 @@ export function AppLayout() {
         setCollapsed((value) => !value);
       } else if (event.key === "Escape") {
         setPaletteOpen(false);
+        setCalculatorOpen(false);
       }
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, []);
+
+  useEffect(() => {
+    setCalculatorOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!calculatorOpen) {
+      return;
+    }
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [calculatorOpen]);
+
+  function openCalculator() {
+    setCalculatorMounted(true);
+    setCalculatorOpen(true);
+    setMobileMenuOpen(false);
+    setPaletteOpen(false);
+  }
 
   function toggleCollapsed() {
     setCollapsed((value) => !value);
@@ -816,6 +844,70 @@ export function AppLayout() {
         onClose={() => setPaletteOpen(false)}
         onSelect={handlePaletteSelect}
       />
+
+      {canUseCalculator && !location.pathname.startsWith("/pricing-calculator") ? (
+        <div className="group fixed bottom-5 right-5 z-50 sm:bottom-6 sm:right-6">
+          <button
+            type="button"
+            aria-label="Open pricing calculator"
+            title="Pricing Calculator"
+            onClick={openCalculator}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-800 text-white shadow-xl ring-4 ring-brand-800/15 transition hover:bg-brand-900 hover:shadow-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-800"
+          >
+            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" aria-hidden="true">
+              <rect x="4" y="2" width="16" height="20" rx="2" />
+              <line x1="8" y1="6" x2="16" y2="6" />
+              <line x1="8" y1="10" x2="8.01" y2="10" />
+              <line x1="12" y1="10" x2="12.01" y2="10" />
+              <line x1="16" y1="10" x2="16.01" y2="10" />
+              <line x1="8" y1="14" x2="8.01" y2="14" />
+              <line x1="12" y1="14" x2="12.01" y2="14" />
+              <line x1="16" y1="14" x2="16" y2="18" />
+              <line x1="8" y1="18" x2="12" y2="18" />
+            </svg>
+          </button>
+          <span className="pointer-events-none absolute right-full top-1/2 mr-3 -translate-y-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg transition group-hover:opacity-100">
+            Pricing Calculator
+          </span>
+        </div>
+      ) : null}
+
+      {calculatorMounted && canUseCalculator ? (
+        <div className={`fixed inset-0 z-[60] flex flex-col bg-ink-950/60 backdrop-blur-sm ${calculatorOpen ? "" : "hidden"}`}>
+          <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <svg className="h-5 w-5 text-brand-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden="true">
+                <rect x="4" y="2" width="16" height="20" rx="2" />
+                <line x1="8" y1="6" x2="16" y2="6" />
+                <line x1="8" y1="10" x2="8.01" y2="10" />
+                <line x1="12" y1="10" x2="12.01" y2="10" />
+                <line x1="16" y1="10" x2="16.01" y2="10" />
+                <line x1="8" y1="14" x2="8.01" y2="14" />
+                <line x1="12" y1="14" x2="12.01" y2="14" />
+                <line x1="16" y1="14" x2="16" y2="18" />
+                <line x1="8" y1="18" x2="12" y2="18" />
+              </svg>
+              Pricing Calculator
+            </div>
+            <button
+              type="button"
+              aria-label="Close pricing calculator"
+              onClick={() => setCalculatorOpen(false)}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-canvas p-3 sm:p-5">
+            <Suspense fallback={<div className="py-16 text-center text-sm text-slate-500">Loading pricing calculator…</div>}>
+              <PricingCalculator />
+            </Suspense>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

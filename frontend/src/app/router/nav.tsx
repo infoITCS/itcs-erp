@@ -5,6 +5,7 @@ export interface NavItem {
   label: string;
   group: string;
   permission?: string | string[];
+  hidden?: boolean;
   page: LazyExoticComponent<ComponentType>;
 }
 
@@ -84,6 +85,7 @@ export const navItems: NavItem[] = [
     label: "Pricing Calculator",
     group: "Sales",
     permission: "quotes:read",
+    hidden: true,
     page: lazy(() => import("@/features/pricing-calculator/index.tsx")),
   },
   {

@@ -26,8 +26,16 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
           <h2 id="modal-title" className="truncate text-base font-semibold text-slate-900">
             {title}
           </h2>
-          <button type="button" className="shrink-0 text-sm text-slate-500 hover:text-slate-800" onClick={onClose}>
-            Close
+          <button
+            type="button"
+            aria-label="Close"
+            className="shrink-0 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            onClick={onClose}
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
         <div className="min-h-0 overflow-y-auto overscroll-contain px-4 py-4">{children}</div>
