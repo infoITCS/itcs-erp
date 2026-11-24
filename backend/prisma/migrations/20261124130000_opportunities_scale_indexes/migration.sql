@@ -1,0 +1,12 @@
+CREATE INDEX IF NOT EXISTS "opp_org_del_created_id_idx" ON "opportunities"("organization_id", "deleted_at", "created_at", "id");
+CREATE INDEX IF NOT EXISTS "opp_org_del_stage_created_id_idx" ON "opportunities"("organization_id", "deleted_at", "stage", "created_at", "id");
+CREATE INDEX IF NOT EXISTS "opp_org_del_owner_created_id_idx" ON "opportunities"("organization_id", "deleted_at", "owner_user_id", "created_at", "id");
+CREATE INDEX IF NOT EXISTS "opp_org_del_customer_created_id_idx" ON "opportunities"("organization_id", "deleted_at", "customer_id", "created_at", "id");
+CREATE INDEX IF NOT EXISTS "opp_org_del_title_id_idx" ON "opportunities"("organization_id", "deleted_at", "title", "id");
+CREATE INDEX IF NOT EXISTS "opp_org_del_number_id_idx" ON "opportunities"("organization_id", "deleted_at", "opportunity_number", "id");
+CREATE INDEX IF NOT EXISTS "opp_org_del_next_due_id_idx" ON "opportunities"("organization_id", "deleted_at", "next_action_due_at", "id");
+CREATE INDEX IF NOT EXISTS "opp_org_del_close_id_idx" ON "opportunities"("organization_id", "deleted_at", "expected_close_date", "id");
+CREATE INDEX IF NOT EXISTS "opp_org_del_won_idx" ON "opportunities"("organization_id", "deleted_at", "won_at");
+CREATE INDEX IF NOT EXISTS "opp_org_del_lost_idx" ON "opportunities"("organization_id", "deleted_at", "lost_at");
+CREATE INDEX IF NOT EXISTS "opp_org_del_lost_reason_idx" ON "opportunities"("organization_id", "deleted_at", "lost_reason");
+CREATE INDEX IF NOT EXISTS "opp_interest_org_opp_sort_created_id_idx" ON "opportunity_product_interests"("organization_id", "opportunity_id", "sort_order", "created_at", "id");

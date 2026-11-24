@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -20,6 +20,18 @@ import {
   type OpportunityUpdateWrite,
 } from "./api.ts";
 
+const optionalEmail = z.string().trim().max(320).refine((value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), "Enter a valid email");
+const optionalPhone = z.string().trim().max(40).refine((value) => !value || /^[+()\-.\s\d]{6,40}$/.test(value), "Enter a valid phone");
+const optionalCountry = z.string().trim().refine((value) => !value || /^[A-Za-z]{2}$/.test(value), "Use a two-letter country code");
+const optionalMoney = z.string().trim().refine((value) => !value || /^\d+(?:\.\d{1,4})?$/.test(value), "Use up to 4 decimals");
+const optionalPercent = z.string().trim().refine((value) => {
+  if (!value) return true;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 100;
+}, "Use a whole number from 0 to 100");
+const optionalDate = z.string().refine((value) => !value || /^\d{4}-\d{2}-\d{2}$/.test(value), "Choose a valid date");
+const optionalDateTime = z.string().refine((value) => !value || Number.isFinite(new Date(value).getTime()), "Choose a valid date and time");
+
 const schema = z.object({
   mode: z.enum(["existing", "prospect"]),
   title: z.string().trim().min(1, "Enter a title").max(200),
@@ -28,18 +40,18 @@ const schema = z.object({
   contactId: z.string(),
   prospectDisplayName: z.string().trim().max(200),
   prospectLegalName: z.string().trim().max(200),
-  prospectEmail: z.string().trim().max(320),
-  prospectPhone: z.string().trim().max(40),
-  prospectCountryCode: z.string().trim().max(2),
+  prospectEmail: optionalEmail,
+  prospectPhone: optionalPhone,
+  prospectCountryCode: optionalCountry,
   resellerId: z.string(),
   ownerUserId: z.string(),
   leadSource: z.string(),
-  estimatedValue: z.string().trim(),
-  currencyCode: z.string().trim().max(3),
-  probabilityPercent: z.string().trim(),
-  expectedCloseDate: z.string(),
+  estimatedValue: optionalMoney,
+  currencyCode: z.string().trim().regex(/^[A-Za-z]{3}$/, "Use a three-letter currency code").transform((value) => value.toUpperCase()),
+  probabilityPercent: optionalPercent,
+  expectedCloseDate: optionalDate,
   nextAction: z.string().trim().max(500),
-  nextActionDueAt: z.string(),
+  nextActionDueAt: optionalDateTime,
   competitorName: z.string().trim().max(200),
   notes: z.string().trim().max(4000),
 });
@@ -73,6 +85,7 @@ const empty: FormValues = {
 export default function OpportunityFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [hadCustomerOnLoad, setHadCustomerOnLoad] = useState(false);
   const existing = useQuery({
     queryKey: ["opportunities", id],
@@ -142,20 +155,20 @@ export default function OpportunityFormPage() {
   const showContactPicker = isEdit ? hadCustomerOnLoad : mode === "existing" && Boolean(customerId);
 
   return (
-    <section className="mx-auto flex max-w-2xl flex-col gap-4">
-      <div className="border-b border-slate-200 pb-4">
-        <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
-          <span className="h-2 w-2 rounded-full bg-brand-600" />
-          CRM / Pipeline
+    <section className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+      <header className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+        <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-700 via-brand-500 to-sky-400" />
+        <p className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-700">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand-600" /> CRM / Revenue pipeline
         </p>
-        <h1 className="text-3xl font-semibold text-slate-950">{id ? "Edit opportunity" : "New opportunity"}</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          The opportunity number is assigned by the server. Stage changes happen from the detail page.
+        <h1 className="text-3xl font-bold tracking-tight text-slate-950">{id ? "Edit opportunity" : "New opportunity"}</h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-600">
+          Stage changes happen from the pipeline board or detail page. The opportunity number is assigned automatically.
         </p>
-      </div>
-      {existing.isError ? <p className="text-sm text-red-700">{getApiErrorMessage(existing.error)}</p> : null}
+      </header>
+      {existing.isError ? <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{getApiErrorMessage(existing.error)}</p> : null}
       <form
-        className="flex flex-col gap-4 rounded-lg border border-slate-200 bg-white p-4"
+        className="flex flex-col gap-5 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
         noValidate
         onSubmit={form.handleSubmit(async (values) => {
           if (!id) {
@@ -171,11 +184,24 @@ export default function OpportunityFormPage() {
           try {
             if (id) {
               await updateOpportunity(id, toUpdateWrite(values));
-              navigate(`/opportunities/${id}`);
+            } else {
+              const created = await createOpportunity(toCreateWrite(values));
+              await Promise.all([
+                queryClient.invalidateQueries({ queryKey: ["opportunities"] }),
+                queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+                queryClient.invalidateQueries({ queryKey: ["analytics"] }),
+                queryClient.invalidateQueries({ queryKey: ["leads"] }),
+              ]);
+              navigate(`/opportunities/${created.id}`);
               return;
             }
-            const created = await createOpportunity(toCreateWrite(values));
-            navigate(`/opportunities/${created.id}`);
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ["opportunities"] }),
+              queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+              queryClient.invalidateQueries({ queryKey: ["analytics"] }),
+              queryClient.invalidateQueries({ queryKey: ["leads"] }),
+            ]);
+            navigate(`/opportunities/${id}`);
           } catch (error) {
             form.setError("root", { message: getApiErrorMessage(error) });
           }
@@ -371,7 +397,7 @@ export default function OpportunityFormPage() {
           />
         </FormField>
 
-        {form.formState.errors.root ? <p className="text-sm text-red-700">{form.formState.errors.root.message}</p> : null}
+        {form.formState.errors.root ? <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{form.formState.errors.root.message}</p> : null}
         <div className="flex gap-2">
           <Button type="submit" disabled={form.formState.isSubmitting}>
             {id ? "Save changes" : "Create opportunity"}

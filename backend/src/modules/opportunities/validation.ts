@@ -191,6 +191,13 @@ export const opportunityListQuerySchema = listQuerySchema.extend({
   sort: z.enum(["createdAt", "title", "opportunityNumber"]).optional(),
 });
 
+export const opportunityRecordQuerySchema = z.object({
+  includeDeleted: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => value === "true"),
+});
+
 export const opportunityIdParamSchema = z.object({ id: z.uuid() });
 export const productInterestParamSchema = z.object({ id: z.uuid(), interestId: z.uuid() });
 
@@ -204,3 +211,4 @@ export type ConvertOpportunityInput = z.infer<typeof convertOpportunitySchema>;
 export type CreateProductInterestInput = z.infer<typeof createProductInterestSchema>;
 export type UpdateProductInterestInput = z.infer<typeof updateProductInterestSchema>;
 export type OpportunityListQuery = z.infer<typeof opportunityListQuerySchema>;
+export type OpportunityRecordQuery = z.infer<typeof opportunityRecordQuerySchema>;

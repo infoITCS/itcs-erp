@@ -2,8 +2,16 @@ import { Prisma, type CustomerLeadSource, type PrismaClient } from "@prisma/clie
 import { BaseRepository } from "../../common/database/base-repository";
 import { ConflictError } from "../../common/errors/app-error";
 import { allocateDocumentNumberIn } from "../../common/numbering/allocate";
+import { createdAtRange } from "../../common/pagination/list-query";
 import { buildOpportunityListWhere, type OpportunityListFilter } from "./list-filter";
 import { decodeOpportunityCursor, opportunityCursorWhere, type OpportunitySort } from "./page";
+import {
+  OPEN_STAGES,
+  type OpportunityCloseForecast,
+  type OpportunityLostReasonSummary,
+  type OpportunityPipelineSummary,
+  type OpportunityStageSummary,
+} from "./types";
 import type {
   CreateProductInterestInput,
   UpdateProductInterestInput,
@@ -92,6 +100,107 @@ export class OpportunitiesRepository extends BaseRepository {
       take: limit + 1,
       select: opportunitySelect,
     });
+  }
+
+  private pipelineWhere(filter: OpportunityListFilter): Prisma.Sql {
+    const conditions: Prisma.Sql[] = [Prisma.sql`"organization_id" = ${filter.organizationId}::uuid`];
+    if (!filter.includeDeleted) conditions.push(Prisma.sql`"deleted_at" IS NULL`);
+    if (filter.stage) conditions.push(Prisma.sql`"stage" = ${filter.stage}::opportunity_stage`);
+    if (filter.customerId) conditions.push(Prisma.sql`"customer_id" = ${filter.customerId}::uuid`);
+    if (filter.resellerId) conditions.push(Prisma.sql`"reseller_id" = ${filter.resellerId}::uuid`);
+    if (filter.ownerUserId) conditions.push(Prisma.sql`"owner_user_id" = ${filter.ownerUserId}::uuid`);
+    if (filter.leadSource) conditions.push(Prisma.sql`"lead_source" = ${filter.leadSource}::customer_lead_source`);
+
+    const createdAt = createdAtRange(filter.from, filter.to);
+    if (createdAt?.gte) conditions.push(Prisma.sql`"created_at" >= ${createdAt.gte}`);
+    if (createdAt?.lte) conditions.push(Prisma.sql`"created_at" <= ${createdAt.lte}`);
+
+    const search = filter.q?.trim();
+    if (search) {
+      const pattern = `%${search}%`;
+      conditions.push(Prisma.sql`("title" ILIKE ${pattern} OR "opportunity_number" ILIKE ${pattern} OR "prospect_display_name" ILIKE ${pattern} OR "prospect_email" ILIKE ${pattern})`);
+    }
+
+    return Prisma.join(conditions, " AND ");
+  }
+
+  async pipelineSummary(filter: OpportunityListFilter): Promise<OpportunityPipelineSummary> {
+    const where = this.pipelineWhere(filter);
+    type StageRow = { stage: string; count: number; value: string; weighted_value: string };
+    type ForecastRow = { month: string; count: number; value: string };
+    type ReasonRow = { reason: string; count: number; value: string };
+
+    const [organization, stageRows, forecastRows, reasonRows] = await Promise.all([
+      this.db.organization.findUnique({
+        where: { id: filter.organizationId },
+        select: { baseCurrencyCode: true },
+      }),
+      this.db.$queryRaw<StageRow[]>(Prisma.sql`
+        SELECT
+          "stage"::text AS stage,
+          COUNT(*)::int AS count,
+          COALESCE(SUM(COALESCE("estimated_value_base", "estimated_value")), 0)::text AS value,
+          COALESCE(SUM(COALESCE("estimated_value_base", "estimated_value") * "probability_percent" / 100.0), 0)::text AS weighted_value
+        FROM "opportunities"
+        WHERE ${where}
+        GROUP BY "stage"
+      `),
+      this.db.$queryRaw<ForecastRow[]>(Prisma.sql`
+        SELECT
+          TO_CHAR("expected_close_date", 'YYYY-MM') AS month,
+          COUNT(*)::int AS count,
+          COALESCE(SUM(COALESCE("estimated_value_base", "estimated_value")), 0)::text AS value
+        FROM "opportunities"
+        WHERE ${where}
+          AND "expected_close_date" IS NOT NULL
+          AND "stage"::text IN ('NEW', 'QUALIFICATION', 'NEEDS_ANALYSIS', 'PROPOSAL', 'NEGOTIATION')
+        GROUP BY 1
+        ORDER BY 1
+      `),
+      this.db.$queryRaw<ReasonRow[]>(Prisma.sql`
+        SELECT
+          "lost_reason"::text AS reason,
+          COUNT(*)::int AS count,
+          COALESCE(SUM(COALESCE("estimated_value_base", "estimated_value")), 0)::text AS value
+        FROM "opportunities"
+        WHERE ${where}
+          AND "lost_reason" IS NOT NULL
+        GROUP BY "lost_reason"
+        ORDER BY COUNT(*) DESC
+      `),
+    ]);
+
+    const stages: OpportunityStageSummary[] = stageRows.map((row) => ({
+      stage: row.stage as OpportunityStageSummary["stage"],
+      count: Number(row.count),
+      value: row.value,
+      weightedValue: row.weighted_value,
+    }));
+    const open = stages.filter((row) => (OPEN_STAGES as readonly string[]).includes(row.stage));
+    const won = stages.filter((row) => row.stage === "WON");
+    const lost = stages.filter((row) => row.stage === "LOST");
+    const sum = (rows: OpportunityStageSummary[], key: "value" | "weightedValue") =>
+      rows.reduce((total, row) => total.plus(row[key]), new Prisma.Decimal(0)).toString();
+
+    return {
+      currency: organization?.baseCurrencyCode ?? "USD",
+      totals: {
+        openDeals: open.reduce((total, row) => total + row.count, 0),
+        openValue: sum(open, "value"),
+        weightedValue: sum(open, "weightedValue"),
+        wonDeals: won.reduce((total, row) => total + row.count, 0),
+        wonValue: sum(won, "value"),
+        lostDeals: lost.reduce((total, row) => total + row.count, 0),
+        lostValue: sum(lost, "value"),
+      },
+      stages,
+      forecast: forecastRows.map((row) => ({ month: row.month, count: Number(row.count), value: row.value })) as OpportunityCloseForecast[],
+      lostReasons: reasonRows.map((row) => ({
+        reason: row.reason as OpportunityLostReasonSummary["reason"],
+        count: Number(row.count),
+        value: row.value,
+      })),
+    };
   }
 
   async findById(organizationId: string, id: string, includeDeleted = false) {
@@ -296,7 +405,12 @@ export class OpportunitiesRepository extends BaseRepository {
     data: { stage: string; probabilityPercent: number; expectedCloseDate?: string },
   ) {
     const result = await this.db.opportunity.updateMany({
-      where: { id, organizationId, deletedAt: null },
+      where: {
+        id,
+        organizationId,
+        deletedAt: null,
+        stage: { in: [...OPEN_STAGES] },
+      },
       data: {
         stage: data.stage as Prisma.OpportunityUpdateInput["stage"],
         probabilityPercent: data.probabilityPercent,
@@ -310,7 +424,12 @@ export class OpportunitiesRepository extends BaseRepository {
   async markWon(organizationId: string, id: string, actorId: string, probabilityPercent: number) {
     const now = new Date();
     const result = await this.db.opportunity.updateMany({
-      where: { id, organizationId, deletedAt: null },
+      where: {
+        id,
+        organizationId,
+        deletedAt: null,
+        stage: { in: [...OPEN_STAGES] },
+      },
       data: {
         stage: "WON",
         probabilityPercent,
@@ -333,7 +452,12 @@ export class OpportunitiesRepository extends BaseRepository {
   ) {
     const now = new Date();
     const result = await this.db.opportunity.updateMany({
-      where: { id, organizationId, deletedAt: null },
+      where: {
+        id,
+        organizationId,
+        deletedAt: null,
+        stage: { in: [...OPEN_STAGES] },
+      },
       data: {
         stage: "LOST",
         probabilityPercent: data.probabilityPercent,
@@ -351,7 +475,12 @@ export class OpportunitiesRepository extends BaseRepository {
 
   async reopen(organizationId: string, id: string, actorId: string, stage: string, probabilityPercent: number) {
     const result = await this.db.opportunity.updateMany({
-      where: { id, organizationId, deletedAt: null },
+      where: {
+        id,
+        organizationId,
+        deletedAt: null,
+        stage: { in: ["WON", "LOST"] },
+      },
       data: {
         stage: stage as Prisma.OpportunityUpdateInput["stage"],
         probabilityPercent,
@@ -383,7 +512,7 @@ export class OpportunitiesRepository extends BaseRepository {
 
   async linkExistingCustomer(organizationId: string, id: string, customerId: string, actorId: string) {
     const result = await this.db.opportunity.updateMany({
-      where: { id, organizationId, deletedAt: null },
+      where: { id, organizationId, deletedAt: null, customerId: null },
       data: { customerId, updatedById: actorId },
     });
     return result.count === 1 ? this.findById(organizationId, id) : null;

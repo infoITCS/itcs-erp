@@ -330,7 +330,15 @@ export function restoreLead(id: string): Promise<Lead> {
 }
 
 export function changeLeadStatus(id: string, body: ChangeLeadStatusWrite): Promise<Lead> {
-  return data(http.post(`/api/v1/leads/${id}/status`, body));
+  const nextActionDueAt = body.nextActionDueAt ? new Date(body.nextActionDueAt) : undefined;
+  const payload: ChangeLeadStatusWrite = {
+    ...body,
+    ...(nextActionDueAt && !Number.isNaN(nextActionDueAt.getTime())
+      ? { nextActionDueAt: nextActionDueAt.toISOString() }
+      : {}),
+  };
+  if (!payload.nextActionDueAt) delete payload.nextActionDueAt;
+  return data(http.post(`/api/v1/leads/${id}/status`, payload));
 }
 
 export function convertLead(id: string, body: ConvertLeadWrite): Promise<Lead> {

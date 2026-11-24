@@ -165,6 +165,22 @@ export interface Page<T> {
   pageInfo: { limit: number; hasNextPage: boolean; nextCursor: string | null };
 }
 
+export interface OpportunityPipelineSummary {
+  currency: string;
+  totals: {
+    openDeals: number;
+    openValue: string;
+    weightedValue: string;
+    wonDeals: number;
+    wonValue: string;
+    lostDeals: number;
+    lostValue: string;
+  };
+  stages: Array<{ stage: OpportunityStage; count: number; value: string; weightedValue: string }>;
+  forecast: Array<{ month: string; count: number; value: string }>;
+  lostReasons: Array<{ reason: OpportunityLostReason; count: number; value: string }>;
+}
+
 export interface OpportunityListParams {
   q?: string;
   stage?: OpportunityStage;
@@ -282,18 +298,42 @@ function data<T>(promise: Promise<{ data: ApiSuccess<T> }>): Promise<T> {
   return promise.then((response) => response.data.data as T);
 }
 
-export function listOpportunities(
-  params: Record<string, string | number | boolean | undefined>,
-): Promise<Page<Opportunity>> {
+export function opportunityStageLabel(stage: string): string {
+  return stage
+    .split("_")
+    .map((part) => part[0] + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+export const stageLabel = opportunityStageLabel;
+
+export function lostReasonLabel(reason: string): string {
+  return reason
+    .split("_")
+    .map((part) => part[0] + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
+export function listOpportunities(params: OpportunityListParams = {}): Promise<Page<Opportunity>> {
   return data(http.get<ApiSuccess<Page<Opportunity>>>("/api/v1/opportunities", { params }));
+}
+
+export function getOpportunityPipelineSummary(
+  params: OpportunityListParams = {},
+): Promise<OpportunityPipelineSummary> {
+  return data(http.get<ApiSuccess<OpportunityPipelineSummary>>("/api/v1/opportunities/pipeline-summary", { params }));
 }
 
 export function getOpportunityFormOptions(): Promise<OpportunityFormOptions> {
   return data(http.get<ApiSuccess<OpportunityFormOptions>>("/api/v1/opportunities/form-options"));
 }
 
-export function getOpportunity(id: string): Promise<Opportunity> {
-  return data(http.get<ApiSuccess<Opportunity>>(`/api/v1/opportunities/${id}`));
+export function getOpportunity(id: string, includeDeleted = false): Promise<Opportunity> {
+  return data(
+    http.get<ApiSuccess<Opportunity>>(`/api/v1/opportunities/${id}`, {
+      params: { includeDeleted: includeDeleted ? "true" : undefined },
+    }),
+  );
 }
 
 export function createOpportunity(body: OpportunityCreateWrite): Promise<Opportunity> {

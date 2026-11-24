@@ -7,7 +7,13 @@ import { computeCurrencySnapshot } from "./currency-snapshot";
 import { toOpportunityPage, type OpportunitySort } from "./page";
 import type { OpportunitiesRepository } from "./repository";
 import { assertCanChangeStage, defaultProbabilityForStage, resolveProbability } from "./stages";
-import { ALL_STAGES, LEAD_SOURCES, LOST_REASONS, OPPORTUNITIES_MODULE } from "./types";
+import {
+  ALL_STAGES,
+  LEAD_SOURCES,
+  LOST_REASONS,
+  OPPORTUNITIES_MODULE,
+  type OpportunityPipelineSummary,
+} from "./types";
 import type {
   ChangeStageInput,
   ConvertOpportunityInput,
@@ -32,7 +38,7 @@ export class OpportunitiesService {
   ) {}
 
   async list(organizationId: string, query: OpportunityListQuery, permissions: string[]) {
-    if (query.includeDeleted && !canSeeDeleted(permissions)) {
+    if (query.includeDeleted && !canSeeDeletedOpportunities(permissions)) {
       throw new ForbiddenError();
     }
     const sort = (query.sort ?? "createdAt") as OpportunitySort;
@@ -57,8 +63,33 @@ export class OpportunitiesService {
     return toOpportunityPage(rows, query.limit, sort);
   }
 
-  async get(organizationId: string, id: string) {
-    const opportunity = await this.repository.findById(organizationId, id);
+  async pipelineSummary(
+    organizationId: string,
+    query: OpportunityListQuery,
+    permissions: string[],
+  ): Promise<OpportunityPipelineSummary> {
+    if (query.includeDeleted && !canSeeDeletedOpportunities(permissions)) {
+      throw new ForbiddenError();
+    }
+    return this.repository.pipelineSummary({
+      organizationId,
+      q: query.q,
+      stage: query.stage,
+      customerId: query.customerId,
+      resellerId: query.resellerId,
+      ownerUserId: query.ownerUserId,
+      leadSource: query.leadSource,
+      from: query.from,
+      to: query.to,
+      includeDeleted: query.includeDeleted,
+    });
+  }
+
+  async get(organizationId: string, id: string, includeDeleted = false, permissions: string[] = []) {
+    if (includeDeleted && !canSeeDeletedOpportunities(permissions)) {
+      throw new ForbiddenError();
+    }
+    const opportunity = await this.repository.findById(organizationId, id, includeDeleted);
     if (!opportunity) {
       throw new NotFoundError("Opportunity not found");
     }
@@ -212,7 +243,7 @@ export class OpportunitiesService {
       expectedCloseDate: input.expectedCloseDate,
     });
     if (!updated) {
-      throw new NotFoundError("Opportunity not found");
+      throw new ConflictError("The opportunity stage changed while saving. Refresh and try again.");
     }
     await this.record(
       organizationId,
@@ -247,7 +278,7 @@ export class OpportunitiesService {
 
     const updated = await this.repository.markWon(organizationId, id, actorId, probabilityPercent);
     if (!updated) {
-      throw new NotFoundError("Opportunity not found");
+      throw new ConflictError("The opportunity stage changed while saving. Refresh and try again.");
     }
     if (existing.leadId) {
       await this.repository.syncLeadWon(organizationId, existing.leadId, actorId, true);
@@ -282,7 +313,7 @@ export class OpportunitiesService {
       competitorName: input.competitorName,
     });
     if (!updated) {
-      throw new NotFoundError("Opportunity not found");
+      throw new ConflictError("The opportunity stage changed while saving. Refresh and try again.");
     }
     await this.record(
       organizationId,
@@ -313,7 +344,7 @@ export class OpportunitiesService {
 
     const updated = await this.repository.reopen(organizationId, id, actorId, stage, probabilityPercent);
     if (!updated) {
-      throw new NotFoundError("Opportunity not found");
+      throw new ConflictError("The opportunity stage changed while saving. Refresh and try again.");
     }
     if (existing.leadId) {
       await this.repository.syncLeadWon(organizationId, existing.leadId, actorId, false);
@@ -344,7 +375,7 @@ export class OpportunitiesService {
       }
       const updated = await this.repository.linkExistingCustomer(organizationId, id, customer.id, actorId);
       if (!updated) {
-        throw new NotFoundError("Opportunity not found");
+        throw new ConflictError("This opportunity is already linked to a customer");
       }
       await this.record(organizationId, actorId, "opportunities.converted", "opportunity", id, meta, {
         opportunityId: id,
@@ -547,6 +578,6 @@ export class OpportunitiesService {
   }
 }
 
-function canSeeDeleted(permissions: string[]): boolean {
+export function canSeeDeletedOpportunities(permissions: string[]): boolean {
   return permissions.includes("opportunities:delete") || permissions.includes("opportunities:restore");
 }

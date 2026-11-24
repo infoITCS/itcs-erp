@@ -1371,6 +1371,17 @@ model Opportunity {
   @@index([organizationId, resellerId, createdAt])
   @@index([organizationId, leadSource, createdAt])
   @@index([organizationId, expectedCloseDate])
+  @@index([organizationId, deletedAt, createdAt, id], map: "opp_org_del_created_id_idx")
+  @@index([organizationId, deletedAt, stage, createdAt, id], map: "opp_org_del_stage_created_id_idx")
+  @@index([organizationId, deletedAt, ownerUserId, createdAt, id], map: "opp_org_del_owner_created_id_idx")
+  @@index([organizationId, deletedAt, customerId, createdAt, id], map: "opp_org_del_customer_created_id_idx")
+  @@index([organizationId, deletedAt, title, id], map: "opp_org_del_title_id_idx")
+  @@index([organizationId, deletedAt, opportunityNumber, id], map: "opp_org_del_number_id_idx")
+  @@index([organizationId, deletedAt, nextActionDueAt, id], map: "opp_org_del_next_due_id_idx")
+  @@index([organizationId, deletedAt, expectedCloseDate, id], map: "opp_org_del_close_id_idx")
+  @@index([organizationId, deletedAt, wonAt], map: "opp_org_del_won_idx")
+  @@index([organizationId, deletedAt, lostAt], map: "opp_org_del_lost_idx")
+  @@index([organizationId, deletedAt, lostReason], map: "opp_org_del_lost_reason_idx")
   @@map("opportunities")
 }
 
@@ -1397,6 +1408,7 @@ model OpportunityProductInterest {
 
   @@unique([opportunityId, productId])
   @@index([organizationId, opportunityId, sortOrder])
+  @@index([organizationId, opportunityId, sortOrder, createdAt, id], map: "opp_interest_org_opp_sort_created_id_idx")
   @@map("opportunity_product_interests")
 }
 

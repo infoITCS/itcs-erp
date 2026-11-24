@@ -7,10 +7,10 @@ import { Modal } from "@/components/modals/Modal.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
+import { useHasPermission } from "@/hooks/useSession.ts";
 import { listCustomers } from "@/features/customers/api.ts";
 import { leadStatusLabel } from "@/features/leads/api.ts";
 import { listProducts } from "@/features/products/api.ts";
-import { stageLabel } from "./index.tsx";
 import {
   ALL_STAGES,
   LOST_REASONS,
@@ -27,6 +27,7 @@ import {
   markOpportunityWon,
   reopenOpportunity,
   restoreOpportunity,
+  stageLabel,
   updateProductInterest,
   type ConvertWrite,
   type OpportunityLostReason,
@@ -40,6 +41,10 @@ export default function OpportunityDetailPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const canUpdate = useHasPermission("opportunities:update");
+  const canDelete = useHasPermission("opportunities:delete");
+  const canRestore = useHasPermission("opportunities:restore");
+  const canSeeDeleted = canDelete || canRestore;
 
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
@@ -71,7 +76,10 @@ export default function OpportunityDetailPage() {
   const [productError, setProductError] = useState<string | null>(null);
   const [editingInterest, setEditingInterest] = useState<string | null>(null);
 
-  const opportunity = useQuery({ queryKey: ["opportunities", id], queryFn: () => getOpportunity(id) });
+  const opportunity = useQuery({
+    queryKey: ["opportunities", id, { includeDeleted: canSeeDeleted }],
+    queryFn: () => getOpportunity(id, canSeeDeleted),
+  });
   const interests = useQuery({ queryKey: ["opportunities", id, "products"], queryFn: () => listProductInterests(id) });
   const audit = useQuery({ queryKey: ["opportunities", id, "audit"], queryFn: () => listOpportunityAudit(id) });
   const customerPicker = useQuery({
@@ -87,11 +95,15 @@ export default function OpportunityDetailPage() {
   });
 
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["opportunities", id] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["opportunities"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+      queryClient.invalidateQueries({ queryKey: ["analytics"] }),
+      queryClient.invalidateQueries({ queryKey: ["leads"] }),
+      queryClient.invalidateQueries({ queryKey: ["customers"] }),
+    ]);
   };
-  const refreshList = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["opportunities", "list"] });
-  };
+  const refreshList = refresh;
   const refreshInterests = async () => {
     await queryClient.invalidateQueries({ queryKey: ["opportunities", id, "products"] });
   };
@@ -157,20 +169,20 @@ export default function OpportunityDetailPage() {
             </div>
             <div className="flex gap-2">
               {data.deletedAt ? (
-                <Button variant="secondary" disabled={restore.isPending} onClick={() => restore.mutate()}>
+                canRestore ? <Button variant="secondary" disabled={restore.isPending} onClick={() => restore.mutate()}>
                   {restore.isPending ? "Restoring…" : "Restore"}
-                </Button>
+                </Button> : null
               ) : (
                 <>
-                  <Link
+                  {canUpdate ? <Link
                     to={`/opportunities/${id}/edit`}
                     className="inline-flex h-10 items-center rounded-md border border-slate-300 px-3 text-sm"
                   >
                     Edit
-                  </Link>
-                  <Button variant="secondary" className="h-10" onClick={() => setPendingDelete({ kind: "opportunity" })}>
+                  </Link> : null}
+                  {canDelete ? <Button variant="secondary" className="h-10" onClick={() => setPendingDelete({ kind: "opportunity" })}>
                     Delete
-                  </Button>
+                  </Button> : null}
                 </>
               )}
             </div>
@@ -235,7 +247,7 @@ export default function OpportunityDetailPage() {
                 const currentIndex = ALL_STAGES.indexOf(data.stage);
                 const isCurrent = step === data.stage;
                 const isPast = index < currentIndex;
-                const canJump = isOpenStage && (OPEN_STAGES as string[]).includes(step) && step !== data.stage;
+                  const canJump = canUpdate && !data.deletedAt && isOpenStage && (OPEN_STAGES as string[]).includes(step) && step !== data.stage;
                 return (
                   <li key={step}>
                     <button
@@ -277,7 +289,7 @@ export default function OpportunityDetailPage() {
               })}
             </ol>
             <div className="mt-4 flex flex-wrap gap-2">
-              {isOpenStage ? (
+              {canUpdate && !data.deletedAt && isOpenStage ? (
                 <>
                   <Button
                     variant="secondary"
@@ -318,7 +330,7 @@ export default function OpportunityDetailPage() {
                   </Button>
                 </>
               ) : null}
-              {isTerminal ? (
+              {canUpdate && !data.deletedAt && isTerminal ? (
                 <Button
                   className="h-9 !bg-brand-800 !text-white hover:!bg-brand-900"
                   onClick={() => {
@@ -331,7 +343,7 @@ export default function OpportunityDetailPage() {
                   Reopen
                 </Button>
               ) : null}
-              {!data.customerId ? (
+              {canUpdate && !data.deletedAt && !data.customerId ? (
                 <Button
                   className="h-9 !bg-brand-800 !text-white hover:!bg-brand-900"
                   onClick={() => {
@@ -432,7 +444,7 @@ export default function OpportunityDetailPage() {
           <section className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-900">Product interests</h2>
-              <Button
+              {canUpdate && !data.deletedAt ? <Button
                 variant="secondary"
                 onClick={() => {
                   setProductError(null);
@@ -441,7 +453,7 @@ export default function OpportunityDetailPage() {
                 }}
               >
                 Add product
-              </Button>
+              </Button> : null}
             </div>
             {interests.isPending ? <p className="text-sm text-slate-500">Loading product interests…</p> : null}
             {(interests.data ?? []).length === 0 && !interests.isPending ? (
@@ -506,7 +518,7 @@ export default function OpportunityDetailPage() {
                         {interest.notes ? ` · ${interest.notes}` : ""}
                       </p>
                     </div>
-                    <div className="flex gap-3">
+                    {canUpdate && !data.deletedAt ? <div className="flex gap-3">
                       <button type="button" className="text-slate-700" onClick={() => setEditingInterest(interest.id)}>
                         Edit
                       </button>
@@ -519,7 +531,7 @@ export default function OpportunityDetailPage() {
                       >
                         Remove
                       </button>
-                    </div>
+                    </div> : null}
                   </li>
                 ),
               )}

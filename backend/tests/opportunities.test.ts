@@ -177,6 +177,43 @@ describe("opportunity service", () => {
     assert.equal(audits[0]?.action, "opportunities.created");
   });
 
+  it("returns pipeline summary aggregates scoped to the organization", async () => {
+    const summary = {
+      currency: "PKR",
+      totals: {
+        openDeals: 2,
+        openValue: "1500",
+        weightedValue: "450",
+        wonDeals: 1,
+        wonValue: "900",
+        lostDeals: 1,
+        lostValue: "200",
+      },
+      stages: [],
+      forecast: [],
+      lostReasons: [],
+    };
+    let receivedOrganizationId = "";
+    const service = new OpportunitiesService(
+      {
+        async pipelineSummary(filter: { organizationId: string }) {
+          receivedOrganizationId = filter.organizationId;
+          return summary;
+        },
+      } as never,
+      {} as never,
+      recorder([]),
+    );
+
+    const result = await service.pipelineSummary(
+      orgId,
+      { q: "firewall", limit: 50, order: "desc" } as never,
+      [],
+    );
+    assert.equal(receivedOrganizationId, orgId);
+    assert.equal(result.totals.openDeals, 2);
+  });
+
   it("requires an active, linked customer before marking an opportunity won", async () => {
     const service = new OpportunitiesService(
       {

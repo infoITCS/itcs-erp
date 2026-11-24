@@ -4,7 +4,7 @@ import type { ListQuery } from "../../common/pagination/list-query";
 import { asyncHandler } from "../../common/utils/async-handler";
 import { sendSuccess } from "../../common/utils/api-response";
 import type { RequestMeta } from "../auth/types";
-import type { OpportunitiesService } from "./service";
+import { canSeeDeletedOpportunities, type OpportunitiesService } from "./service";
 import type {
   ChangeStageInput,
   ConvertOpportunityInput,
@@ -13,6 +13,7 @@ import type {
   MarkLostInput,
   MarkWonInput,
   OpportunityListQuery,
+  OpportunityRecordQuery,
   ReopenOpportunityInput,
   UpdateOpportunityInput,
   UpdateProductInterestInput,
@@ -45,6 +46,16 @@ export class OpportunitiesController {
     sendSuccess(res, { message: "Opportunities", data: page });
   });
 
+  pipelineSummary = asyncHandler(async (req: Request, res: Response) => {
+    const query = req.validated?.query as OpportunityListQuery;
+    const summary = await this.opportunitiesService.pipelineSummary(
+      organizationId(req),
+      query,
+      req.auth?.permissions ?? [],
+    );
+    sendSuccess(res, { message: "Pipeline summary", data: summary });
+  });
+
   formOptions = asyncHandler(async (req: Request, res: Response) => {
     const options = await this.opportunitiesService.formOptions(organizationId(req));
     sendSuccess(res, { message: "Opportunity form options", data: options });
@@ -58,7 +69,14 @@ export class OpportunitiesController {
 
   get = asyncHandler(async (req: Request, res: Response) => {
     const params = req.validated?.params as { id: string };
-    const opportunity = await this.opportunitiesService.get(organizationId(req), params.id);
+    const query = req.validated?.query as OpportunityRecordQuery | undefined;
+    const includeDeleted = Boolean(query?.includeDeleted) && canSeeDeletedOpportunities(req.auth?.permissions ?? []);
+    const opportunity = await this.opportunitiesService.get(
+      organizationId(req),
+      params.id,
+      includeDeleted,
+      req.auth?.permissions ?? [],
+    );
     sendSuccess(res, { message: "Opportunity", data: opportunity });
   });
 

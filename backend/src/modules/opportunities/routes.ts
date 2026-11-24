@@ -13,6 +13,7 @@ import {
   markWonSchema,
   opportunityIdParamSchema,
   opportunityListQuerySchema,
+  opportunityRecordQuerySchema,
   productInterestParamSchema,
   reopenOpportunitySchema,
   updateOpportunitySchema,
@@ -25,12 +26,18 @@ export function createOpportunitiesRouter(controller: OpportunitiesController): 
 
   router.get("/", requirePermission("opportunities:read"), validate({ query: opportunityListQuerySchema }), controller.list);
   router.get("/form-options", requirePermission("opportunities:read"), controller.formOptions);
+  router.get(
+    "/pipeline-summary",
+    requirePermission("opportunities:read"),
+    validate({ query: opportunityListQuerySchema }),
+    controller.pipelineSummary,
+  );
   router.post("/", requirePermission("opportunities:create"), validate({ body: createOpportunitySchema }), controller.create);
 
   router.get(
     "/:id",
     requirePermission("opportunities:read"),
-    validate({ params: opportunityIdParamSchema }),
+    validate({ params: opportunityIdParamSchema, query: opportunityRecordQuerySchema }),
     controller.get,
   );
   router.patch(

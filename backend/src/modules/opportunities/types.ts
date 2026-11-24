@@ -45,3 +45,38 @@ export const STAGE_DEFAULT_PROBABILITY: Record<OpportunityStageValue, number> = 
   WON: 100,
   LOST: 0,
 };
+
+export interface OpportunityStageSummary {
+  stage: OpportunityStageValue;
+  count: number;
+  value: string;
+  weightedValue: string;
+}
+
+export interface OpportunityCloseForecast {
+  month: string;
+  count: number;
+  value: string;
+}
+
+export interface OpportunityLostReasonSummary {
+  reason: OpportunityLostReasonValue;
+  count: number;
+  value: string;
+}
+
+export interface OpportunityPipelineSummary {
+  currency: string;
+  totals: {
+    openDeals: number;
+    openValue: string;
+    weightedValue: string;
+    wonDeals: number;
+    wonValue: string;
+    lostDeals: number;
+    lostValue: string;
+  };
+  stages: OpportunityStageSummary[];
+  forecast: OpportunityCloseForecast[];
+  lostReasons: OpportunityLostReasonSummary[];
+}
