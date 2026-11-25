@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FormField } from "@/components/forms/FormField.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
@@ -22,12 +22,14 @@ import {
 
 export default function QuoteFormPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
+  const requestedCustomerId = searchParams.get("customerId") ?? "";
   const existing = useQuery({ queryKey: ["quotes", id], queryFn: () => getQuote(id as string), enabled: isEdit });
   const formOptions = useQuery({ queryKey: ["quotes", "form-options"], queryFn: getQuoteFormOptions });
 
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(requestedCustomerId);
   const [ownerUserId, setOwnerUserId] = useState("");
   const [issueDate, setIssueDate] = useState(today());
   const [validUntil, setValidUntil] = useState("");
@@ -40,6 +42,22 @@ export default function QuoteFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ customerId?: string; lines?: string }>({});
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (isEdit || !requestedCustomerId) {
+      return;
+    }
+    const customer = formOptions.data?.customers.find((item) => item.id === requestedCustomerId);
+    if (customer) {
+      setCustomerId(customer.id);
+      setCurrencyCode((current) => (current === "PKR" ? customer.currencyCode : current));
+      if (customer.paymentTermId) {
+        setPaymentTermId((current) => current || customer.paymentTermId || "");
+      }
+    } else if (!customerId) {
+      setCustomerId(requestedCustomerId);
+    }
+  }, [customerId, formOptions.data, isEdit, requestedCustomerId]);
 
   useEffect(() => {
     if (!existing.data) {

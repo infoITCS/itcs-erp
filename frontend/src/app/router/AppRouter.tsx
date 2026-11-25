@@ -19,6 +19,8 @@ const OpportunityFormPage = lazy(() => import("@/features/opportunities/form-pag
 const OpportunityDetailPage = lazy(() => import("@/features/opportunities/detail-page.tsx"));
 const TenderFormPage = lazy(() => import("@/features/tenders/form-page.tsx"));
 const TenderDetailPage = lazy(() => import("@/features/tenders/detail-page.tsx"));
+const ProjectFormPage = lazy(() => import("@/features/projects/form-page.tsx"));
+const ProjectDetailPage = lazy(() => import("@/features/projects/detail-page.tsx"));
 const QuoteFormPage = lazy(() => import("@/features/quotes/form-page.tsx"));
 const QuoteDetailPage = lazy(() => import("@/features/quotes/detail-page.tsx"));
 const SalesOrderFormPage = lazy(() => import("@/features/sales-orders/form-page.tsx"));
@@ -236,6 +238,36 @@ export function AppRouter() {
                 <Suspense fallback={<PageLoading />}>
                   <RequirePermission permission="tenders:read">
                     <TenderDetailPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/projects/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="projects:create">
+                    <ProjectFormPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/projects/:id/edit"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="projects:update">
+                    <ProjectFormPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/projects/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="projects:read">
+                    <ProjectDetailPage />
                   </RequirePermission>
                 </Suspense>
               }

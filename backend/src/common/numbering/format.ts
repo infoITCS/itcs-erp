@@ -14,6 +14,7 @@ export const DOCUMENT_PREFIX: Record<DocumentType, string> = {
   RESELLER: "RSL",
   OPPORTUNITY: "OPP",
   LEAD: "LEAD",
+  PROJECT: "PRJ",
 };
 
 export const DOCUMENT_TYPES = Object.keys(DOCUMENT_PREFIX) as DocumentType[];

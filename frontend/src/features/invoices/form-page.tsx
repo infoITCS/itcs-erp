@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FormField } from "@/components/forms/FormField.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
@@ -19,15 +19,29 @@ import {
   formatMoney,
   type DocumentLineInput,
 } from "../sales/shared.tsx";
+import { getProject, getProjectActivity, updateProject } from "../projects/api.ts";
 
 export default function InvoiceFormPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
+  const requestedCustomerId = searchParams.get("customerId") ?? "";
+  const projectId = searchParams.get("projectId") ?? "";
   const existing = useQuery({ queryKey: ["invoices", id], queryFn: () => getInvoice(id as string), enabled: isEdit });
   const formOptions = useQuery({ queryKey: ["invoices", "form-options"], queryFn: getInvoiceFormOptions });
+  const project = useQuery({
+    queryKey: ["projects", projectId],
+    queryFn: () => getProject(projectId),
+    enabled: Boolean(projectId) && !isEdit,
+  });
+  const projectActivity = useQuery({
+    queryKey: ["projects", projectId, "activity"],
+    queryFn: () => getProjectActivity(projectId),
+    enabled: Boolean(projectId) && !isEdit,
+  });
 
-  const [customerId, setCustomerId] = useState("");
+  const [customerId, setCustomerId] = useState(requestedCustomerId);
   const [ownerUserId, setOwnerUserId] = useState("");
   const [issueDate, setIssueDate] = useState(today());
   const [dueDate, setDueDate] = useState("");
@@ -70,6 +84,57 @@ export default function InvoiceFormPage() {
       })),
     );
   }, [existing.data]);
+
+  useEffect(() => {
+    if (isEdit || !requestedCustomerId || projectId) {
+      return;
+    }
+    setCustomerId(requestedCustomerId);
+  }, [isEdit, projectId, requestedCustomerId]);
+
+  useEffect(() => {
+    if (isEdit || projectId) {
+      return;
+    }
+    const customer = formOptions.data?.customers.find((item) => item.id === customerId);
+    if (!customer) {
+      return;
+    }
+    setCurrencyCode(customer.currencyCode);
+    setPaymentTermId(customer.paymentTermId ?? "");
+  }, [customerId, formOptions.data, isEdit, projectId]);
+
+  useEffect(() => {
+    const linkedProject = project.data;
+    if (isEdit || !linkedProject) {
+      return;
+    }
+    const nextCustomerId = linkedProject.customerId ?? requestedCustomerId;
+    const customer = formOptions.data?.customers.find((item) => item.id === nextCustomerId);
+    setCustomerId(nextCustomerId);
+    setCurrencyCode(linkedProject.currencyCode);
+    setOwnerUserId(linkedProject.ownerUserId ?? "");
+    setPaymentTermId(customer?.paymentTermId ?? "");
+    setDueDate(linkedProject.dueDate ? linkedProject.dueDate.slice(0, 10) : "");
+    setCustomerReference(`${linkedProject.projectNumber} · ${linkedProject.name}`.slice(0, 120));
+    setNotes([linkedProject.description, linkedProject.notes].filter(Boolean).join("\n\n").slice(0, 4000));
+    const sourceItem =
+      [...(projectActivity.data?.groups.salesOrder.items ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0] ??
+      [...(projectActivity.data?.groups.quote.items ?? [])].sort((a, b) => b.date.localeCompare(a.date))[0];
+    const sourceAmount = Number(sourceItem?.amount ?? 0);
+    if (sourceAmount > 0) {
+      setLines([
+        {
+          productName: linkedProject.name,
+          description: `${linkedProject.projectNumber} · ${linkedProject.name} · ${sourceItem?.number ?? "source document"}`.slice(0, 120),
+          quantity: "1",
+          unitPrice: sourceAmount.toFixed(4),
+          discountPercent: "0",
+          taxRate: "0",
+        },
+      ]);
+    }
+  }, [formOptions.data, isEdit, project.data, projectActivity.data, requestedCustomerId]);
 
   const selectedCustomer = formOptions.data?.customers.find((item) => item.id === customerId);
   const pricesIncludeTax = Boolean(selectedCustomer?.pricesIncludeTax);
@@ -128,6 +193,9 @@ export default function InvoiceFormPage() {
         return;
       }
       const created = await createInvoice(body);
+      if (projectId) {
+        await updateProject(projectId, { invoiceId: created.id }).catch(() => undefined);
+      }
       navigate(`/invoices/${created.id}`);
     } catch (submitError) {
       setError(getApiErrorMessage(submitError));
@@ -148,6 +216,45 @@ export default function InvoiceFormPage() {
           Invoices are created in draft. Send them from the detail page when they are ready.
         </p>
       </div>
+
+      {projectId && !isEdit ? (
+        <p className="rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">
+          Project context:{" "}
+          {project.data ? `${project.data.projectNumber} · ${project.data.name}` : "Loading linked project…"}
+        </p>
+      ) : null}
+
+      {formOptions.isLoading || project.isLoading ? (
+        <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          Loading customers, products, taxes, and project details…
+        </p>
+      ) : null}
+
+      {formOptions.isError ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <span>Could not load form data: {getApiErrorMessage(formOptions.error)}</span>
+          <button
+            type="button"
+            className="rounded-md border border-red-300 px-2 py-1 text-xs font-semibold hover:bg-red-100"
+            onClick={() => void formOptions.refetch()}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
+
+      {project.isError ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          <span>Could not load project details: {getApiErrorMessage(project.error)}</span>
+          <button
+            type="button"
+            className="rounded-md border border-red-300 px-2 py-1 text-xs font-semibold hover:bg-red-100"
+            onClick={() => void project.refetch()}
+          >
+            Retry
+          </button>
+        </div>
+      ) : null}
 
       {existing.isError ? <p className="text-sm text-red-700">{getApiErrorMessage(existing.error)}</p> : null}
       {error ? (
@@ -298,7 +405,12 @@ export default function InvoiceFormPage() {
           >
             Cancel
           </Link>
-          <Button type="button" className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy} onClick={submit}>
+          <Button
+            type="button"
+            className="h-9 bg-brand-800 hover:bg-brand-900"
+            disabled={busy || formOptions.isLoading || project.isLoading || formOptions.isError || project.isError}
+            onClick={submit}
+          >
             {busy ? "Saving…" : id ? "Save changes" : "Create invoice"}
           </Button>
         </div>

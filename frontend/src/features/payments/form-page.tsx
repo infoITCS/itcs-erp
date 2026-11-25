@@ -21,6 +21,8 @@ export default function PaymentFormPage() {
   const navigate = useNavigate();
   const isEdit = Boolean(id);
   const requestedInvoiceId = searchParams.get("invoiceId") ?? "";
+  const requestedCustomerId = searchParams.get("customerId") ?? "";
+  const projectId = searchParams.get("projectId") ?? "";
 
   const existing = useQuery({ queryKey: ["payments", id], queryFn: () => getPayment(id as string), enabled: isEdit });
   const formOptions = useQuery({ queryKey: ["payments", "form-options"], queryFn: getPaymentFormOptions });
@@ -47,6 +49,16 @@ export default function PaymentFormPage() {
     setReference(payment.reference ?? "");
     setNotes(payment.notes ?? "");
   }, [existing.data]);
+
+  useEffect(() => {
+    if (isEdit || requestedInvoiceId || !requestedCustomerId) {
+      return;
+    }
+    const invoice = formOptions.data?.invoices.find((item) => item.customerId === requestedCustomerId && Number(item.balance) > 0);
+    if (invoice) {
+      setInvoiceId(invoice.id);
+    }
+  }, [formOptions.data, isEdit, requestedCustomerId, requestedInvoiceId]);
 
   useEffect(() => {
     if (isEdit) {
@@ -131,6 +143,12 @@ export default function PaymentFormPage() {
           Receipts are applied to one invoice and update its paid amount and status automatically.
         </p>
       </div>
+
+      {projectId && !isEdit ? (
+        <p className="rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800">
+          Project context: choose the invoice this receipt should be applied to.
+        </p>
+      ) : null}
 
       {existing.isError ? <p className="text-sm text-red-700">{getApiErrorMessage(existing.error)}</p> : null}
       {error ? (

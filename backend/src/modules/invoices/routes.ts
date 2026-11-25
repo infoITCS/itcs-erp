@@ -2,7 +2,7 @@ import { Router } from "express";
 import { listQuerySchema } from "../../common/pagination/list-query";
 import { validate } from "../../common/validation/validate";
 import { authenticate } from "../../middleware/authenticate";
-import { requirePermission } from "../../middleware/authorize";
+import { requireAnyPermission, requirePermission } from "../../middleware/authorize";
 import type { InvoicesController } from "./controller";
 import {
   changeInvoiceStatusSchema,
@@ -17,7 +17,7 @@ export function createInvoicesRouter(controller: InvoicesController): Router {
   router.use(authenticate);
 
   router.get("/", requirePermission("invoices:read"), validate({ query: invoiceListQuerySchema }), controller.list);
-  router.get("/form-options", requirePermission("invoices:read"), controller.formOptions);
+  router.get("/form-options", requireAnyPermission("invoices:read", "invoices:create"), controller.formOptions);
   router.post(
     "/",
     requirePermission("invoices:create"),
