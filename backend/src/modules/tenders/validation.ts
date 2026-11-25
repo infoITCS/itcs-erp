@@ -25,12 +25,13 @@ const moneyAmount = z
 const dateOnly = z.iso.date();
 const dateTime = z.iso.datetime();
 const tenderStatus = z.enum(TENDER_STATUSES);
+const initialTenderStatus = z.enum(["DRAFT", "OPEN"]);
 
 export const createTenderSchema = z.strictObject({
   title: z.string().trim().min(1).max(200),
   description: optionalText(4000),
   referenceNumber: optionalText(120),
-  status: tenderStatus.optional(),
+  status: initialTenderStatus.optional(),
   customerId: z.uuid(),
   contactId: z.uuid().optional(),
   ownerUserId: z.uuid().optional(),

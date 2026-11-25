@@ -5,6 +5,7 @@ import { buildTenderListWhere } from "../src/modules/tenders/list-filter";
 import { decodeTenderCursor, encodeTenderCursor, toTenderPage } from "../src/modules/tenders/page";
 import { TendersService } from "../src/modules/tenders/service";
 import { createTenderSchema, tenderListQuerySchema, updateTenderSchema } from "../src/modules/tenders/validation";
+import { canTransitionTender, isTerminalTenderStatus } from "../src/modules/tenders/workflow";
 
 const orgId = "8d6c1b2a-4e3f-4a1b-9c2d-1a2b3c4d5e6f";
 const actorId = "6f0b9c3e-1c0a-4f0a-9c1e-6d5b2a9e8f11";
@@ -43,6 +44,7 @@ describe("tender validation", () => {
       createTenderSchema.safeParse({ ...validTender, status: "PENDING" }).success,
       false,
     );
+    assert.equal(createTenderSchema.safeParse({ ...validTender, status: "WON" }).success, false);
     assert.equal(updateTenderSchema.safeParse({}).success, false);
     assert.equal(updateTenderSchema.safeParse({ status: "SUBMITTED" }).success, true);
   });
@@ -54,6 +56,24 @@ describe("tender validation", () => {
     if (parsed.success) {
       assert.equal(parsed.data.includeDeleted, true);
     }
+  });
+});
+
+describe("tender workflow", () => {
+  it("allows only forward tender transitions", () => {
+    assert.equal(canTransitionTender("DRAFT", "OPEN"), true);
+    assert.equal(canTransitionTender("OPEN", "SUBMITTED"), true);
+    assert.equal(canTransitionTender("SUBMITTED", "WON"), true);
+    assert.equal(canTransitionTender("DRAFT", "WON"), false);
+    assert.equal(canTransitionTender("WON", "LOST"), false);
+    assert.equal(canTransitionTender("WON", "WON"), true);
+  });
+
+  it("treats outcome statuses as terminal", () => {
+    assert.equal(isTerminalTenderStatus("WON"), true);
+    assert.equal(isTerminalTenderStatus("LOST"), true);
+    assert.equal(isTerminalTenderStatus("CANCELLED"), true);
+    assert.equal(isTerminalTenderStatus("SUBMITTED"), false);
   });
 });
 
@@ -177,6 +197,24 @@ describe("tender service", () => {
     } catch (error) {
       const errors = (error as { errors?: Record<string, string[]> }).errors;
       assert.ok(errors?.contactId?.[0]?.includes("belongs to the linked customer"));
+    }
+  });
+
+  it("rejects an invalid status transition", async () => {
+    const service = new TendersService(
+      {
+        async findById() {
+          return { id: tenderId, status: "DRAFT" };
+        },
+      } as never,
+      recorder([]),
+    );
+    try {
+      await service.update(orgId, actorId, tenderId, { status: "WON" }, meta);
+      assert.fail("expected a validation error");
+    } catch (error) {
+      const errors = (error as { errors?: Record<string, string[]> }).errors;
+      assert.ok(errors?.status?.[0]?.includes("Cannot move a tender from DRAFT to WON"));
     }
   });
 

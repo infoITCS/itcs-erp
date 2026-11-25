@@ -1,10 +1,22 @@
 import { CLOSED_TENDER_STATUSES, type TenderStatus } from "./api.ts";
 
+export type TenderStatusTone = "slate" | "brand" | "blue" | "emerald" | "amber" | "rose";
+
 export function statusLabel(status: string): string {
   return status
     .split("_")
     .map((part) => part[0] + part.slice(1).toLowerCase())
     .join(" ");
+}
+
+export function tenderActionLabel(action: string): string {
+  const labels: Record<string, string> = {
+    "tenders.created": "Tender created",
+    "tenders.updated": "Tender updated",
+    "tenders.deleted": "Tender deleted",
+    "tenders.restored": "Tender restored",
+  };
+  return labels[action] ?? statusLabel(action.replace(/\./g, "_"));
 }
 
 export function formatMoney(amount: string, currency: string): string {
@@ -52,6 +64,32 @@ export function toLocalDateTimeInput(value: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+export function tenderStatusTone(status: TenderStatus): TenderStatusTone {
+  switch (status) {
+    case "OPEN":
+      return "brand";
+    case "SUBMITTED":
+      return "blue";
+    case "WON":
+      return "emerald";
+    case "LOST":
+      return "rose";
+    case "CANCELLED":
+      return "slate";
+    default:
+      return "slate";
+  }
+}
+
+const badgeStyles: Record<TenderStatusTone, { badge: string; dot: string }> = {
+  brand: { badge: "bg-brand-50 text-brand-800 ring-brand-200", dot: "bg-brand-600" },
+  blue: { badge: "bg-blue-50 text-blue-800 ring-blue-200", dot: "bg-blue-600" },
+  emerald: { badge: "bg-emerald-50 text-emerald-800 ring-emerald-200", dot: "bg-emerald-500" },
+  amber: { badge: "bg-amber-50 text-amber-800 ring-amber-200", dot: "bg-amber-500" },
+  rose: { badge: "bg-rose-50 text-rose-800 ring-rose-200", dot: "bg-rose-500" },
+  slate: { badge: "bg-slate-100 text-slate-700 ring-slate-200", dot: "bg-slate-400" },
+};
+
 export function TenderStatusBadge({
   status,
   deleted = false,
@@ -61,34 +99,17 @@ export function TenderStatusBadge({
 }) {
   if (deleted) {
     return (
-      <span className="inline-flex whitespace-nowrap rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-        Deleted
+      <span className="inline-flex whitespace-nowrap items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
+        <span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Deleted
       </span>
     );
   }
-  const tone = statusTone(status);
+  const tone = badgeStyles[tenderStatusTone(status)];
   return (
     <span
-      className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${tone}`}
+      className={`inline-flex whitespace-nowrap items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ring-1 ring-inset ${tone.badge}`}
     >
-      {statusLabel(status)}
+      <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} /> {statusLabel(status)}
     </span>
   );
-}
-
-function statusTone(status: TenderStatus): string {
-  switch (status) {
-    case "OPEN":
-      return "bg-brand-50 text-brand-800 ring-brand-200";
-    case "SUBMITTED":
-      return "bg-blue-50 text-blue-800 ring-blue-200";
-    case "WON":
-      return "bg-emerald-50 text-emerald-800 ring-emerald-200";
-    case "LOST":
-      return "bg-amber-50 text-amber-800 ring-amber-200";
-    case "CANCELLED":
-      return "bg-slate-100 text-slate-600 ring-slate-200";
-    default:
-      return "bg-slate-100 text-slate-700 ring-slate-200";
-  }
 }

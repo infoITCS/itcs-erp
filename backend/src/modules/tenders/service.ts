@@ -7,6 +7,7 @@ import { toTenderPage, type TenderSort } from "./page";
 import type { TendersRepository } from "./repository";
 import { TENDERS_MODULE, TENDER_STATUSES } from "./types";
 import type { CreateTenderInput, TenderListQuery, UpdateTenderInput } from "./validation";
+import { canTransitionTender } from "./workflow";
 
 export class TendersService {
   constructor(
@@ -101,6 +102,11 @@ export class TendersService {
 
   async update(organizationId: string, actorId: string, id: string, input: UpdateTenderInput, meta: RequestMeta) {
     const existing = await this.get(organizationId, id);
+    if (input.status && input.status !== existing.status && !canTransitionTender(existing.status, input.status)) {
+      throw new ValidationFailedError({
+        status: [`Cannot move a tender from ${existing.status} to ${input.status}`],
+      });
+    }
     if (input.currencyCode) {
       await this.requireCurrency(input.currencyCode);
     }
