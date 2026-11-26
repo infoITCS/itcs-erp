@@ -1,0 +1,19 @@
+ALTER TYPE "vendor_payment_method" ADD VALUE IF NOT EXISTS 'BANK_TRANSFER';
+ALTER TYPE "vendor_payment_method" ADD VALUE IF NOT EXISTS 'CASH';
+ALTER TYPE "vendor_payment_method" ADD VALUE IF NOT EXISTS 'CHECK';
+ALTER TYPE "vendor_payment_method" ADD VALUE IF NOT EXISTS 'CHEQUE';
+ALTER TYPE "vendor_payment_method" ADD VALUE IF NOT EXISTS 'MOBILE_WALLET';
+ALTER TYPE "vendor_payment_method" ADD VALUE IF NOT EXISTS 'ONLINE';
+ALTER TYPE "vendor_payment_method" ADD VALUE IF NOT EXISTS 'OTHER';
+
+ALTER TYPE "inventory_movement_type" ADD VALUE IF NOT EXISTS 'PURCHASE_RECEIPT';
+ALTER TYPE "inventory_movement_type" ADD VALUE IF NOT EXISTS 'PURCHASE_RETURN';
+ALTER TYPE "inventory_movement_type" ADD VALUE IF NOT EXISTS 'ADJUSTMENT';
+ALTER TYPE "inventory_movement_type" ADD VALUE IF NOT EXISTS 'PURCHASE';
+ALTER TYPE "inventory_movement_type" ADD VALUE IF NOT EXISTS 'SALE';
+ALTER TYPE "inventory_movement_type" ADD VALUE IF NOT EXISTS 'ADJUSTMENT_IN';
+ALTER TYPE "inventory_movement_type" ADD VALUE IF NOT EXISTS 'ADJUSTMENT_OUT';
+ALTER TYPE "inventory_movement_type" ADD VALUE IF NOT EXISTS 'RETURN_IN';
+ALTER TYPE "inventory_movement_type" ADD VALUE IF NOT EXISTS 'RETURN_OUT';
+ALTER TYPE "inventory_movement_type" ADD VALUE IF NOT EXISTS 'TRANSFER_IN';
+ALTER TYPE "inventory_movement_type" ADD VALUE IF NOT EXISTS 'TRANSFER_OUT';
