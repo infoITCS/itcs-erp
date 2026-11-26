@@ -292,6 +292,10 @@ export const ADMIN_PERMISSION_CODES = [...ERP_PERMISSION_CODES];
 
 export const READ_PERMISSION_CODES = ERP_PERMISSION_CODES.filter((code) => code.endsWith(":read"));
 
+export const SHARED_READ_PERMISSION_CODES = READ_PERMISSION_CODES.filter(
+  (code) => code !== "audit-logs:read",
+);
+
 export const PERMISSION_BY_CODE = new Map(
   ERP_PERMISSIONS.map((permission) => [
     permissionCode(permission.module, permission.action),
@@ -346,7 +350,7 @@ export const ROLE_PRESETS: RolePreset[] = [
     name: "Executive",
     description: "Company-wide visibility with high-level approvals and report exports.",
     permissions: uniqueCodes([
-      ...READ_PERMISSION_CODES,
+      ...SHARED_READ_PERMISSION_CODES,
       "reports:export",
       "quotes:approve",
       "sales-orders:approve",
@@ -360,7 +364,7 @@ export const ROLE_PRESETS: RolePreset[] = [
     name: "Operations Manager",
     description: "Runs day-to-day CRM, sales, procurement, inventory, and delivery operations.",
     permissions: uniqueCodes([
-      ...READ_PERMISSION_CODES,
+      ...SHARED_READ_PERMISSION_CODES,
       ...codesFor({
         leads: standardActions,
         customers: standardActions,
@@ -563,12 +567,12 @@ export const ROLE_PRESETS: RolePreset[] = [
     code: "auditor",
     name: "Auditor",
     description: "Read-only access across the business with audit and report visibility.",
-    permissions: uniqueCodes([...READ_PERMISSION_CODES, "reports:export"]),
+    permissions: uniqueCodes([...SHARED_READ_PERMISSION_CODES, "reports:export"]),
   },
   {
     code: "viewer",
     name: "Viewer",
     description: "Read-only access to every ERP module.",
-    permissions: [...READ_PERMISSION_CODES],
+    permissions: [...SHARED_READ_PERMISSION_CODES],
   },
 ];

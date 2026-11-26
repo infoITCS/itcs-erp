@@ -38,3 +38,15 @@ export function requireAnyPermission(...required: string[]) {
     next();
   };
 }
+
+export function requireAdministrator(req: Request, _res: Response, next: NextFunction): void {
+  if (!req.auth) {
+    next(new UnauthorizedError());
+    return;
+  }
+  if (!req.auth.roles?.includes("admin")) {
+    next(new ForbiddenError());
+    return;
+  }
+  next();
+}

@@ -354,13 +354,14 @@ enum ResellerStatus {
 /// Company boundary. Later operational tables will reference this id.
 /// One row is seeded now. This is not SaaS tenant isolation.
 model Organization {
-  id               String             @id @default(uuid()) @db.Uuid
-  code             String             @unique @db.VarChar(32)
-  name             String             @db.VarChar(200)
-  status           OrganizationStatus @default(ACTIVE)
-  baseCurrencyCode String             @map("base_currency_code") @db.Char(3)
-  createdAt        DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt        DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                    String             @id @default(uuid()) @db.Uuid
+  code                  String             @unique @db.VarChar(32)
+  name                  String             @db.VarChar(200)
+  status                OrganizationStatus @default(ACTIVE)
+  baseCurrencyCode      String             @map("base_currency_code") @db.Char(3)
+  auditLogRetentionDays Int                @default(365) @map("audit_log_retention_days")
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   baseCurrency           Currency                     @relation(fields: [baseCurrencyCode], references: [code])
   members                OrganizationMember[]

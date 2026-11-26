@@ -3,6 +3,19 @@ import { BaseRepository } from "../../common/database/base-repository";
 import { decodeCursor } from "../../common/pagination/cursor";
 import type { AuditEntry } from "./types";
 
+export interface AuditDateRange {
+  from?: Date;
+  to?: Date;
+}
+
+export interface AuditListFilter {
+  module?: string;
+  entityType?: string;
+  entityId?: string;
+  subjectId?: string;
+  dateRange?: AuditDateRange;
+}
+
 export class AuditLogsRepository extends BaseRepository {
   canPersist(): boolean {
     return true;
@@ -29,7 +42,7 @@ export class AuditLogsRepository extends BaseRepository {
     limit: number,
     cursor: string | undefined,
     organizationId: string,
-    filter: { module?: string; entityType?: string; entityId?: string; subjectId?: string } = {},
+    filter: AuditListFilter = {},
   ) {
     const decoded = cursor ? decodeCursor(cursor) : null;
     const and: Prisma.AuditLogWhereInput[] = [];
@@ -55,6 +68,14 @@ export class AuditLogsRepository extends BaseRepository {
     const rows = await this.db.auditLog.findMany({
       where: {
         organizationId,
+        ...(filter.dateRange
+          ? {
+              createdAt: {
+                ...(filter.dateRange.from ? { gte: filter.dateRange.from } : {}),
+                ...(filter.dateRange.to ? { lte: filter.dateRange.to } : {}),
+              },
+            }
+          : {}),
         ...(filter.module ? { module: filter.module } : {}),
         ...(filter.entityType ? { entityType: filter.entityType } : {}),
         ...(filter.entityId ? { entityId: filter.entityId } : {}),
@@ -77,6 +98,39 @@ export class AuditLogsRepository extends BaseRepository {
       },
     });
     return rows;
+  }
+
+  async getRetentionDays(organizationId: string): Promise<number> {
+    const organization = await this.db.organization.findUnique({
+      where: { id: organizationId },
+      select: { auditLogRetentionDays: true },
+    });
+    return organization?.auditLogRetentionDays ?? 365;
+  }
+
+  async setRetentionDays(organizationId: string, retentionDays: number): Promise<number> {
+    const updated = await this.db.organization.update({
+      where: { id: organizationId },
+      data: { auditLogRetentionDays: retentionDays },
+      select: { auditLogRetentionDays: true },
+    });
+    return updated.auditLogRetentionDays;
+  }
+
+  async listRetentionPolicies(): Promise<Array<{ id: string; auditLogRetentionDays: number }>> {
+    return this.db.organization.findMany({
+      select: { id: true, auditLogRetentionDays: true },
+    });
+  }
+
+  async purgeExpired(cutoff: Date, organizationId: string | null): Promise<number> {
+    const result = await this.db.auditLog.deleteMany({
+      where: {
+        createdAt: { lt: cutoff },
+        ...(organizationId ? { organizationId } : { organizationId: null }),
+      },
+    });
+    return result.count;
   }
 }
 

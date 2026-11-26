@@ -11,8 +11,8 @@ import { syncRbacCatalog } from "../src/modules/permissions/bootstrap";
 import {
   ADMIN_PERMISSION_CODES,
   ERP_PERMISSION_CODES,
-  READ_PERMISSION_CODES,
   ROLE_PRESETS,
+  SHARED_READ_PERMISSION_CODES,
 } from "../src/modules/permissions/catalog";
 import type { RolesRepository } from "../src/modules/roles/repository";
 import { RolesService } from "../src/modules/roles/service";
@@ -88,7 +88,12 @@ describe("permission catalog", () => {
     assert.ok(admin);
     assert.ok(viewer);
     assert.deepEqual([...admin.permissions].sort(), [...ERP_PERMISSION_CODES].sort());
-    assert.deepEqual([...viewer.permissions].sort(), [...READ_PERMISSION_CODES].sort());
+    assert.deepEqual([...viewer.permissions].sort(), [...SHARED_READ_PERMISSION_CODES].sort());
+    for (const role of ROLE_PRESETS) {
+      if (role.code !== "admin") {
+        assert.equal(role.permissions.includes("audit-logs:read"), false, `${role.code} has audit access`);
+      }
+    }
   });
 
   it("only references permissions that exist in the catalog", () => {
