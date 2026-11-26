@@ -124,6 +124,34 @@ export const navItems: NavItem[] = [
     page: lazy(() => import("@/features/purchasing/index.tsx")),
   },
   {
+    path: "/purchasing/orders",
+    label: "Purchase Orders",
+    group: "Supply",
+    permission: "purchasing:read",
+    page: lazy(() => import("@/features/purchasing/orders/index.tsx")),
+  },
+  {
+    path: "/purchasing/receipts",
+    label: "Goods Receipts",
+    group: "Supply",
+    permission: "purchasing:read",
+    page: lazy(() => import("@/features/purchasing/receipts/index.tsx")),
+  },
+  {
+    path: "/purchasing/bills",
+    label: "Vendor Bills",
+    group: "Supply",
+    permission: "purchasing:read",
+    page: lazy(() => import("@/features/purchasing/bills/index.tsx")),
+  },
+  {
+    path: "/purchasing/payments",
+    label: "Vendor Payments",
+    group: "Supply",
+    permission: "purchasing:read",
+    page: lazy(() => import("@/features/purchasing/payments/index.tsx")),
+  },
+  {
     path: "/vendors",
     label: "Vendors",
     group: "Supply",
@@ -136,6 +164,13 @@ export const navItems: NavItem[] = [
     group: "Supply",
     permission: "inventory:read",
     page: lazy(() => import("@/features/inventory/index.tsx")),
+  },
+  {
+    path: "/inventory/movements",
+    label: "Stock Movements",
+    group: "Supply",
+    permission: "inventory:read",
+    page: lazy(() => import("@/features/inventory/movements.tsx")),
   },
   {
     path: "/accounting",

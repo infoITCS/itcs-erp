@@ -29,6 +29,29 @@ const InvoiceFormPage = lazy(() => import("@/features/invoices/form-page.tsx"));
 const InvoiceDetailPage = lazy(() => import("@/features/invoices/detail-page.tsx"));
 const PaymentFormPage = lazy(() => import("@/features/payments/form-page.tsx"));
 const PaymentDetailPage = lazy(() => import("@/features/payments/detail-page.tsx"));
+const VendorFormPage = lazy(() => import("@/features/vendors/form-page.tsx"));
+const VendorDetailPage = lazy(() => import("@/features/vendors/detail-page.tsx"));
+const PurchaseOrdersPage = lazy(() => import("@/features/purchasing/orders/index.tsx"));
+const PurchaseOrderFormPage = lazy(() => import("@/features/purchasing/orders/form-page.tsx"));
+const PurchaseOrderDetailPage = lazy(() => import("@/features/purchasing/orders/detail-page.tsx"));
+const GoodsReceiptsPage = lazy(() => import("@/features/purchasing/receipts/index.tsx"));
+const GoodsReceiptFormPage = lazy(() => import("@/features/purchasing/receipts/form-page.tsx"));
+const GoodsReceiptDetailPage = lazy(() => import("@/features/purchasing/receipts/detail-page.tsx"));
+const VendorBillsPage = lazy(() => import("@/features/purchasing/bills/index.tsx"));
+const VendorBillFormPage = lazy(() => import("@/features/purchasing/bills/form-page.tsx"));
+const VendorBillDetailPage = lazy(() => import("@/features/purchasing/bills/detail-page.tsx"));
+const VendorPaymentsPage = lazy(() => import("@/features/purchasing/payments/index.tsx"));
+const VendorPaymentFormPage = lazy(() => import("@/features/purchasing/payments/form-page.tsx"));
+const VendorPaymentDetailPage = lazy(() => import("@/features/purchasing/payments/detail-page.tsx"));
+const StockMovementsPage = lazy(() => import("@/features/inventory/movements.tsx"));
+
+const explicitlyRoutedPaths = new Set([
+  "/purchasing/orders",
+  "/purchasing/receipts",
+  "/purchasing/bills",
+  "/purchasing/payments",
+  "/inventory/movements",
+]);
 
 function PageLoading() {
   return <p className="text-sm text-slate-500">Loading page…</p>;
@@ -75,23 +98,25 @@ export function AppRouter() {
         />
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
-            {navItems.map((item) => (
-              <Route
-                key={item.path}
-                path={item.path}
-                element={
-                  <Suspense fallback={<PageLoading />}>
-                    {item.permission ? (
-                      <RequirePermission permission={item.permission}>
+            {navItems
+              .filter((item) => !explicitlyRoutedPaths.has(item.path))
+              .map((item) => (
+                <Route
+                  key={item.path}
+                  path={item.path}
+                  element={
+                    <Suspense fallback={<PageLoading />}>
+                      {item.permission ? (
+                        <RequirePermission permission={item.permission}>
+                          <item.page />
+                        </RequirePermission>
+                      ) : (
                         <item.page />
-                      </RequirePermission>
-                    ) : (
-                      <item.page />
-                    )}
-                  </Suspense>
-                }
-              />
-            ))}
+                      )}
+                    </Suspense>
+                  }
+                />
+              ))}
             <Route
               path="/customers/new"
               element={
@@ -418,6 +443,196 @@ export function AppRouter() {
                 <Suspense fallback={<PageLoading />}>
                   <RequirePermission permission="payments:read">
                     <PaymentDetailPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/vendors/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="vendors:create">
+                    <VendorFormPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/vendors/:id/edit"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="vendors:update">
+                    <VendorFormPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/vendors/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="vendors:read">
+                    <VendorDetailPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/orders"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:read">
+                    <PurchaseOrdersPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/orders/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:create">
+                    <PurchaseOrderFormPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/orders/:id/edit"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:update">
+                    <PurchaseOrderFormPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/orders/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:read">
+                    <PurchaseOrderDetailPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/receipts"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:read">
+                    <GoodsReceiptsPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/receipts/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:create">
+                    <GoodsReceiptFormPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/receipts/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:read">
+                    <GoodsReceiptDetailPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/bills"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:read">
+                    <VendorBillsPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/bills/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:create">
+                    <VendorBillFormPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/bills/:id/edit"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:update">
+                    <VendorBillFormPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/bills/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:read">
+                    <VendorBillDetailPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/payments"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:read">
+                    <VendorPaymentsPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/payments/new"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:create">
+                    <VendorPaymentFormPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/payments/:id/edit"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:update">
+                    <VendorPaymentFormPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/purchasing/payments/:id"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="purchasing:read">
+                    <VendorPaymentDetailPage />
+                  </RequirePermission>
+                </Suspense>
+              }
+            />
+            <Route
+              path="/inventory/movements"
+              element={
+                <Suspense fallback={<PageLoading />}>
+                  <RequirePermission permission="inventory:read">
+                    <StockMovementsPage />
                   </RequirePermission>
                 </Suspense>
               }
