@@ -1,7 +1,6 @@
 import { http } from "@/lib/http.ts";
 import type { ApiSuccess } from "@/types/api.ts";
 import type {
-  AuditEvent,
   CurrencyRef,
   CustomerOption,
   DocumentLine,
@@ -172,8 +171,4 @@ export function changeQuoteStatus(id: string, status: QuoteStatus): Promise<Quot
 
 export function convertQuoteToOrder(id: string): Promise<Quote> {
   return data(http.post(`/api/v1/quotes/${id}/convert-to-order`, {}));
-}
-
-export function listQuoteAudit(id: string): Promise<Page<AuditEvent>> {
-  return data(http.get(`/api/v1/quotes/${id}/audit`, { params: { limit: 20 } }));
 }

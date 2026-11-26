@@ -14,7 +14,6 @@ import {
   changeInvoiceStatus,
   deleteInvoice,
   getInvoice,
-  listInvoiceAudit,
   restoreInvoice,
   type InvoiceStatus,
 } from "./api.ts";
@@ -37,11 +36,6 @@ export default function InvoiceDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const invoice = useQuery({ queryKey: ["invoices", id], queryFn: () => getInvoice(id), enabled: Boolean(id) });
-  const audit = useQuery({
-    queryKey: ["invoices", id, "audit"],
-    queryFn: () => listInvoiceAudit(id),
-    enabled: Boolean(id),
-  });
   const payments = useQuery({
     queryKey: ["payments", { invoiceId: id }],
     queryFn: () => listPayments({ invoiceId: id, limit: 50 }),
@@ -108,7 +102,6 @@ export default function InvoiceDetailPage() {
   const allowedStatuses = INVOICE_STATUS_TRANSITIONS[row.status] ?? [];
   const canEdit = canUpdate && row.status === "DRAFT" && !row.deletedAt;
   const lines = row.lines ?? [];
-  const auditRows = audit.data?.items ?? [];
   const paymentRows = payments.data?.items ?? [];
   const balance = Number(row.total) - Number(row.amountPaid);
   const canReceivePayment = canCreatePayment && ["SENT", "PARTIALLY_PAID", "OVERDUE"].includes(row.status);
@@ -316,25 +309,6 @@ export default function InvoiceDetailPage() {
                 </li>
               ))}
             </ul>
-          </Panel>
-
-          <Panel title="Activity">
-            {audit.isPending ? <p className="text-sm text-slate-500">Loading activity…</p> : null}
-            {audit.isError ? <p className="text-sm text-red-700">{getApiErrorMessage(audit.error)}</p> : null}
-            {!audit.isPending && !audit.isError && auditRows.length === 0 ? (
-              <p className="text-sm text-slate-500">No activity recorded yet.</p>
-            ) : null}
-            <ol className="flex flex-col gap-3">
-              {auditRows.map((event) => (
-                <li key={event.id} className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-600" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800">{event.action.replaceAll(".", " ")}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">{new Date(event.createdAt).toLocaleString()}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
           </Panel>
         </div>
       </div>

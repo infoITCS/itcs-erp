@@ -16,7 +16,6 @@ import {
   deleteCustomer,
   getCustomer,
   listContacts,
-  listCustomerAudit,
   updateAddress,
   updateContact,
   type AddressWrite,
@@ -51,7 +50,6 @@ export default function CustomerDetailPage() {
   const [confirmBusy, setConfirmBusy] = useState(false);
   const customer = useQuery({ queryKey: ["customers", id], queryFn: () => getCustomer(id) });
   const contacts = useQuery({ queryKey: ["customers", id, "contacts"], queryFn: () => listContacts(id) });
-  const audit = useQuery({ queryKey: ["customers", id, "audit"], queryFn: () => listCustomerAudit(id) });
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["customers", id] });
@@ -248,27 +246,6 @@ export default function CustomerDetailPage() {
             </aside>
           </div>
 
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm md:p-7">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base font-bold tracking-tight text-slate-950">Recent activity</h2>
-                <p className="mt-1 text-xs text-slate-500">Latest changes to this account</p>
-              </div>
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-slate-600">{audit.data?.items.length ?? 0} events</span>
-            </div>
-            {audit.isPending ? <p className="mt-4 text-sm text-slate-500">Loading activity…</p> : null}
-            {audit.isError ? <p role="alert" className="mt-4 text-sm text-rose-700">{getApiErrorMessage(audit.error)}</p> : null}
-            {audit.data && audit.data.items.length === 0 ? <p className="mt-4 rounded-xl bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">No activity yet.</p> : null}
-            <ol className="mt-5 grid gap-x-8 gap-y-4 border-t border-slate-100 pt-5 md:grid-cols-2 xl:grid-cols-3">
-              {audit.data?.items.map((event) => (
-                <li key={event.id} className="relative border-l border-slate-200 pb-3 pl-4 last:pb-0">
-                  <span aria-hidden="true" className="absolute -left-1 top-1 h-2 w-2 rounded-full bg-brand-700 ring-4 ring-white" />
-                  <p className="text-sm font-semibold text-slate-800">{formatActivityAction(event.action)}</p>
-                  <time className="mt-1 block text-[11px] text-slate-500" dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time>
-                </li>
-              ))}
-            </ol>
-          </section>
         </>
       ) : null}
 
@@ -427,10 +404,6 @@ function customerTypeLabel(type: string): string {
 
 function labelFor(value: string): string {
   return value.toLowerCase().split("_").map((part) => part[0]?.toUpperCase() + part.slice(1)).join(" ");
-}
-
-function formatActivityAction(action: string): string {
-  return action.replace(/[._]/g, " ").split(/\s+/).map((part) => part[0]?.toUpperCase() + part.slice(1)).join(" ");
 }
 
 function AddressForm({

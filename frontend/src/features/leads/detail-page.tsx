@@ -18,7 +18,6 @@ import {
   leadPriorityLabel,
   leadSourceLabel,
   leadStatusLabel,
-  listLeadAudit,
   restoreLead,
   updateLead,
   type Lead,
@@ -43,16 +42,10 @@ export default function LeadDetailPage() {
   const [nextAction, setNextAction] = useState("");
   const [nextActionDueAt, setNextActionDueAt] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
-  const [auditCursors, setAuditCursors] = useState<Array<string | undefined>>([undefined]);
 
   const lead = useQuery({
     queryKey: ["leads", id, { includeDeleted: canSeeDeleted }],
     queryFn: () => getLead(id, canSeeDeleted),
-    enabled: Boolean(id),
-  });
-  const audit = useQuery({
-    queryKey: ["leads", id, "audit", auditCursors.at(-1), { includeDeleted: canSeeDeleted }],
-    queryFn: () => listLeadAudit(id, { cursor: auditCursors.at(-1), includeDeleted: canSeeDeleted }),
     enabled: Boolean(id),
   });
 
@@ -144,7 +137,6 @@ export default function LeadDetailPage() {
   const allowedStatuses = LEAD_STATUS_TRANSITIONS[row.status] ?? [];
   const canConvert = canUpdate && row.status === "QUALIFIED" && !row.deletedAt;
   const isMine = Boolean(user && row.ownerUserId === user.id);
-  const auditRows = audit.data?.items ?? [];
 
   function openStatusModal() {
     setTargetStatus("");
@@ -267,32 +259,6 @@ export default function LeadDetailPage() {
           {row.notes ? <Panel title="Internal notes" subtitle="Visible to your team only"><p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{row.notes}</p></Panel> : null}
         </div>
 
-        <Panel title="Activity" subtitle="Audit trail for this lead" action={
-          auditCursors.length > 1 ? <button type="button" className="text-[11px] font-semibold text-brand-800 hover:underline" onClick={() => setAuditCursors((current) => current.slice(0, -1))}>Newer</button> : null
-        }>
-          {audit.isPending ? <div className="space-y-3">{[0, 1, 2].map((item) => <div key={item} className="h-8 animate-pulse rounded bg-slate-100" />)}</div> : null}
-          {audit.isError ? <p className="text-sm text-rose-700">{getApiErrorMessage(audit.error)}</p> : null}
-          {!audit.isPending && !audit.isError && auditRows.length === 0 ? <p className="text-sm text-slate-500">No activity recorded yet.</p> : null}
-          <ol className="flex flex-col gap-4">
-            {auditRows.map((event) => (
-              <li key={event.id} className="flex gap-3">
-                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-600" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium capitalize text-slate-800">{formatActivityAction(event.action)}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">{new Date(event.createdAt).toLocaleString()}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-          {audit.data?.pageInfo.hasNextPage ? (
-            <button type="button" className="mt-4 w-full rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50" onClick={() => {
-              const next = audit.data?.pageInfo.nextCursor;
-              if (next) setAuditCursors((current) => [...current, next]);
-            }}>
-              Load older activity
-            </button>
-          ) : null}
-        </Panel>
       </div>
 
       <Modal
@@ -390,7 +356,7 @@ function Metric({ label, value, detail, icon, tone }: { label: string; value: st
   );
 }
 
-function Panel({ title, subtitle, action, children }: { title: string; subtitle?: string; action?: ReactNode; children: ReactNode }) {
+function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
       <div className="flex items-center justify-between gap-3 border-b border-slate-200/80 bg-slate-50/40 px-5 py-4">
@@ -398,7 +364,6 @@ function Panel({ title, subtitle, action, children }: { title: string; subtitle?
           <h2 className="text-sm font-bold text-slate-950">{title}</h2>
           {subtitle ? <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p> : null}
         </div>
-        {action}
       </div>
       <div className="p-5">{children}</div>
     </section>
@@ -447,10 +412,6 @@ function Icon({ name, className }: { name: IconName; className?: string }) {
     case "flag": return <Svg className={className}><path d="M4 22V4M4 5h13l-2 4 2 4H4" /></Svg>;
     case "calendar": return <Svg className={className}><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="16" y1="3" x2="16" y2="7" /><line x1="8" y1="3" x2="8" y2="7" /><line x1="3" y1="10" x2="21" y2="10" /></Svg>;
   }
-}
-
-function formatActivityAction(action: string): string {
-  return action.replaceAll(".", " ").replaceAll("_", " ").trim();
 }
 
 function toLocalInput(iso: string): string {

@@ -294,15 +294,6 @@ export interface ProductInterestUpdateWrite {
   sortOrder?: number;
 }
 
-export interface AuditEvent {
-  id: string;
-  action: string;
-  module: string;
-  entityType: string;
-  entityId: string | null;
-  createdAt: string;
-}
-
 function data<T>(promise: Promise<{ data: ApiSuccess<T> }>): Promise<T> {
   return promise.then((response) => response.data.data as T);
 }
@@ -402,8 +393,4 @@ export function updateProductInterest(
 
 export function deleteProductInterest(opportunityId: string, interestId: string): Promise<{ id: string; deleted: boolean }> {
   return data(http.delete(`/api/v1/opportunities/${opportunityId}/products/${interestId}`));
-}
-
-export function listOpportunityAudit(opportunityId: string): Promise<Page<AuditEvent>> {
-  return data(http.get(`/api/v1/opportunities/${opportunityId}/audit`, { params: { limit: 20 } }));
 }

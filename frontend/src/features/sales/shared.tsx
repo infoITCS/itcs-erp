@@ -6,15 +6,6 @@ export interface Page<T> {
   pageInfo: { limit: number; hasNextPage: boolean; nextCursor: string | null };
 }
 
-export interface AuditEvent {
-  id: string;
-  action: string;
-  module: string;
-  entityType: string;
-  entityId: string | null;
-  createdAt: string;
-}
-
 export interface OwnerRef {
   id: string;
   firstName: string;

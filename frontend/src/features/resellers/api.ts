@@ -149,16 +149,6 @@ export interface ContactWrite {
   notes?: string | null;
 }
 
-export interface AuditEvent {
-  id: string;
-  action: string;
-  module: string;
-  entityType: string;
-  entityId: string | null;
-  createdAt: string;
-  user?: { firstName?: string; lastName?: string; email?: string } | null;
-}
-
 function data<T>(promise: Promise<{ data: ApiSuccess<T> }>): Promise<T> {
   return promise.then((response) => response.data.data as T);
 }
@@ -233,8 +223,4 @@ export function assignCustomer(resellerId: string, customerId: string): Promise<
 
 export function unassignCustomer(resellerId: string, customerId: string): Promise<{ id: string }> {
   return data(http.delete<ApiSuccess<{ id: string }>>(`/api/v1/resellers/${resellerId}/customers/${customerId}`));
-}
-
-export function listResellerAudit(resellerId: string, params: { limit?: number; cursor?: string } = {}): Promise<Page<AuditEvent>> {
-  return data(http.get<ApiSuccess<Page<AuditEvent>>>(`/api/v1/resellers/${resellerId}/audit`, { params }));
 }

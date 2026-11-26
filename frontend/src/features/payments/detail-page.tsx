@@ -5,7 +5,7 @@ import { ConfirmDialog } from "@/components/modals/ConfirmDialog.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
-import { PAYMENT_METHOD_LABELS, deletePayment, getPayment, listPaymentAudit } from "./api.ts";
+import { PAYMENT_METHOD_LABELS, deletePayment, getPayment } from "./api.ts";
 import { Detail, Metric, Panel, StatusPill, formatDate, formatMoney } from "../sales/shared.tsx";
 
 export default function PaymentDetailPage() {
@@ -18,11 +18,6 @@ export default function PaymentDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const payment = useQuery({ queryKey: ["payments", id], queryFn: () => getPayment(id), enabled: Boolean(id) });
-  const audit = useQuery({
-    queryKey: ["payments", id, "audit"],
-    queryFn: () => listPaymentAudit(id),
-    enabled: Boolean(id),
-  });
 
   const remove = useMutation({
     mutationFn: () => deletePayment(id),
@@ -48,7 +43,6 @@ export default function PaymentDetailPage() {
   }
 
   const row = payment.data;
-  const auditRows = audit.data?.items ?? [];
   const invoice = row.invoice;
   const balance = invoice ? Number(invoice.total) - Number(invoice.amountPaid) : null;
 
@@ -165,25 +159,6 @@ export default function PaymentDetailPage() {
               <Detail label="Created" value={formatDate(row.createdAt)} />
               <Detail label="Updated" value={formatDate(row.updatedAt)} />
             </dl>
-          </Panel>
-
-          <Panel title="Activity">
-            {audit.isPending ? <p className="text-sm text-slate-500">Loading activity…</p> : null}
-            {audit.isError ? <p className="text-sm text-red-700">{getApiErrorMessage(audit.error)}</p> : null}
-            {!audit.isPending && !audit.isError && auditRows.length === 0 ? (
-              <p className="text-sm text-slate-500">No activity recorded yet.</p>
-            ) : null}
-            <ol className="flex flex-col gap-3">
-              {auditRows.map((event) => (
-                <li key={event.id} className="flex gap-3">
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-600" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-800">{event.action.replaceAll(".", " ")}</p>
-                    <p className="mt-0.5 text-xs text-slate-500">{new Date(event.createdAt).toLocaleString()}</p>
-                  </div>
-                </li>
-              ))}
-            </ol>
           </Panel>
         </div>
       </div>

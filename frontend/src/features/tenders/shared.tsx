@@ -9,17 +9,6 @@ export function statusLabel(status: string): string {
     .join(" ");
 }
 
-export function tenderActionLabel(action: string): string {
-  const labels: Record<string, string> = {
-    "tenders.created": "Tender created",
-    "tenders.updated": "Tender updated",
-    "tenders.deleted": "Tender deleted",
-    "tenders.restored": "Tender restored",
-    "tenders.converted_to_opportunity": "Converted to opportunity",
-  };
-  return labels[action] ?? statusLabel(action.replace(/\./g, "_"));
-}
-
 export function formatMoney(amount: string, currency: string): string {
   try {
     return new Intl.NumberFormat("en-US", {

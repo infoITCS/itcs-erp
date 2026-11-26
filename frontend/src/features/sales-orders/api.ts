@@ -1,7 +1,6 @@
 import { http } from "@/lib/http.ts";
 import type { ApiSuccess } from "@/types/api.ts";
 import type {
-  AuditEvent,
   CurrencyRef,
   CustomerOption,
   DocumentLine,
@@ -155,8 +154,4 @@ export function convertSalesOrderToInvoice(
   body: { issueDate?: string; dueDate?: string } = {},
 ): Promise<{ salesOrder: SalesOrder; invoice: InvoiceDraft }> {
   return data(http.post(`/api/v1/sales-orders/${id}/convert-to-invoice`, body));
-}
-
-export function listSalesOrderAudit(id: string): Promise<Page<AuditEvent>> {
-  return data(http.get(`/api/v1/sales-orders/${id}/audit`, { params: { limit: 20 } }));
 }

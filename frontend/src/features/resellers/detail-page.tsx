@@ -18,7 +18,6 @@ import {
   deleteReseller,
   getReseller,
   getResellerFormOptions,
-  listResellerAudit,
   listResellerCustomers,
   restoreReseller,
   unassignCustomer,
@@ -32,7 +31,7 @@ import {
 } from "./api.ts";
 import { countrySelectOptions } from "./options.ts";
 
-type Tab = "overview" | "addresses" | "contacts" | "customers" | "activity";
+type Tab = "overview" | "addresses" | "contacts" | "customers";
 type AddressTarget = ResellerAddress | "new" | null;
 type ContactTarget = ResellerContact | "new" | null;
 type PendingDelete =
@@ -46,7 +45,6 @@ const tabs: Array<{ id: Tab; label: string }> = [
   { id: "addresses", label: "Addresses" },
   { id: "contacts", label: "Contacts" },
   { id: "customers", label: "Customers" },
-  { id: "activity", label: "Activity" },
 ];
 
 export default function ResellerDetailPage() {
@@ -72,11 +70,6 @@ export default function ResellerDetailPage() {
     queryKey: ["resellers", id, "customers"],
     queryFn: () => listResellerCustomers(id, { limit: 100 }),
     enabled: Boolean(id),
-  });
-  const audit = useQuery({
-    queryKey: ["resellers", id, "audit"],
-    queryFn: () => listResellerAudit(id, { limit: 50 }),
-    enabled: tab === "activity",
   });
   const customerPicker = useQuery({
     queryKey: ["customers", "assign-picker"],
@@ -465,25 +458,6 @@ export default function ResellerDetailPage() {
                 </div>
               ) : null}
 
-              {tab === "activity" ? (
-                <div className="flex flex-col gap-4">
-                  <SectionHeader title="Audit trail" description="Configuration, contact and customer changes for this reseller." />
-                  {audit.isPending ? <p className="text-sm text-slate-500">Loading activity…</p> : null}
-                  {audit.isError ? <p role="alert" className="text-sm text-rose-700">{getApiErrorMessage(audit.error)}</p> : null}
-                  {audit.data?.items.length === 0 ? <EmptyState title="No activity yet" description="Changes will appear here as this reseller is maintained." /> : null}
-                  <ol className="relative border-l border-slate-200 pl-5">
-                    {(audit.data?.items ?? []).map((event) => (
-                      <li key={event.id} className="relative pb-5 last:pb-0">
-                        <span className="absolute -left-[27px] top-1.5 h-3 w-3 rounded-full border-2 border-white bg-brand-500 ring-1 ring-brand-200" />
-                        <p className="text-sm font-semibold text-slate-900">{event.action.split(".").join(" ")}</p>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {[event.user?.firstName, event.user?.lastName].filter(Boolean).join(" ") || event.user?.email || "System"} · {formatDate(event.createdAt)} · {event.entityType}
-                        </p>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              ) : null}
             </div>
           </section>
         </>

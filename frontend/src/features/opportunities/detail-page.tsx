@@ -21,7 +21,6 @@ import {
   deleteOpportunity,
   deleteProductInterest,
   getOpportunity,
-  listOpportunityAudit,
   listProductInterests,
   markOpportunityLost,
   markOpportunityWon,
@@ -81,7 +80,6 @@ export default function OpportunityDetailPage() {
     queryFn: () => getOpportunity(id, canSeeDeleted),
   });
   const interests = useQuery({ queryKey: ["opportunities", id, "products"], queryFn: () => listProductInterests(id) });
-  const audit = useQuery({ queryKey: ["opportunities", id, "audit"], queryFn: () => listOpportunityAudit(id) });
   const customerPicker = useQuery({
     queryKey: ["customers", "picker", "active"],
     queryFn: () => listCustomers({ limit: 100, status: "ACTIVE" }),
@@ -546,21 +544,6 @@ export default function OpportunityDetailPage() {
                   </li>
                 ),
               )}
-            </ul>
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <h2 className="text-lg font-semibold text-slate-900">Recent audit</h2>
-            {audit.isPending ? <p className="text-sm text-slate-500">Loading audit…</p> : null}
-            {(audit.data?.items ?? []).length === 0 && !audit.isPending ? (
-              <p className="text-sm text-slate-500">No audit events yet.</p>
-            ) : null}
-            <ul className="flex flex-col gap-1 text-sm text-slate-700">
-              {(audit.data?.items ?? []).map((event) => (
-                <li key={event.id}>
-                  {event.action} · {new Date(event.createdAt).toLocaleString()}
-                </li>
-              ))}
             </ul>
           </section>
 

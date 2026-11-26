@@ -223,15 +223,6 @@ export interface ContactWrite {
   notes?: string;
 }
 
-export interface AuditEvent {
-  id: string;
-  action: string;
-  module: string;
-  entityType: string;
-  entityId: string | null;
-  createdAt: string;
-}
-
 function data<T>(promise: Promise<{ data: ApiSuccess<T> }>): Promise<T> {
   return promise.then((response) => response.data.data as T);
 }
@@ -302,12 +293,4 @@ export function updateContact(id: string, body: Partial<ContactWrite>): Promise<
 
 export function deleteContact(id: string): Promise<{ id: string }> {
   return data(http.delete(`/api/v1/contacts/${id}`));
-}
-
-export function listCustomerAudit(customerId: string): Promise<Page<AuditEvent>> {
-  return data(
-    http.get("/api/v1/audit-logs", {
-      params: { subjectId: customerId, limit: 20 },
-    }),
-  );
 }

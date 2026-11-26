@@ -53,15 +53,6 @@ export function formatDateTime(value: string | null): string {
   });
 }
 
-export function projectActionLabel(action: string): string {
-  const labels: Record<string, string> = {
-    "projects.created": "Project created",
-    "projects.updated": "Project updated",
-    "projects.deleted": "Project deleted",
-  };
-  return labels[action] ?? statusLabel(action.replace(/\./g, "_"));
-}
-
 export function projectStatusTone(status: ProjectStatus): ProjectStatusTone {
   switch (status) {
     case "IN_PROGRESS":

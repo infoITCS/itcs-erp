@@ -8,7 +8,6 @@ import { getApiErrorMessage } from "@/utils/api-error.ts";
 import {
   deleteTender,
   getTender,
-  listTenderAudit,
   restoreTender,
   updateTender,
   type TenderOpportunityRef,
@@ -20,7 +19,6 @@ import {
   formatMoney,
   isDeadlineOverdue,
   statusLabel,
-  tenderActionLabel,
   TenderStatusBadge,
 } from "./shared.tsx";
 import {
@@ -31,7 +29,7 @@ import {
   tenderStageIndex,
 } from "./workflow.ts";
 
-type Tab = "overview" | "workflow" | "activity";
+type Tab = "overview" | "workflow";
 
 export default function TenderDetailPage() {
   const { id = "" } = useParams();
@@ -45,11 +43,6 @@ export default function TenderDetailPage() {
   const [pendingStatus, setPendingStatus] = useState<TenderStatus | null>(null);
 
   const tender = useQuery({ queryKey: ["tenders", id], queryFn: () => getTender(id) });
-  const audit = useQuery({
-    queryKey: ["tenders", id, "audit"],
-    queryFn: () => listTenderAudit(id),
-    enabled: tab === "activity",
-  });
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["tenders"] });
@@ -191,7 +184,6 @@ export default function TenderDetailPage() {
             <div className="flex gap-1 overflow-x-auto border-b border-slate-200 bg-slate-50/60 px-3 pt-3 sm:px-5">
               <TabButton label="Overview" active={tab === "overview"} onClick={() => setTab("overview")} />
               <TabButton label="Workflow" active={tab === "workflow"} onClick={() => setTab("workflow")} />
-              <TabButton label="Activity" active={tab === "activity"} onClick={() => setTab("activity")} />
             </div>
 
             <div className="p-5 sm:p-6">
@@ -310,29 +302,6 @@ export default function TenderDetailPage() {
                     </div>
                   </section>
                 </div>
-              ) : null}
-
-              {tab === "activity" ? (
-                <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
-                  <h2 className="text-sm font-bold text-slate-950">Audit trail</h2>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">Latest workflow and record events for this tender.</p>
-                  {audit.isPending ? <div className="mt-5 space-y-3">{[0, 1, 2].map((index) => <div key={index} className="h-12 animate-pulse rounded-xl bg-slate-100" />)}</div> : null}
-                  {audit.isError ? <p className="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{getApiErrorMessage(audit.error)}</p> : null}
-                  {!audit.isPending && !audit.isError && (audit.data?.items ?? []).length === 0 ? (
-                    <div className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center text-sm text-slate-500">No audit events yet.</div>
-                  ) : null}
-                  <ol className="mt-5 space-y-4">
-                    {(audit.data?.items ?? []).map((event) => (
-                      <li key={event.id} className="relative flex gap-3 border-l border-slate-200 pl-5">
-                        <span className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full bg-brand-500 ring-4 ring-brand-50" />
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-slate-800">{tenderActionLabel(event.action)}</p>
-                          <p className="mt-0.5 text-xs text-slate-500">{formatDateTime(event.createdAt)}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
-                </section>
               ) : null}
             </div>
           </div>

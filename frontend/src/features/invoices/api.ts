@@ -1,7 +1,6 @@
 import { http } from "@/lib/http.ts";
 import type { ApiSuccess } from "@/types/api.ts";
 import type {
-  AuditEvent,
   CurrencyRef,
   CustomerOption,
   DocumentLine,
@@ -136,8 +135,4 @@ export function changeInvoiceStatus(
   body: { status: InvoiceStatus; amountPaid?: string },
 ): Promise<Invoice> {
   return data(http.post(`/api/v1/invoices/${id}/status`, body));
-}
-
-export function listInvoiceAudit(id: string): Promise<Page<AuditEvent>> {
-  return data(http.get(`/api/v1/invoices/${id}/audit`, { params: { limit: 20 } }));
 }

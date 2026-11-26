@@ -10,7 +10,6 @@ import {
   getProject,
   getProjectActivity,
   getProjectFinancials,
-  listProjectAudit,
   PROJECT_ACTIVITY_KINDS,
   type ProjectActivity,
   type ProjectActivityGroup,
@@ -23,7 +22,6 @@ import {
   formatDateTime,
   formatPercent,
   formatRupees,
-  projectActionLabel,
   ProjectStatusBadge,
   statusLabel,
 } from "./shared.tsx";
@@ -53,11 +51,6 @@ export default function ProjectDetailPage() {
   const project = useQuery({ queryKey: ["projects", id], queryFn: () => getProject(id) });
   const activity = useQuery({ queryKey: ["projects", id, "activity"], queryFn: () => getProjectActivity(id), enabled: Boolean(id) });
   const liveFinancials = useQuery({ queryKey: ["projects", id, "financials"], queryFn: () => getProjectFinancials(id), enabled: Boolean(id) });
-  const audit = useQuery({
-    queryKey: ["projects", id, "audit"],
-    queryFn: () => listProjectAudit(id),
-    enabled: tab === "activity",
-  });
 
   const remove = useMutation({
     mutationFn: () => deleteProject(id),
@@ -261,46 +254,23 @@ export default function ProjectDetailPage() {
           ) : null}
 
           {tab === "activity" ? (
-            <div className="space-y-5">
-              <CustomerActivityPanel
-                activity={activity.data}
-                loading={activity.isPending}
-                error={activity.isError ? getApiErrorMessage(activity.error) : null}
-                onRetry={() => activity.refetch()}
-                projectId={id}
-                customerId={customerId}
-                canEdit={canEdit}
-                canCreateQuote={canCreateQuote}
-                canCreateSalesOrder={canCreateSalesOrder}
-                canCreateInvoice={canCreateInvoice}
-                canCreatePayment={canCreatePayment}
-                timelineFilter={timelineFilter}
-                onTimelineFilter={setTimelineFilter}
-                showAllTimeline={showAllTimeline}
-                onToggleTimeline={() => setShowAllTimeline((current) => !current)}
-              />
-
-              <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
-                <h2 className="text-sm font-bold text-slate-950">Audit trail</h2>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Latest events recorded for this project.</p>
-                {audit.isPending ? <div className="mt-5 space-y-3">{[0, 1, 2].map((index) => <div key={index} className="h-12 animate-pulse rounded-xl bg-slate-100" />)}</div> : null}
-                {audit.isError ? <p className="mt-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{getApiErrorMessage(audit.error)}</p> : null}
-                {!audit.isPending && !audit.isError && (audit.data?.items ?? []).length === 0 ? (
-                  <div className="mt-5 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-6 text-center text-sm text-slate-500">No audit events yet.</div>
-                ) : null}
-                <ol className="mt-5 space-y-4">
-                  {(audit.data?.items ?? []).map((event) => (
-                    <li key={event.id} className="relative flex gap-3 border-l border-slate-200 pl-5">
-                      <span className="absolute -left-[5px] top-1.5 h-2.5 w-2.5 rounded-full bg-brand-500 ring-4 ring-brand-50" />
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-800">{projectActionLabel(event.action)}</p>
-                        <p className="mt-0.5 text-xs text-slate-500">{formatDateTime(event.createdAt)}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            </div>
+            <CustomerActivityPanel
+              activity={activity.data}
+              loading={activity.isPending}
+              error={activity.isError ? getApiErrorMessage(activity.error) : null}
+              onRetry={() => activity.refetch()}
+              projectId={id}
+              customerId={customerId}
+              canEdit={canEdit}
+              canCreateQuote={canCreateQuote}
+              canCreateSalesOrder={canCreateSalesOrder}
+              canCreateInvoice={canCreateInvoice}
+              canCreatePayment={canCreatePayment}
+              timelineFilter={timelineFilter}
+              onTimelineFilter={setTimelineFilter}
+              showAllTimeline={showAllTimeline}
+              onToggleTimeline={() => setShowAllTimeline((current) => !current)}
+            />
           ) : null}
         </div>
       </div>

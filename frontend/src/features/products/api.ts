@@ -101,15 +101,6 @@ export interface CategoryWrite {
   isActive?: boolean;
 }
 
-export interface AuditEvent {
-  id: string;
-  action: string;
-  module: string;
-  entityType: string;
-  entityId: string | null;
-  createdAt: string;
-}
-
 function data<T>(promise: Promise<{ data: ApiSuccess<T> }>): Promise<T> {
   return promise.then((response) => response.data.data as T);
 }
@@ -176,12 +167,4 @@ export function listUnitsOfMeasure(): Promise<UnitOfMeasure[]> {
 
 export function listTaxCodes(): Promise<TaxCode[]> {
   return data(http.get("/api/v1/tax-codes"));
-}
-
-export function listProductAudit(productId: string): Promise<Page<AuditEvent>> {
-  return data(
-    http.get("/api/v1/audit-logs", {
-      params: { subjectId: productId, limit: 20 },
-    }),
-  );
 }

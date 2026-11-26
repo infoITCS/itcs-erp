@@ -1,6 +1,6 @@
 import { http } from "@/lib/http.ts";
 import type { ApiSuccess } from "@/types/api.ts";
-import type { AuditEvent, Page } from "../sales/shared.tsx";
+import type { Page } from "../sales/shared.tsx";
 
 export type PaymentMethod = "BANK_TRANSFER" | "CASH" | "CARD" | "CHEQUE" | "MOBILE_WALLET" | "OTHER";
 
@@ -126,8 +126,4 @@ export function updatePayment(id: string, body: PaymentUpdateWrite): Promise<Pay
 
 export function deletePayment(id: string): Promise<{ id: string }> {
   return data(http.delete(`/api/v1/payments/${id}`));
-}
-
-export function listPaymentAudit(id: string): Promise<Page<AuditEvent>> {
-  return data(http.get(`/api/v1/payments/${id}/audit`, { params: { limit: 20 } }));
 }

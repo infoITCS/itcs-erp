@@ -127,15 +127,6 @@ export interface TenderUpdateWrite {
   notes?: string | null;
 }
 
-export interface AuditEvent {
-  id: string;
-  action: string;
-  module: string;
-  entityType: string;
-  entityId: string | null;
-  createdAt: string;
-}
-
 function data<T>(promise: Promise<{ data: ApiSuccess<T> }>): Promise<T> {
   return promise.then((response) => response.data.data as T);
 }
@@ -168,8 +159,4 @@ export function deleteTender(id: string): Promise<{ id: string; deletedAt: strin
 
 export function restoreTender(id: string): Promise<Tender> {
   return data(http.post(`/api/v1/tenders/${id}/restore`));
-}
-
-export function listTenderAudit(id: string): Promise<Page<AuditEvent>> {
-  return data(http.get(`/api/v1/tenders/${id}/audit`, { params: { limit: 20 } }));
 }

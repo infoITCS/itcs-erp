@@ -12,7 +12,6 @@ import {
   deletePrice,
   deleteProduct,
   getProduct,
-  listProductAudit,
   type PriceWrite,
 } from "./api.ts";
 
@@ -27,7 +26,6 @@ export default function ProductDetailPage() {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [confirmBusy, setConfirmBusy] = useState(false);
   const product = useQuery({ queryKey: ["products", id], queryFn: () => getProduct(id) });
-  const audit = useQuery({ queryKey: ["products", id, "audit"], queryFn: () => listProductAudit(id) });
 
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ["products", id] });
@@ -164,21 +162,6 @@ export default function ProductDetailPage() {
                   >
                     Remove
                   </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-
-          <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-            <h2 className="text-sm font-semibold text-slate-900">Recent audit</h2>
-            {audit.isPending ? <p className="mt-3 text-sm text-slate-500">Loading audit…</p> : null}
-            {(audit.data?.items ?? []).length === 0 && !audit.isPending ? (
-              <p className="mt-3 text-sm text-slate-500">No audit events yet.</p>
-            ) : null}
-            <ul className="mt-3 flex flex-col gap-1.5 text-sm text-slate-700">
-              {(audit.data?.items ?? []).map((event) => (
-                <li key={event.id} className="rounded-md px-2 py-1.5 transition hover:bg-slate-50">
-                  {event.action} · {new Date(event.createdAt).toLocaleString()}
                 </li>
               ))}
             </ul>

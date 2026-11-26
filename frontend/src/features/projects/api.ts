@@ -220,15 +220,6 @@ export interface ProjectActivity {
   upcomingModules: { kind: string; label: string; available: boolean }[];
 }
 
-export interface AuditEvent {
-  id: string;
-  action: string;
-  module: string;
-  entityType: string;
-  entityId: string | null;
-  createdAt: string;
-}
-
 function data<T>(promise: Promise<{ data: ApiSuccess<T> }>): Promise<T> {
   return promise.then((response) => response.data.data as T);
 }
@@ -263,8 +254,4 @@ export function updateProject(id: string, body: ProjectUpdateWrite): Promise<Pro
 
 export function deleteProject(id: string): Promise<{ id: string; deletedAt: string }> {
   return data(http.delete(`/api/v1/projects/${id}`));
-}
-
-export function listProjectAudit(id: string): Promise<Page<AuditEvent>> {
-  return data(http.get(`/api/v1/projects/${id}/audit`, { params: { limit: 20 } }));
 }
