@@ -3,6 +3,7 @@ import { BaseRepository } from "../../common/database/base-repository";
 import { ConflictError } from "../../common/errors/app-error";
 import { allocateDocumentNumberIn } from "../../common/numbering/allocate";
 import { cursorFilter, decodeCursor, toCursorPage } from "../../common/pagination/cursor";
+import { currentSalesPriceWhere } from "../products/repository";
 import { buildQuoteListWhere, type QuoteListFilter } from "./list-filter";
 
 const lineSelect = {
@@ -256,9 +257,16 @@ export class QuotesRepository extends BaseRepository {
           id: true,
           code: true,
           name: true,
+          productType: true,
           taxCodeId: true,
           unitOfMeasure: { select: { code: true } },
           taxCode: { select: { id: true, code: true, rate: true } },
+          prices: {
+            where: currentSalesPriceWhere(),
+            orderBy: { effectiveDate: "desc" },
+            take: 1,
+            select: { amount: true, currencyCode: true, priceListCode: true },
+          },
         },
       }),
     ]);
@@ -273,10 +281,14 @@ export class QuotesRepository extends BaseRepository {
         id: product.id,
         code: product.code,
         name: product.name,
+        productType: product.productType,
         taxCodeId: product.taxCodeId,
         unitOfMeasure: product.unitOfMeasure.code,
         taxCode: product.taxCode?.code ?? null,
         taxRate: product.taxCode?.rate.toFixed(4) ?? "0.0000",
+        currentPrice: product.prices[0]?.amount.toString() ?? null,
+        currentPriceCurrency: product.prices[0]?.currencyCode ?? null,
+        currentPriceList: product.prices[0]?.priceListCode ?? null,
       })),
     };
   }

@@ -1182,9 +1182,25 @@ model Product {
   categoryId      String?       @map("category_id") @db.Uuid
   unitOfMeasureId String        @map("unit_of_measure_id") @db.Uuid
   taxCodeId       String?       @map("tax_code_id") @db.Uuid
-  trackInventory  Boolean       @default(false) @map("track_inventory")
-  notes           String?       @db.VarChar(4000)
-  createdById     String        @map("created_by_id") @db.Uuid
+  trackInventory        Boolean       @default(false) @map("track_inventory")
+  valuationMethod       String        @default("WEIGHTED_AVERAGE") @map("valuation_method") @db.VarChar(32)
+  weightedAveragePrice  Decimal       @default(0) @map("weighted_average_price") @db.Decimal(19, 4)
+  allowNegativeStock    Boolean       @default(false) @map("allow_negative_stock")
+  minimumStockQuantity  Decimal       @default(0) @map("minimum_stock_quantity") @db.Decimal(19, 4)
+  receivingLocation     String        @default("MAIN LOCATION") @map("receiving_location") @db.VarChar(120)
+  deliveryLocation      String        @default("MAIN LOCATION") @map("delivery_location") @db.VarChar(120)
+  inventoryAccount      String?       @map("inventory_account") @db.VarChar(120)
+  inventoryTransitAccount String?     @map("inventory_transit_account") @db.VarChar(120)
+  privateNote           String?       @map("private_note") @db.VarChar(4000)
+  netWeight             Decimal       @default(0) @map("net_weight") @db.Decimal(19, 4)
+  width                 Decimal       @default(0) @db.Decimal(19, 4)
+  length                Decimal       @default(0) @db.Decimal(19, 4)
+  height                Decimal       @default(0) @db.Decimal(19, 4)
+  dimensionUnit         String        @default("METER") @map("dimension_unit") @db.VarChar(16)
+  cogsAccount           String        @default("COGS - Products (50110)") @map("cogs_account") @db.VarChar(120)
+  incomeAccount         String        @default("Sales - Miscellaneous (40150)") @map("income_account") @db.VarChar(120)
+  notes                 String?       @db.VarChar(4000)
+  createdById           String        @map("created_by_id") @db.Uuid
   updatedById     String        @map("updated_by_id") @db.Uuid
   deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz(6)
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)

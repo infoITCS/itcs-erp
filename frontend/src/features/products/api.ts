@@ -4,6 +4,8 @@ import type { ApiSuccess } from "@/types/api.ts";
 export type ProductType = "PHYSICAL_PRODUCT" | "SERVICE";
 export type ProductStatus = "ACTIVE" | "INACTIVE";
 export type PriceType = "SALES" | "PURCHASE";
+export type ValuationMethod = "WEIGHTED_AVERAGE" | "FIFO";
+export type DimensionUnit = "METER" | "CENTIMETER" | "INCH" | "FOOT";
 
 export interface ProductPrice {
   id: string;
@@ -21,6 +23,7 @@ export interface ProductSummary {
   id: string;
   code: string;
   name: string;
+  description: string | null;
   productType: ProductType;
   status: ProductStatus;
   trackInventory: boolean;
@@ -37,6 +40,22 @@ export interface ProductDetail extends ProductSummary {
   categoryId: string | null;
   unitOfMeasureId: string;
   taxCodeId: string | null;
+  valuationMethod: ValuationMethod;
+  weightedAveragePrice: string;
+  allowNegativeStock: boolean;
+  minimumStockQuantity: string;
+  receivingLocation: string;
+  deliveryLocation: string;
+  inventoryAccount: string | null;
+  inventoryTransitAccount: string | null;
+  privateNote: string | null;
+  netWeight: string;
+  width: string;
+  length: string;
+  height: string;
+  dimensionUnit: DimensionUnit;
+  cogsAccount: string;
+  incomeAccount: string;
   prices: ProductPrice[];
 }
 
@@ -64,9 +83,29 @@ export interface TaxCode {
   isActive: boolean;
 }
 
+export interface UnitWrite {
+  code: string;
+  name: string;
+  isActive?: boolean;
+}
+
+export interface TaxCodeWrite {
+  code: string;
+  name: string;
+  rate: string;
+  isActive?: boolean;
+}
+
 export interface Page<T> {
   items: T[];
   pageInfo: { limit: number; hasNextPage: boolean; nextCursor: string | null };
+}
+
+export interface ProductFormOptions {
+  locations: string[];
+  accounts: string[];
+  valuationMethods: Array<{ value: ValuationMethod; label: string }>;
+  dimensionUnits: Array<{ value: DimensionUnit; label: string }>;
 }
 
 export interface ProductWrite {
@@ -79,8 +118,25 @@ export interface ProductWrite {
   unitOfMeasureId: string;
   taxCodeId?: string | null;
   trackInventory?: boolean;
-  notes?: string;
+  valuationMethod?: ValuationMethod;
+  weightedAveragePrice?: string;
+  allowNegativeStock?: boolean;
+  minimumStockQuantity?: string;
+  receivingLocation?: string;
+  deliveryLocation?: string;
+  inventoryAccount?: string | null;
+  inventoryTransitAccount?: string | null;
+  privateNote?: string | null;
+  netWeight?: string;
+  width?: string;
+  length?: string;
+  height?: string;
+  dimensionUnit?: DimensionUnit;
+  cogsAccount?: string;
+  incomeAccount?: string;
+  notes?: string | null;
   initialSalesPrice?: PriceWrite;
+  initialPurchasePrice?: PriceWrite;
 }
 
 export interface PriceWrite {
@@ -89,7 +145,7 @@ export interface PriceWrite {
   currencyCode: string;
   amount: string;
   effectiveDate: string;
-  expiryDate?: string;
+  expiryDate?: string | null;
   isActive?: boolean;
 }
 
@@ -101,11 +157,23 @@ export interface CategoryWrite {
   isActive?: boolean;
 }
 
+export interface ProductListParams extends Record<string, string | number | boolean | undefined> {
+  q?: string;
+  status?: ProductStatus;
+  productType?: ProductType;
+  categoryId?: string;
+  trackInventory?: boolean;
+  sort?: "createdAt" | "name" | "code";
+  order?: "asc" | "desc";
+  cursor?: string;
+  limit?: number;
+}
+
 function data<T>(promise: Promise<{ data: ApiSuccess<T> }>): Promise<T> {
   return promise.then((response) => response.data.data as T);
 }
 
-export function listProducts(params: Record<string, string | number | boolean | undefined>): Promise<Page<ProductSummary>> {
+export function listProducts(params: ProductListParams): Promise<Page<ProductSummary>> {
   return data(http.get<ApiSuccess<Page<ProductSummary>>>("/api/v1/products", { params }));
 }
 
@@ -165,6 +233,18 @@ export function listUnitsOfMeasure(): Promise<UnitOfMeasure[]> {
   return data(http.get("/api/v1/units-of-measure"));
 }
 
+export function createUnitOfMeasure(body: UnitWrite): Promise<UnitOfMeasure> {
+  return data(http.post("/api/v1/units-of-measure", body));
+}
+
 export function listTaxCodes(): Promise<TaxCode[]> {
   return data(http.get("/api/v1/tax-codes"));
+}
+
+export function createTaxCode(body: TaxCodeWrite): Promise<TaxCode> {
+  return data(http.post("/api/v1/tax-codes", body));
+}
+
+export function getProductFormOptions(): Promise<ProductFormOptions> {
+  return data(http.get("/api/v1/products/form-options"));
 }

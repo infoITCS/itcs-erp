@@ -7,6 +7,8 @@ import type { ProductsService } from "./service";
 import type {
   CreateCategoryInput,
   CreateProductInput,
+  CreateTaxCodeInput,
+  CreateUnitOfMeasureInput,
   ProductListQuery,
   ProductPriceInput,
   UpdateCategoryInput,
@@ -127,6 +129,11 @@ export class ProductsController {
     sendSuccess(res, { message: "Category deleted", data: result });
   });
 
+  formOptions = asyncHandler(async (req: Request, res: Response) => {
+    const options = await this.productsService.formOptions(organizationId(req));
+    sendSuccess(res, { message: "Product form options", data: options });
+  });
+
   listUnits = asyncHandler(async (req: Request, res: Response) => {
     const units = await this.productsService.listUnits(organizationId(req));
     sendSuccess(res, { message: "Units of measure", data: units });
@@ -135,5 +142,17 @@ export class ProductsController {
   listTaxCodes = asyncHandler(async (req: Request, res: Response) => {
     const codes = await this.productsService.listTaxCodes(organizationId(req));
     sendSuccess(res, { message: "Tax codes", data: codes });
+  });
+
+  createUnit = asyncHandler(async (req: Request, res: Response) => {
+    const body = req.validated?.body as CreateUnitOfMeasureInput;
+    const unit = await this.productsService.createUnitOfMeasure(organizationId(req), actorId(req), body, meta(req));
+    sendSuccess(res, { message: "Unit of measure created", data: unit }, 201);
+  });
+
+  createTaxCode = asyncHandler(async (req: Request, res: Response) => {
+    const body = req.validated?.body as CreateTaxCodeInput;
+    const taxCode = await this.productsService.createTaxCode(organizationId(req), actorId(req), body, meta(req));
+    sendSuccess(res, { message: "Tax code created", data: taxCode }, 201);
   });
 }

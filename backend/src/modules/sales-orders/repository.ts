@@ -4,6 +4,7 @@ import { ConflictError } from "../../common/errors/app-error";
 import { allocateDocumentNumberIn } from "../../common/numbering/allocate";
 import { cursorFilter, decodeCursor, toCursorPage } from "../../common/pagination/cursor";
 import { addDays, today } from "../../common/sales/totals";
+import { currentSalesPriceWhere } from "../products/repository";
 import { buildSalesOrderListWhere, type SalesOrderListFilter } from "./list-filter";
 
 const lineSelect = {
@@ -270,9 +271,16 @@ export class SalesOrdersRepository extends BaseRepository {
           id: true,
           code: true,
           name: true,
+          productType: true,
           taxCodeId: true,
           unitOfMeasure: { select: { code: true } },
           taxCode: { select: { id: true, code: true, rate: true } },
+          prices: {
+            where: currentSalesPriceWhere(),
+            orderBy: { effectiveDate: "desc" },
+            take: 1,
+            select: { amount: true, currencyCode: true, priceListCode: true },
+          },
         },
       }),
       this.db.quote.findMany({
@@ -294,10 +302,14 @@ export class SalesOrdersRepository extends BaseRepository {
         id: product.id,
         code: product.code,
         name: product.name,
+        productType: product.productType,
         taxCodeId: product.taxCodeId,
         unitOfMeasure: product.unitOfMeasure.code,
         taxCode: product.taxCode?.code ?? null,
         taxRate: product.taxCode?.rate.toFixed(4) ?? "0.0000",
+        currentPrice: product.prices[0]?.amount.toString() ?? null,
+        currentPriceCurrency: product.prices[0]?.currencyCode ?? null,
+        currentPriceList: product.prices[0]?.priceListCode ?? null,
       })),
     };
   }

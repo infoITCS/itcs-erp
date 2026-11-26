@@ -5,7 +5,15 @@ import { allocateDocumentNumberIn } from "../../common/numbering/allocate";
 import { buildProductListWhere, type ProductListFilter } from "./list-filter";
 import { decodeProductCursor, productCursorWhere, type ProductSort } from "./page";
 import { toDateOnly } from "./price-overlap";
-import type { CreateCategoryInput, CreateProductInput, ProductPriceInput, UpdateCategoryInput, UpdateProductInput } from "./validation";
+import type {
+  CreateCategoryInput,
+  CreateProductInput,
+  CreateTaxCodeInput,
+  CreateUnitOfMeasureInput,
+  ProductPriceInput,
+  UpdateCategoryInput,
+  UpdateProductInput,
+} from "./validation";
 
 const productSelect = {
   id: true,
@@ -18,6 +26,22 @@ const productSelect = {
   unitOfMeasureId: true,
   taxCodeId: true,
   trackInventory: true,
+  valuationMethod: true,
+  weightedAveragePrice: true,
+  allowNegativeStock: true,
+  minimumStockQuantity: true,
+  receivingLocation: true,
+  deliveryLocation: true,
+  inventoryAccount: true,
+  inventoryTransitAccount: true,
+  privateNote: true,
+  netWeight: true,
+  width: true,
+  length: true,
+  height: true,
+  dimensionUnit: true,
+  cogsAccount: true,
+  incomeAccount: true,
   notes: true,
   createdById: true,
   updatedById: true,
@@ -56,6 +80,19 @@ const categorySelect = {
   updatedAt: true,
 } satisfies Prisma.ProductCategorySelect;
 
+export function currentSalesPriceWhere(): Prisma.ProductPriceWhereInput {
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return {
+    deletedAt: null,
+    isActive: true,
+    priceType: "SALES",
+    priceListCode: "STANDARD",
+    effectiveDate: { lte: today },
+    OR: [{ expiryDate: null }, { expiryDate: { gte: today } }],
+  };
+}
+
 export class ProductsRepository extends BaseRepository {
   constructor(db: PrismaClient) {
     super(db);
@@ -71,12 +108,7 @@ export class ProductsRepository extends BaseRepository {
       select: {
         ...productSelect,
         prices: {
-          where: {
-            deletedAt: null,
-            isActive: true,
-            priceType: "SALES",
-            priceListCode: "STANDARD",
-          },
+          where: currentSalesPriceWhere(),
           orderBy: [{ effectiveDate: "desc" }],
           take: 1,
           select: priceSelect,
@@ -154,6 +186,76 @@ export class ProductsRepository extends BaseRepository {
     });
   }
 
+  async createUnitOfMeasure(organizationId: string, input: CreateUnitOfMeasureInput) {
+    try {
+      return await this.db.unitOfMeasure.create({
+        data: {
+          organizationId,
+          code: input.code,
+          name: input.name,
+          isActive: input.isActive ?? true,
+        },
+        select: { id: true, code: true, name: true, isActive: true },
+      });
+    } catch (error) {
+      throw mapConflict(error, "A unit of measure with this code already exists");
+    }
+  }
+
+  async createTaxCode(organizationId: string, input: CreateTaxCodeInput) {
+    try {
+      return await this.db.taxCode.create({
+        data: {
+          organizationId,
+          code: input.code,
+          name: input.name,
+          rate: input.rate,
+          isActive: input.isActive ?? true,
+        },
+        select: { id: true, code: true, name: true, rate: true, isActive: true },
+      });
+    } catch (error) {
+      throw mapConflict(error, "A tax code with this code already exists");
+    }
+  }
+
+  async listAccountOptions(organizationId: string) {
+    const rows = await this.db.product.findMany({
+      where: { organizationId, deletedAt: null },
+      select: {
+        inventoryAccount: true,
+        inventoryTransitAccount: true,
+        cogsAccount: true,
+        incomeAccount: true,
+      },
+    });
+    const values = new Set<string>();
+    for (const row of rows) {
+      for (const value of [row.inventoryAccount, row.inventoryTransitAccount, row.cogsAccount, row.incomeAccount]) {
+        if (value?.trim()) {
+          values.add(value.trim());
+        }
+      }
+    }
+    return [...values].sort((left, right) => left.localeCompare(right));
+  }
+
+  async listLocationOptions(organizationId: string) {
+    const rows = await this.db.product.findMany({
+      where: { organizationId, deletedAt: null },
+      select: { receivingLocation: true, deliveryLocation: true },
+    });
+    const values = new Set<string>();
+    for (const row of rows) {
+      for (const value of [row.receivingLocation, row.deliveryLocation]) {
+        if (value?.trim()) {
+          values.add(value.trim());
+        }
+      }
+    }
+    return [...values].sort((left, right) => left.localeCompare(right));
+  }
+
   async listCategories(organizationId: string) {
     return this.db.productCategory.findMany({
       where: { organizationId, deletedAt: null },
@@ -178,6 +280,22 @@ export class ProductsRepository extends BaseRepository {
             unitOfMeasureId: input.unitOfMeasureId,
             taxCodeId: input.taxCodeId ?? null,
             trackInventory: input.productType === "SERVICE" ? false : (input.trackInventory ?? false),
+            valuationMethod: input.valuationMethod,
+            weightedAveragePrice: input.weightedAveragePrice ?? 0,
+            allowNegativeStock: input.productType === "SERVICE" ? false : (input.allowNegativeStock ?? false),
+            minimumStockQuantity: input.minimumStockQuantity ?? 0,
+            receivingLocation: input.receivingLocation,
+            deliveryLocation: input.deliveryLocation,
+            inventoryAccount: input.inventoryAccount ?? null,
+            inventoryTransitAccount: input.inventoryTransitAccount ?? null,
+            privateNote: input.privateNote ?? null,
+            netWeight: input.netWeight ?? 0,
+            width: input.width ?? 0,
+            length: input.length ?? 0,
+            height: input.height ?? 0,
+            dimensionUnit: input.dimensionUnit,
+            cogsAccount: input.cogsAccount,
+            incomeAccount: input.incomeAccount,
             notes: input.notes ?? null,
             createdById: actorId,
             updatedById: actorId,
@@ -190,6 +308,15 @@ export class ProductsRepository extends BaseRepository {
             data: priceData(organizationId, product.id, actorId, {
               ...input.initialSalesPrice,
               priceType: "SALES",
+            }),
+          });
+        }
+
+        if (input.initialPurchasePrice) {
+          await tx.productPrice.create({
+            data: priceData(organizationId, product.id, actorId, {
+              ...input.initialPurchasePrice,
+              priceType: "PURCHASE",
             }),
           });
         }
@@ -224,6 +351,24 @@ export class ProductsRepository extends BaseRepository {
           ...(input.unitOfMeasureId !== undefined ? { unitOfMeasureId: input.unitOfMeasureId } : {}),
           ...(input.taxCodeId !== undefined ? { taxCodeId: input.taxCodeId } : {}),
           trackInventory,
+          ...(input.valuationMethod !== undefined ? { valuationMethod: input.valuationMethod } : {}),
+          ...(input.weightedAveragePrice !== undefined ? { weightedAveragePrice: input.weightedAveragePrice } : {}),
+          ...(input.allowNegativeStock !== undefined
+            ? { allowNegativeStock: nextType === "SERVICE" ? false : input.allowNegativeStock }
+            : {}),
+          ...(input.minimumStockQuantity !== undefined ? { minimumStockQuantity: input.minimumStockQuantity } : {}),
+          ...(input.receivingLocation !== undefined ? { receivingLocation: input.receivingLocation } : {}),
+          ...(input.deliveryLocation !== undefined ? { deliveryLocation: input.deliveryLocation } : {}),
+          ...(input.inventoryAccount !== undefined ? { inventoryAccount: input.inventoryAccount } : {}),
+          ...(input.inventoryTransitAccount !== undefined ? { inventoryTransitAccount: input.inventoryTransitAccount } : {}),
+          ...(input.privateNote !== undefined ? { privateNote: input.privateNote } : {}),
+          ...(input.netWeight !== undefined ? { netWeight: input.netWeight } : {}),
+          ...(input.width !== undefined ? { width: input.width } : {}),
+          ...(input.length !== undefined ? { length: input.length } : {}),
+          ...(input.height !== undefined ? { height: input.height } : {}),
+          ...(input.dimensionUnit !== undefined ? { dimensionUnit: input.dimensionUnit } : {}),
+          ...(input.cogsAccount !== undefined ? { cogsAccount: input.cogsAccount } : {}),
+          ...(input.incomeAccount !== undefined ? { incomeAccount: input.incomeAccount } : {}),
           ...(input.notes !== undefined ? { notes: input.notes ?? null } : {}),
           updatedById: actorId,
         },

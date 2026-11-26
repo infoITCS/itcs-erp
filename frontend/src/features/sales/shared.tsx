@@ -37,10 +37,14 @@ export interface ProductOption {
   id: string;
   code: string;
   name: string;
+  productType?: "PHYSICAL_PRODUCT" | "SERVICE";
   taxCodeId: string | null;
   unitOfMeasure: string;
   taxCode: string | null;
   taxRate: string;
+  currentPrice?: string | null;
+  currentPriceCurrency?: string | null;
+  currentPriceList?: string | null;
 }
 
 export interface CustomerOption {
@@ -267,6 +271,7 @@ export function LinesEditor({
       productCode: product.code,
       productName: product.name,
       unitOfMeasure: product.unitOfMeasure,
+      unitPrice: product.currentPrice || lines[index]?.unitPrice || "0",
       taxCodeId: product.taxCodeId ?? undefined,
       taxRate: product.taxRate,
     });
@@ -308,6 +313,10 @@ export function LinesEditor({
                     {products.map((product) => (
                       <option key={product.id} value={product.id}>
                         {product.code} · {product.name}
+                        {product.productType === "SERVICE" ? " · Service" : ""}
+                        {product.currentPrice
+                          ? ` · ${formatMoney(product.currentPrice, product.currentPriceCurrency ?? currency)}`
+                          : ""}
                       </option>
                     ))}
                   </select>

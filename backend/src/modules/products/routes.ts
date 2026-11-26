@@ -7,6 +7,8 @@ import {
   categoryIdParamSchema,
   createCategorySchema,
   createProductSchema,
+  createTaxCodeSchema,
+  createUnitOfMeasureSchema,
   priceIdParamSchema,
   productIdParamSchema,
   productListQuerySchema,
@@ -20,6 +22,7 @@ export function createProductsRouter(controller: ProductsController): Router {
   router.use(authenticate);
 
   router.get("/", requirePermission("products:read"), validate({ query: productListQuerySchema }), controller.list);
+  router.get("/form-options", requirePermission("products:read"), controller.formOptions);
   router.post("/", requirePermission("products:create"), validate({ body: createProductSchema }), controller.create);
   router.get(
     "/:id/prices",
@@ -103,6 +106,12 @@ export function createUnitsOfMeasureRouter(controller: ProductsController): Rout
   const router = Router();
   router.use(authenticate);
   router.get("/", requirePermission("products:read"), controller.listUnits);
+  router.post(
+    "/",
+    requirePermission("products:create"),
+    validate({ body: createUnitOfMeasureSchema }),
+    controller.createUnit,
+  );
   return router;
 }
 
@@ -110,5 +119,11 @@ export function createTaxCodesRouter(controller: ProductsController): Router {
   const router = Router();
   router.use(authenticate);
   router.get("/", requirePermission("products:read"), controller.listTaxCodes);
+  router.post(
+    "/",
+    requirePermission("products:create"),
+    validate({ body: createTaxCodeSchema }),
+    controller.createTaxCode,
+  );
   return router;
 }

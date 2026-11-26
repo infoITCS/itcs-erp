@@ -9,6 +9,8 @@ import type { ProductsRepository } from "./repository";
 import type {
   CreateCategoryInput,
   CreateProductInput,
+  CreateTaxCodeInput,
+  CreateUnitOfMeasureInput,
   ProductListQuery,
   ProductPriceInput,
   UpdateCategoryInput,
@@ -69,11 +71,19 @@ export class ProductsService {
       await this.requireCurrency(input.initialSalesPrice.currencyCode);
       assertDecimalString(input.initialSalesPrice.amount, AMOUNT_SCALE, "amount");
     }
+    if (input.initialPurchasePrice) {
+      await this.requireCurrency(input.initialPurchasePrice.currencyCode);
+      assertDecimalString(input.initialPurchasePrice.amount, AMOUNT_SCALE, "amount");
+    }
+    assertProductNumbers(input);
 
     const product = await this.repository.create(organizationId, actorId, {
       ...input,
       initialSalesPrice: input.initialSalesPrice
         ? { ...input.initialSalesPrice, priceType: "SALES" }
+        : undefined,
+      initialPurchasePrice: input.initialPurchasePrice
+        ? { ...input.initialPurchasePrice, priceType: "PURCHASE" }
         : undefined,
     });
     if (!product) {
@@ -87,13 +97,23 @@ export class ProductsService {
       productType: product.productType,
       status: product.status,
     });
-    if (input.initialSalesPrice && product.prices[0]) {
-      await this.record(organizationId, actorId, "products.price.created", "product_price", product.prices[0].id, meta, {
-        productId: product.id,
-        priceType: product.prices[0].priceType,
-        currencyCode: product.prices[0].currencyCode,
-        amount: String(product.prices[0].amount),
-      });
+    for (const price of product.prices ?? []) {
+      if (price.priceType === "SALES" && input.initialSalesPrice) {
+        await this.record(organizationId, actorId, "products.price.created", "product_price", price.id, meta, {
+          productId: product.id,
+          priceType: price.priceType,
+          currencyCode: price.currencyCode,
+          amount: String(price.amount),
+        });
+      }
+      if (price.priceType === "PURCHASE" && input.initialPurchasePrice) {
+        await this.record(organizationId, actorId, "products.price.created", "product_price", price.id, meta, {
+          productId: product.id,
+          priceType: price.priceType,
+          currencyCode: price.currencyCode,
+          amount: String(price.amount),
+        });
+      }
     }
     return product;
   }
@@ -119,6 +139,10 @@ export class ProductsService {
     if (nextType === "SERVICE" && input.trackInventory === true) {
       throw new ValidationFailedError({ trackInventory: ["A service cannot track inventory"] });
     }
+    if (nextType === "SERVICE" && input.allowNegativeStock === true) {
+      throw new ValidationFailedError({ allowNegativeStock: ["A service cannot authorize negative stock"] });
+    }
+    assertProductNumbers(input);
 
     const updated = await this.repository.update(organizationId, id, actorId, input);
     if (!updated) {
@@ -190,6 +214,58 @@ export class ProductsService {
 
   async listTaxCodes(organizationId: string) {
     return this.repository.listTaxCodes(organizationId);
+  }
+
+  async createUnitOfMeasure(organizationId: string, actorId: string, input: CreateUnitOfMeasureInput, meta: RequestMeta) {
+    const unit = await this.repository.createUnitOfMeasure(organizationId, input);
+    await this.record(organizationId, actorId, "products.unit.created", "unit_of_measure", unit.id, meta, {
+      unitOfMeasureId: unit.id,
+      code: unit.code,
+      name: unit.name,
+    });
+    return unit;
+  }
+
+  async createTaxCode(organizationId: string, actorId: string, input: CreateTaxCodeInput, meta: RequestMeta) {
+    const taxCode = await this.repository.createTaxCode(organizationId, input);
+    await this.record(organizationId, actorId, "products.tax_code.created", "tax_code", taxCode.id, meta, {
+      taxCodeId: taxCode.id,
+      code: taxCode.code,
+      name: taxCode.name,
+      rate: String(taxCode.rate),
+    });
+    return taxCode;
+  }
+
+  async formOptions(organizationId: string) {
+    const [existingAccounts, existingLocations] = await Promise.all([
+      this.repository.listAccountOptions(organizationId),
+      this.repository.listLocationOptions(organizationId),
+    ]);
+    return {
+      locations: [...new Set(["MAIN LOCATION", ...existingLocations])],
+      accounts: [
+        ...new Set([
+          "12100 ( Inventory )",
+          "12900 ( Inventory in Transit )",
+          "COGS - Products (50110)",
+          "COGS - Services (50140)",
+          "Sales - Miscellaneous (40150)",
+          "Sales - Services (40140)",
+          ...existingAccounts,
+        ]),
+      ],
+      valuationMethods: [
+        { value: "WEIGHTED_AVERAGE", label: "Weighted average price" },
+        { value: "FIFO", label: "First in, first out" },
+      ],
+      dimensionUnits: [
+        { value: "METER", label: "Meter" },
+        { value: "CENTIMETER", label: "Centimeter" },
+        { value: "INCH", label: "Inch" },
+        { value: "FOOT", label: "Foot" },
+      ],
+    };
   }
 
   async listCategories(organizationId: string) {
@@ -418,6 +494,29 @@ export class ProductsService {
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent,
     });
+  }
+}
+
+function assertProductNumbers(input: {
+  weightedAveragePrice?: string;
+  minimumStockQuantity?: string;
+  netWeight?: string;
+  width?: string;
+  length?: string;
+  height?: string;
+}) {
+  const fields: Array<[string, string | undefined]> = [
+    ["weightedAveragePrice", input.weightedAveragePrice],
+    ["minimumStockQuantity", input.minimumStockQuantity],
+    ["netWeight", input.netWeight],
+    ["width", input.width],
+    ["length", input.length],
+    ["height", input.height],
+  ];
+  for (const [field, value] of fields) {
+    if (value !== undefined) {
+      assertDecimalString(value, AMOUNT_SCALE, field);
+    }
   }
 }
 
