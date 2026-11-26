@@ -22,7 +22,7 @@ export const TENDER_STATUS_HELP: Record<TenderStatus, string> = {
   DRAFT: "Preparing the tender brief. Not ready for bidders yet.",
   OPEN: "Published to bidders and accepting submissions.",
   SUBMITTED: "Bid submitted; waiting for the award decision.",
-  WON: "Awarded to your organization. Final outcome.",
+  WON: "Awarded to your organization. Final outcome with a linked WON opportunity.",
   LOST: "Awarded to another bidder. Final outcome.",
   CANCELLED: "Tender withdrawn or cancelled. Final outcome.",
 };

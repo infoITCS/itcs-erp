@@ -31,6 +31,7 @@ const tenderSelect = {
   customer: { select: { id: true, customerNumber: true, displayName: true, status: true, email: true } },
   contact: { select: { id: true, displayName: true, email: true } },
   owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+  opportunity: { select: { id: true, opportunityNumber: true, title: true, stage: true } },
 } satisfies Prisma.TenderSelect;
 
 export class TendersRepository extends BaseRepository {
@@ -165,30 +166,28 @@ export class TendersRepository extends BaseRepository {
     }
     await this.db.tender.update({
       where: { id },
-      data: {
-        ...(input.title !== undefined ? { title: input.title } : {}),
-        ...(input.description !== undefined ? { description: input.description ?? null } : {}),
-        ...(input.referenceNumber !== undefined ? { referenceNumber: input.referenceNumber ?? null } : {}),
-        ...(input.status !== undefined ? { status: input.status as TenderStatus } : {}),
-        ...(input.customerId !== undefined ? { customerId: input.customerId } : {}),
-        ...(input.contactId !== undefined ? { contactId: input.contactId } : {}),
-        ...(input.ownerUserId !== undefined ? { ownerUserId: input.ownerUserId } : {}),
-        ...(input.estimatedValue !== undefined ? { estimatedValue: input.estimatedValue } : {}),
-        ...(input.currencyCode !== undefined ? { currencyCode: input.currencyCode } : {}),
-        ...(input.exchangeRateToBase !== undefined ? { exchangeRateToBase: input.exchangeRateToBase } : {}),
-        ...(input.estimatedValueBase !== undefined ? { estimatedValueBase: input.estimatedValueBase } : {}),
-        ...(input.baseCurrencyCode !== undefined ? { baseCurrencyCode: input.baseCurrencyCode } : {}),
-        ...(input.submissionDeadline !== undefined
-          ? { submissionDeadline: input.submissionDeadline ? new Date(input.submissionDeadline) : null }
-          : {}),
-        ...(input.expectedAwardDate !== undefined
-          ? { expectedAwardDate: input.expectedAwardDate ? dateOnly(input.expectedAwardDate) : null }
-          : {}),
-        ...(input.notes !== undefined ? { notes: input.notes ?? null } : {}),
-        updatedById: actorId,
-      },
+      data: tenderUpdateData(input, actorId),
     });
     return this.findById(organizationId, id);
+  }
+
+  async updateWithOpportunity(
+    organizationId: string,
+    id: string,
+    actorId: string,
+    input: TenderUpdateData,
+    createOpportunity: (tx: Prisma.TransactionClient) => Promise<string>,
+  ) {
+    const existing = await this.findById(organizationId, id);
+    if (!existing) {
+      return null;
+    }
+    const opportunityId = await this.transaction(async (tx) => {
+      const createdOpportunityId = await createOpportunity(tx);
+      await tx.tender.update({ where: { id }, data: tenderUpdateData(input, actorId) });
+      return createdOpportunityId;
+    });
+    return { opportunityId, tender: await this.findById(organizationId, id) };
   }
 
   async softDelete(organizationId: string, id: string, actorId: string) {
@@ -242,6 +241,31 @@ export interface TenderUpdateData {
   submissionDeadline?: string | null;
   expectedAwardDate?: string | null;
   notes?: string | null;
+}
+
+function tenderUpdateData(input: TenderUpdateData, actorId: string): Prisma.TenderUncheckedUpdateInput {
+  return {
+    ...(input.title !== undefined ? { title: input.title } : {}),
+    ...(input.description !== undefined ? { description: input.description ?? null } : {}),
+    ...(input.referenceNumber !== undefined ? { referenceNumber: input.referenceNumber ?? null } : {}),
+    ...(input.status !== undefined ? { status: input.status as TenderStatus } : {}),
+    ...(input.customerId !== undefined ? { customerId: input.customerId } : {}),
+    ...(input.contactId !== undefined ? { contactId: input.contactId } : {}),
+    ...(input.ownerUserId !== undefined ? { ownerUserId: input.ownerUserId } : {}),
+    ...(input.estimatedValue !== undefined ? { estimatedValue: input.estimatedValue } : {}),
+    ...(input.currencyCode !== undefined ? { currencyCode: input.currencyCode } : {}),
+    ...(input.exchangeRateToBase !== undefined ? { exchangeRateToBase: input.exchangeRateToBase } : {}),
+    ...(input.estimatedValueBase !== undefined ? { estimatedValueBase: input.estimatedValueBase } : {}),
+    ...(input.baseCurrencyCode !== undefined ? { baseCurrencyCode: input.baseCurrencyCode } : {}),
+    ...(input.submissionDeadline !== undefined
+      ? { submissionDeadline: input.submissionDeadline ? new Date(input.submissionDeadline) : null }
+      : {}),
+    ...(input.expectedAwardDate !== undefined
+      ? { expectedAwardDate: input.expectedAwardDate ? dateOnly(input.expectedAwardDate) : null }
+      : {}),
+    ...(input.notes !== undefined ? { notes: input.notes ?? null } : {}),
+    updatedById: actorId,
+  };
 }
 
 function dateOnly(value: string): Date {

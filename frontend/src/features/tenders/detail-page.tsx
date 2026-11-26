@@ -11,6 +11,7 @@ import {
   listTenderAudit,
   restoreTender,
   updateTender,
+  type TenderOpportunityRef,
   type TenderStatus,
 } from "./api.ts";
 import {
@@ -101,7 +102,7 @@ export default function TenderDetailPage() {
           <header className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
             <span className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-700 via-brand-500 to-sky-400" />
             <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-4">
+              <div className="flex min-w-0 items-start gap-4">
                 <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-brand-700 ring-1 ring-brand-100 sm:flex">
                   <Icon name="file" className="h-6 w-6" />
                 </div>
@@ -113,31 +114,46 @@ export default function TenderDetailPage() {
                     <p className="font-mono text-xs text-slate-500">{data.tenderNumber}</p>
                     <TenderStatusBadge status={data.status} deleted={Boolean(data.deletedAt)} />
                     {stage ? <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">{stage.label} stage</span> : null}
+                    {data.opportunity ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800 ring-1 ring-inset ring-emerald-200">
+                        <Icon name="check" className="h-3 w-3" /> Opportunity created
+                      </span>
+                    ) : null}
                     {overdue ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800 ring-1 ring-inset ring-amber-200">Overdue</span> : null}
                   </div>
-                  <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{data.title}</h1>
+                  <h1 className="mt-2 break-words text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">{data.title}</h1>
                   <p className="mt-1.5 text-sm text-slate-600">
                     {data.customer?.displayName ?? "No customer"} · {formatMoney(data.estimatedValue, data.currencyCode)}
                     {data.referenceNumber ? ` · Ref ${data.referenceNumber}` : ""}
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap lg:w-auto lg:justify-end">
                 {data.deletedAt ? (
                   canRestore ? (
-                    <Button variant="secondary" className="h-11 rounded-xl" disabled={restore.isPending} onClick={() => restore.mutate()}>
+                    <Button variant="secondary" className="h-11 w-full rounded-xl sm:w-auto" disabled={restore.isPending} onClick={() => restore.mutate()}>
                       <Icon name="restore" className="h-4 w-4" /> {restore.isPending ? "Restoring…" : "Restore"}
                     </Button>
                   ) : null
                 ) : (
                   <>
+                    {canEdit && data.status === "WON" && !data.opportunity ? (
+                      <Button
+                        variant="primary"
+                        className="h-11 w-full rounded-xl sm:w-auto"
+                        disabled={changeStatus.isPending}
+                        onClick={() => changeStatus.mutate("WON")}
+                      >
+                        <Icon name="briefcase" className="h-4 w-4" /> Create opportunity
+                      </Button>
+                    ) : null}
                     {canEdit ? (
-                      <Link to={`/tenders/${id}/edit`} className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50">
+                      <Link to={`/tenders/${id}/edit`} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 sm:w-auto">
                         <Icon name="pencil" className="h-4 w-4" /> Edit tender
                       </Link>
                     ) : null}
                     {canDelete ? (
-                      <Button variant="secondary" className="h-11 rounded-xl text-rose-700" onClick={() => setConfirmDeleteOpen(true)}>
+                      <Button variant="secondary" className="h-11 w-full rounded-xl text-rose-700 sm:w-auto" onClick={() => setConfirmDeleteOpen(true)}>
                         <Icon name="trash" className="h-4 w-4" /> Delete
                       </Button>
                     ) : null}
@@ -153,11 +169,22 @@ export default function TenderDetailPage() {
             </div>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <MetricCard label="Estimated value" value={formatMoney(data.estimatedValue, data.currencyCode)} hint={data.estimatedValueBase ? `${formatMoney(data.estimatedValueBase, data.baseCurrencyCode ?? "")} base` : undefined} tone="brand" icon="wallet" />
             <MetricCard label="Submission deadline" value={formatDateTime(data.submissionDeadline)} hint={overdue ? "Past due" : undefined} tone={overdue ? "amber" : "blue"} icon="clock" />
             <MetricCard label="Expected award" value={formatDate(data.expectedAwardDate)} tone="emerald" icon="calendar" />
             <MetricCard label="Owner" value={data.owner ? `${data.owner.firstName} ${data.owner.lastName}` : "Not assigned"} hint={data.owner?.email} tone="slate" icon="user" />
+            {data.opportunity ? (
+              <OpportunityMetric opportunity={data.opportunity} />
+            ) : (
+              <MetricCard
+                label="CRM conversion"
+                value={data.status === "WON" ? "Not linked" : "On award"}
+                hint={data.status === "WON" ? "Create the opportunity from this tender" : "A WON tender creates a WON opportunity"}
+                tone={data.status === "WON" ? "amber" : "blue"}
+                icon="briefcase"
+              />
+            )}
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm">
@@ -169,7 +196,7 @@ export default function TenderDetailPage() {
 
             <div className="p-5 sm:p-6">
               {tab === "overview" ? (
-                <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+                <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
                   <div className="grid gap-5">
                     <Panel title="Tender summary" description="Core identifiers, dates and ownership.">
                       <dl className="grid gap-4 sm:grid-cols-2">
@@ -192,12 +219,44 @@ export default function TenderDetailPage() {
                     {data.description ? <Panel title="Tender brief" description="Scope and submission requirements."><p className="whitespace-pre-wrap text-sm leading-6 text-slate-600">{data.description}</p></Panel> : null}
                     {data.notes ? <Panel title="Internal notes" description="Visible to the internal bid team only."><p className="whitespace-pre-wrap text-sm leading-6 text-slate-600">{data.notes}</p></Panel> : null}
                   </div>
-                  <aside className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/70 via-white to-sky-50/60 p-4 shadow-inner ring-1 ring-brand-50">
+                  <aside className="min-w-0 overflow-hidden rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/70 via-white to-sky-50/60 p-4 shadow-inner ring-1 ring-brand-50">
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-brand-700">Current stage</p>
-                    <div className="mt-4"><WorkflowStepper status={data.status} /></div>
+                    <div className="mt-4"><WorkflowStepper status={data.status} compact /></div>
                     <div className="mt-4 rounded-xl border border-white bg-white/80 p-3 shadow-sm">
                       <TenderStatusBadge status={data.status} deleted={Boolean(data.deletedAt)} />
                       <p className="mt-2 text-xs leading-5 text-slate-600">{TENDER_STATUS_HELP[data.status]}</p>
+                    </div>
+                    <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 ring-1 ring-inset ring-emerald-100">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-800">CRM conversion</p>
+                      {data.opportunity ? (
+                        <div className="mt-2 min-w-0">
+                          <Link className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-900 underline-offset-4 hover:underline" to={`/opportunities/${data.opportunity.id}`}>
+                            <Icon name="briefcase" className="h-4 w-4 shrink-0" />
+                            <span className="truncate">{data.opportunity.opportunityNumber}</span>
+                            <Icon name="external" className="h-3.5 w-3.5 shrink-0" />
+                          </Link>
+                          <p className="mt-1 truncate text-xs text-emerald-800/80">{data.opportunity.title}</p>
+                          <p className="mt-1 text-[11px] font-semibold text-emerald-700">{statusLabel(data.opportunity.stage)} stage</p>
+                        </div>
+                      ) : data.status === "WON" ? (
+                        <div className="mt-2">
+                          <p className="text-xs leading-5 text-emerald-900/80">This tender is won but has no linked opportunity yet.</p>
+                          {canEdit && !data.deletedAt ? (
+                            <Button
+                              variant="primary"
+                              className="mt-3 h-10 w-full rounded-xl"
+                              disabled={changeStatus.isPending}
+                              onClick={() => changeStatus.mutate("WON")}
+                            >
+                              <Icon name="briefcase" className="h-4 w-4" /> Create opportunity
+                            </Button>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs leading-5 text-emerald-900/80">
+                          Moving this tender to Won creates a linked WON opportunity automatically.
+                        </p>
+                      )}
                     </div>
                   </aside>
                 </div>
@@ -232,10 +291,19 @@ export default function TenderDetailPage() {
                           type="button"
                           disabled={!canEdit || Boolean(data.deletedAt) || changeStatus.isPending}
                           onClick={() => setPendingStatus(status)}
-                          className="rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition enabled:hover:-translate-y-0.5 enabled:hover:border-brand-300 enabled:hover:bg-brand-50/40 enabled:hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                          className={`rounded-xl border p-4 text-left shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                            status === "WON"
+                              ? "border-emerald-200 bg-emerald-50/70 enabled:hover:-translate-y-0.5 enabled:hover:border-emerald-300 enabled:hover:bg-emerald-50 enabled:hover:shadow-md"
+                              : "border-slate-200 bg-white enabled:hover:-translate-y-0.5 enabled:hover:border-brand-300 enabled:hover:bg-brand-50/40 enabled:hover:shadow-md"
+                          }`}
                         >
-                          <span className="text-sm font-bold text-slate-950">{statusLabel(status)}</span>
-                          <span className="mt-1 block text-xs leading-5 text-slate-500">{TENDER_STATUS_HELP[status]}</span>
+                          <span className="flex items-center gap-2 text-sm font-bold text-slate-950">
+                            {statusLabel(status)}
+                            {status === "WON" ? <Icon name="briefcase" className="h-4 w-4 text-emerald-600" /> : null}
+                          </span>
+                          <span className="mt-1 block text-xs leading-5 text-slate-500">
+                            {status === "WON" ? "Creates a linked WON opportunity in the CRM pipeline." : TENDER_STATUS_HELP[status]}
+                          </span>
                         </button>
                       ))}
                       {isTerminalTenderStatus(data.status) ? <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">No further transitions are available.</p> : null}
@@ -282,7 +350,14 @@ export default function TenderDetailPage() {
           <ConfirmDialog
             open={Boolean(pendingStatus)}
             title={`Move to ${pendingStatus ? statusLabel(pendingStatus) : ""}?`}
-            description={<p>This records a workflow event for <span className="font-medium text-slate-900">{data.title}</span>.</p>}
+            description={
+              <p>
+                {pendingStatus === "WON" && !data.opportunity
+                  ? "This records a workflow event and creates a linked WON opportunity for "
+                  : "This records a workflow event for "}
+                <span className="font-medium text-slate-900">{data.title}</span>.
+              </p>
+            }
             confirmLabel="Update status"
             busy={changeStatus.isPending}
             onCancel={() => setPendingStatus(null)}
@@ -307,22 +382,25 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
-function WorkflowStepper({ status }: { status: TenderStatus }) {
+function WorkflowStepper({ status, compact = false }: { status: TenderStatus; compact?: boolean }) {
   const current = tenderStageIndex(status);
   return (
-    <div className="grid gap-2 sm:grid-cols-4">
+    <div className={compact ? "grid grid-cols-1 gap-2" : "grid gap-2 sm:grid-cols-2 xl:grid-cols-4"}>
       {TENDER_STAGES.map((stage, index) => {
         const done = index < current;
         const active = index === current;
         return (
-          <div key={stage.key} className={`relative rounded-xl border p-3 transition ${active ? "border-brand-300 bg-brand-50 shadow-sm" : done ? "border-emerald-100 bg-emerald-50/60" : "border-slate-200 bg-white"}`}>
-            <div className="flex items-center gap-2">
-              <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${done ? "bg-emerald-500 text-white" : active ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-500"}`}>
-                {done ? "✓" : index + 1}
-              </span>
-              <p className={`text-xs font-bold ${active ? "text-brand-900" : done ? "text-emerald-800" : "text-slate-500"}`}>{stage.label}</p>
+          <div
+            key={stage.key}
+            className={`relative min-w-0 rounded-xl border p-3 transition ${compact ? "flex items-center gap-3" : ""} ${active ? "border-brand-300 bg-brand-50 shadow-sm" : done ? "border-emerald-100 bg-emerald-50/60" : "border-slate-200 bg-white"}`}
+          >
+            <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${done ? "bg-emerald-500 text-white" : active ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-500"}`}>
+              {done ? "✓" : index + 1}
+            </span>
+            <div className="min-w-0">
+              <p className={`truncate text-xs font-bold ${active ? "text-brand-900" : done ? "text-emerald-800" : "text-slate-500"}`}>{stage.label}</p>
+              {compact ? null : <p className="mt-2 text-[11px] leading-4 text-slate-500">{stage.hint}</p>}
             </div>
-            <p className="mt-2 text-[11px] leading-4 text-slate-500">{stage.hint}</p>
           </div>
         );
       })}
@@ -349,7 +427,7 @@ function Detail({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function MetricCard({ label, value, hint, tone, icon }: { label: string; value: string; hint?: string; tone: "brand" | "blue" | "emerald" | "amber" | "slate"; icon: "wallet" | "clock" | "calendar" | "user" }) {
+function MetricCard({ label, value, hint, tone, icon }: { label: string; value: string; hint?: string; tone: "brand" | "blue" | "emerald" | "amber" | "slate"; icon: "wallet" | "clock" | "calendar" | "user" | "briefcase" }) {
   const tones = {
     brand: "bg-brand-500",
     blue: "bg-blue-500",
@@ -372,7 +450,26 @@ function MetricCard({ label, value, hint, tone, icon }: { label: string; value: 
   );
 }
 
-function Icon({ name, className }: { name: "file" | "restore" | "pencil" | "trash" | "alert" | "wallet" | "clock" | "calendar" | "user" | "flag"; className?: string }) {
+function OpportunityMetric({ opportunity }: { opportunity: TenderOpportunityRef }) {
+  return (
+    <Link
+      to={`/opportunities/${opportunity.id}`}
+      className="group relative overflow-hidden rounded-2xl border border-emerald-200/80 bg-emerald-50/60 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
+    >
+      <span className="absolute inset-x-0 top-0 h-0.5 bg-emerald-500" />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-700">Converted opportunity</p>
+          <p className="mt-2 truncate font-mono text-sm font-bold tracking-tight text-emerald-950">{opportunity.opportunityNumber}</p>
+        </div>
+        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-emerald-700 ring-1 ring-emerald-200"><Icon name="briefcase" className="h-4 w-4" /></span>
+      </div>
+      <p className="mt-3 truncate border-t border-emerald-200/70 pt-3 text-[11px] font-medium text-emerald-800/80">{opportunity.title}</p>
+    </Link>
+  );
+}
+
+function Icon({ name, className }: { name: "file" | "restore" | "pencil" | "trash" | "alert" | "wallet" | "clock" | "calendar" | "user" | "flag" | "briefcase" | "check" | "external"; className?: string }) {
   const paths: Record<typeof name, ReactNode> = {
     file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /></>,
     restore: <><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><polyline points="3 3 3 8 8 8" /><path d="M12 7v5l3 2" /></>,
@@ -384,6 +481,9 @@ function Icon({ name, className }: { name: "file" | "restore" | "pencil" | "tras
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="10" x2="21" y2="10" /></>,
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
     flag: <><path d="M4 22V4" /><path d="M4 5h13l-2 4 2 4H4" /></>,
+    briefcase: <><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M3 12h18" /></>,
+    check: <><path d="m5 12 4 4L19 6" /></>,
+    external: <><path d="M14 4h6v6" /><path d="M20 4 10 14" /><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></>,
   };
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

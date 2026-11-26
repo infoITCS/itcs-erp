@@ -1271,6 +1271,7 @@ model Tender {
   currency     Currency     @relation(fields: [currencyCode], references: [code])
   createdBy    User         @relation("TenderCreatedBy", fields: [createdById], references: [id])
   updatedBy    User         @relation("TenderUpdatedBy", fields: [updatedById], references: [id])
+  opportunity  Opportunity?
 
   @@index([organizationId, createdAt, id])
   @@index([organizationId, status, submissionDeadline])
@@ -1348,6 +1349,7 @@ model Opportunity {
   contactId           String?                @map("contact_id") @db.Uuid
   resellerId          String?                @map("reseller_id") @db.Uuid
   leadId              String?                @unique @map("lead_id") @db.Uuid
+  tenderId            String?                @unique @map("tender_id") @db.Uuid
   ownerUserId         String                 @map("owner_user_id") @db.Uuid
   leadSource          CustomerLeadSource?    @map("lead_source")
   estimatedValue      Decimal                @default(0) @map("estimated_value") @db.Decimal(19, 4)
@@ -1383,6 +1385,7 @@ model Opportunity {
   contact          Contact?                     @relation(fields: [contactId], references: [id])
   reseller         Reseller?                    @relation(fields: [resellerId], references: [id])
   lead             Lead?                        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  tender           Tender?                      @relation(fields: [tenderId], references: [id], onDelete: SetNull)
   owner            User                         @relation("OpportunityOwner", fields: [ownerUserId], references: [id])
   currency         Currency                     @relation(fields: [currencyCode], references: [code])
   createdBy        User                         @relation("OpportunityCreatedBy", fields: [createdById], references: [id])
@@ -1398,6 +1401,7 @@ model Opportunity {
   @@index([organizationId, customerId, createdAt])
   @@index([organizationId, resellerId, createdAt])
   @@index([organizationId, leadSource, createdAt])
+  @@index([organizationId, tenderId, createdAt])
   @@index([organizationId, expectedCloseDate])
   @@index([organizationId, deletedAt, createdAt, id], map: "opp_org_del_created_id_idx")
   @@index([organizationId, deletedAt, stage, createdAt, id], map: "opp_org_del_stage_created_id_idx")

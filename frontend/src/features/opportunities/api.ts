@@ -90,6 +90,13 @@ export interface OpportunityLeadRef {
   source: string;
 }
 
+export interface OpportunityTenderRef {
+  id: string;
+  tenderNumber: string;
+  title: string;
+  status: string;
+}
+
 export interface Opportunity {
   id: string;
   opportunityNumber: string;
@@ -100,6 +107,7 @@ export interface Opportunity {
   contactId: string | null;
   resellerId: string | null;
   leadId: string | null;
+  tenderId: string | null;
   ownerUserId: string;
   leadSource: OpportunityLeadSource | null;
   estimatedValue: string;
@@ -133,6 +141,7 @@ export interface Opportunity {
   contact: OpportunityContactRef | null;
   reseller: OpportunityResellerRef | null;
   lead: OpportunityLeadRef | null;
+  tender: OpportunityTenderRef | null;
   owner: OpportunityOwnerRef | null;
 }
 

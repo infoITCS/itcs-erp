@@ -35,6 +35,13 @@ export interface TenderOwnerRef {
   email: string;
 }
 
+export interface TenderOpportunityRef {
+  id: string;
+  opportunityNumber: string;
+  title: string;
+  stage: "NEW" | "QUALIFICATION" | "NEEDS_ANALYSIS" | "PROPOSAL" | "NEGOTIATION" | "WON" | "LOST";
+}
+
 export interface Tender {
   id: string;
   organizationId: string;
@@ -62,6 +69,7 @@ export interface Tender {
   customer: TenderCustomerRef | null;
   contact: TenderContactRef | null;
   owner: TenderOwnerRef | null;
+  opportunity: TenderOpportunityRef | null;
 }
 
 export interface TenderFormOptions {

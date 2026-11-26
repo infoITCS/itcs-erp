@@ -218,6 +218,127 @@ describe("tender service", () => {
     }
   });
 
+  it("creates a WON opportunity when a submitted tender is won", async () => {
+    const audits: AuditEntry[] = [];
+    const opportunityId = "99999999-9999-4999-8999-999999999999";
+    let capturedOpportunity: {
+      stage?: string;
+      leadSource?: string;
+      tenderId?: string;
+      probabilityPercent?: number;
+      expectedCloseDate?: string;
+      wonAt?: Date;
+      closedAt?: Date;
+      estimatedValue?: string;
+      currencyCode?: string;
+    } | null = null;
+    const existing = {
+      id: tenderId,
+      tenderNumber: "TND-2026-00001",
+      title: "Network refresh",
+      description: "Network scope",
+      referenceNumber: "RFQ-1042",
+      status: "SUBMITTED",
+      customerId,
+      contactId,
+      ownerUserId: actorId,
+      estimatedValue: "1000.0000",
+      currencyCode: "PKR",
+      exchangeRateToBase: "1.00000000",
+      estimatedValueBase: "1000.0000",
+      baseCurrencyCode: "PKR",
+      expectedAwardDate: new Date("2026-12-01T00:00:00.000Z"),
+      notes: "Internal bid note",
+      opportunity: null,
+    };
+    const service = new TendersService(
+      {
+        async findById() {
+          return existing;
+        },
+        async findOrganization() {
+          return { baseCurrencyCode: "PKR" };
+        },
+        async findExchangeRateValue() {
+          return null;
+        },
+        async updateWithOpportunity(
+          _organizationId: string,
+          _id: string,
+          _actorId: string,
+          _input: unknown,
+          createOpportunity: (tx: never) => Promise<string>,
+        ) {
+          const id = await createOpportunity({} as never);
+          return {
+            opportunityId: id,
+            tender: { ...existing, status: "WON", opportunity: { id, opportunityNumber: "OPP-2026-00001" } },
+          };
+        },
+      } as never,
+      recorder(audits),
+      {
+        async createIn(
+          _tx: never,
+          _organizationId: string,
+          _actorId: string,
+          input: {
+            stage?: string;
+            leadSource?: string;
+            tenderId?: string;
+            probabilityPercent?: number;
+            expectedCloseDate?: string;
+            wonAt?: Date;
+            closedAt?: Date;
+            estimatedValue?: string;
+            currencyCode?: string;
+          },
+        ) {
+          capturedOpportunity = input;
+          return opportunityId;
+        },
+        async findById() {
+          return { opportunityNumber: "OPP-2026-00001" };
+        },
+      } as never,
+    );
+
+    const tender = await service.update(orgId, actorId, tenderId, { status: "WON" }, meta);
+
+    assert.equal(tender.status, "WON");
+    assert.equal(capturedOpportunity?.stage, "WON");
+    assert.equal(capturedOpportunity?.leadSource, "TENDER");
+    assert.equal(capturedOpportunity?.tenderId, tenderId);
+    assert.equal(capturedOpportunity?.probabilityPercent, 100);
+    assert.equal(capturedOpportunity?.expectedCloseDate, "2026-12-01");
+    assert.equal(capturedOpportunity?.estimatedValue, "1000.0000");
+    assert.equal(capturedOpportunity?.currencyCode, "PKR");
+    assert.ok(capturedOpportunity?.wonAt instanceof Date);
+    assert.ok(capturedOpportunity?.closedAt instanceof Date);
+    assert.ok(audits.some((entry) => entry.action === "tenders.converted_to_opportunity"));
+    assert.ok(audits.some((entry) => entry.action === "opportunities.created" && entry.module === "opportunities"));
+  });
+
+  it("does not recreate an opportunity for an already converted tender", async () => {
+    let updated = false;
+    const service = new TendersService(
+      {
+        async findById() {
+          return { id: tenderId, status: "WON", opportunity: { id: "99999999-9999-4999-8999-999999999999" } };
+        },
+        async update() {
+          updated = true;
+          return { id: tenderId, status: "WON" };
+        },
+      } as never,
+      recorder([]),
+    );
+
+    await service.update(orgId, actorId, tenderId, { status: "WON" }, meta);
+
+    assert.equal(updated, true);
+  });
+
   it("does not allow deleted tenders without delete or restore permission", async () => {
     const service = new TendersService({} as never, recorder([]));
     await assert.rejects(

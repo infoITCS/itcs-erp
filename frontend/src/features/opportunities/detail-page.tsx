@@ -421,6 +421,17 @@ export default function OpportunityDetailPage() {
                   <dd className="mt-0.5 text-sm text-slate-800">{stageLabel(data.leadSource)}</dd>
                 </div>
               ) : null}
+              {data.tender ? (
+                <div>
+                  <dt className="text-xs text-slate-500">Source tender</dt>
+                  <dd className="mt-0.5 text-sm text-slate-800">
+                    <Link className="font-semibold text-brand-700 underline-offset-4 hover:underline" to={`/tenders/${data.tender.id}`}>
+                      {data.tender.tenderNumber} · {data.tender.title}
+                    </Link>
+                    <span className="ml-2 text-xs text-slate-500">{stageLabel(data.tender.status)}</span>
+                  </dd>
+                </div>
+              ) : null}
               {data.competitorName ? (
                 <div>
                   <dt className="text-xs text-slate-500">Competitor</dt>

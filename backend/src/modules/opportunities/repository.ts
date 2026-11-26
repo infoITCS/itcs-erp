@@ -1,4 +1,4 @@
-import { Prisma, type CustomerLeadSource, type PrismaClient } from "@prisma/client";
+import { Prisma, type CustomerLeadSource, type OpportunityStage, type PrismaClient } from "@prisma/client";
 import { BaseRepository } from "../../common/database/base-repository";
 import { ConflictError } from "../../common/errors/app-error";
 import { allocateDocumentNumberIn } from "../../common/numbering/allocate";
@@ -28,6 +28,7 @@ const opportunitySelect = {
   contactId: true,
   resellerId: true,
   leadId: true,
+  tenderId: true,
   ownerUserId: true,
   leadSource: true,
   estimatedValue: true,
@@ -61,6 +62,7 @@ const opportunitySelect = {
   contact: { select: { id: true, displayName: true, email: true } },
   reseller: { select: { id: true, displayName: true } },
   lead: { select: { id: true, leadNumber: true, displayName: true, status: true, source: true } },
+  tender: { select: { id: true, tenderNumber: true, title: true, status: true } },
   owner: { select: { id: true, firstName: true, lastName: true, email: true } },
 } satisfies Prisma.OpportunitySelect;
 
@@ -210,6 +212,13 @@ export class OpportunitiesRepository extends BaseRepository {
     });
   }
 
+  async findByTenderId(organizationId: string, tenderId: string, includeDeleted = false) {
+    return this.db.opportunity.findFirst({
+      where: { organizationId, tenderId, ...(includeDeleted ? {} : { deletedAt: null }) },
+      select: opportunitySelect,
+    });
+  }
+
   async findOrganization(organizationId: string) {
     return this.db.organization.findUnique({
       where: { id: organizationId },
@@ -297,7 +306,7 @@ export class OpportunitiesRepository extends BaseRepository {
     return this.findById(organizationId, id);
   }
 
-  /** Creates an opportunity on the caller's transaction. Used by lead conversion. */
+  /** Creates an opportunity on the caller's transaction. Used by lead and tender conversion. */
   async createIn(
     tx: Prisma.TransactionClient,
     organizationId: string,
@@ -311,11 +320,12 @@ export class OpportunitiesRepository extends BaseRepository {
         opportunityNumber,
         title: input.title,
         description: input.description ?? null,
-        stage: "NEW",
+        stage: (input.stage as OpportunityStage | undefined) ?? "NEW",
         customerId: input.customerId ?? null,
         contactId: input.contactId ?? null,
         resellerId: input.resellerId ?? null,
         leadId: input.leadId ?? null,
+        tenderId: input.tenderId ?? null,
         ownerUserId: input.ownerUserId,
         leadSource: (input.leadSource as CustomerLeadSource | undefined) ?? null,
         estimatedValue: input.estimatedValue,
@@ -324,6 +334,8 @@ export class OpportunitiesRepository extends BaseRepository {
         estimatedValueBase: input.estimatedValueBase,
         baseCurrencyCode: input.baseCurrencyCode,
         probabilityPercent: input.probabilityPercent,
+        wonAt: input.wonAt ?? null,
+        closedAt: input.closedAt ?? null,
         expectedCloseDate: input.expectedCloseDate ? dateOnly(input.expectedCloseDate) : null,
         nextAction: input.nextAction ?? null,
         nextActionDueAt: input.nextActionDueAt ? new Date(input.nextActionDueAt) : null,
@@ -635,10 +647,12 @@ export class OpportunitiesRepository extends BaseRepository {
 export interface OpportunityCreateData {
   title: string;
   description?: string;
+  stage?: string;
   customerId?: string;
   contactId?: string;
   resellerId?: string;
   leadId?: string;
+  tenderId?: string;
   ownerUserId: string;
   leadSource?: string;
   estimatedValue: string;
@@ -647,6 +661,8 @@ export interface OpportunityCreateData {
   estimatedValueBase: string;
   baseCurrencyCode: string;
   probabilityPercent: number;
+  wonAt?: Date;
+  closedAt?: Date;
   expectedCloseDate?: string;
   nextAction?: string;
   nextActionDueAt?: string;

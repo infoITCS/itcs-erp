@@ -15,6 +15,7 @@ export function tenderActionLabel(action: string): string {
     "tenders.updated": "Tender updated",
     "tenders.deleted": "Tender deleted",
     "tenders.restored": "Tender restored",
+    "tenders.converted_to_opportunity": "Converted to opportunity",
   };
   return labels[action] ?? statusLabel(action.replace(/\./g, "_"));
 }

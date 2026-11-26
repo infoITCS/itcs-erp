@@ -3,6 +3,8 @@ import { ForbiddenError, NotFoundError, ValidationFailedError } from "../../comm
 import type { AuditLogsService } from "../audit-logs/service";
 import type { RequestMeta } from "../auth/types";
 import { computeCurrencySnapshot } from "../opportunities/currency-snapshot";
+import type { OpportunitiesRepository, OpportunityCreateData } from "../opportunities/repository";
+import { OPPORTUNITIES_MODULE } from "../opportunities/types";
 import { toTenderPage, type TenderSort } from "./page";
 import type { TendersRepository } from "./repository";
 import { TENDERS_MODULE, TENDER_STATUSES } from "./types";
@@ -13,6 +15,7 @@ export class TendersService {
   constructor(
     private readonly repository: TendersRepository,
     private readonly audit: AuditLogsService,
+    private readonly opportunities?: OpportunitiesRepository,
   ) {}
 
   async list(organizationId: string, query: TenderListQuery, permissions: string[]) {
@@ -133,11 +136,107 @@ export class TendersService {
       snapshot = await this.computeSnapshot(organizationId, nextValue, nextCurrency);
     }
 
-    const updated = await this.repository.update(organizationId, id, actorId, {
-      ...input,
-      contactId,
-      ...snapshot,
-    });
+    const opportunityRepository = this.opportunities;
+    const shouldConvert = input.status === "WON" && !existing.opportunity;
+    if (shouldConvert && !opportunityRepository) {
+      throw new ValidationFailedError({ status: ["Opportunity creation is not configured"] });
+    }
+
+    let updated;
+    if (shouldConvert && opportunityRepository) {
+      const wonAt = new Date();
+      const estimatedValue = input.estimatedValue ?? String(existing.estimatedValue);
+      const currencyCode = input.currencyCode ?? existing.currencyCode;
+      const conversionSnapshot = snapshot ?? (await this.computeSnapshot(organizationId, estimatedValue, currencyCode));
+      const sourceNote = `Converted from won tender ${existing.tenderNumber}${existing.referenceNumber ? ` (Ref ${existing.referenceNumber})` : ""}.`;
+      const currentDescription =
+        input.description !== undefined ? input.description : existing.description;
+      const description = `${currentDescription ? `${currentDescription}\n\n` : ""}${sourceNote}`.slice(0, 4000);
+      const expectedCloseDate =
+        toDateOnly(input.expectedAwardDate !== undefined ? input.expectedAwardDate : existing.expectedAwardDate) ??
+        wonAt.toISOString().slice(0, 10);
+      const opportunityInput: OpportunityCreateData = {
+        title: input.title ?? existing.title,
+        description,
+        stage: "WON",
+        customerId: input.customerId ?? existing.customerId,
+        contactId: (contactId !== undefined ? contactId : existing.contactId) ?? undefined,
+        ownerUserId: input.ownerUserId ?? existing.ownerUserId,
+        leadSource: "TENDER",
+        estimatedValue,
+        currencyCode,
+        exchangeRateToBase: conversionSnapshot.exchangeRateToBase,
+        estimatedValueBase: conversionSnapshot.estimatedValueBase,
+        baseCurrencyCode: conversionSnapshot.baseCurrencyCode,
+        probabilityPercent: 100,
+        expectedCloseDate,
+        nextAction: "Review won tender handover",
+        notes: (input.notes !== undefined ? input.notes : existing.notes) ?? undefined,
+        tenderId: id,
+        wonAt,
+        closedAt: wonAt,
+      };
+
+      const converted = await this.repository.updateWithOpportunity(
+        organizationId,
+        id,
+        actorId,
+        { ...input, contactId, ...snapshot },
+        (tx) => opportunityRepository.createIn(tx, organizationId, actorId, opportunityInput),
+      );
+      if (!converted) {
+        throw new NotFoundError("Tender not found");
+      }
+      const opportunity = await opportunityRepository.findById(organizationId, converted.opportunityId);
+      updated = converted.tender;
+
+      await this.record(
+        organizationId,
+        actorId,
+        "tenders.converted_to_opportunity",
+        "tender",
+        id,
+        meta,
+        {
+          tenderId: id,
+          tenderNumber: existing.tenderNumber,
+          opportunityId: converted.opportunityId,
+          opportunityNumber: opportunity?.opportunityNumber ?? "",
+          estimatedValue,
+          currencyCode,
+        },
+        { status: existing.status },
+      );
+      await this.audit.record({
+        organizationId,
+        userId: actorId,
+        action: "opportunities.created",
+        module: OPPORTUNITIES_MODULE,
+        entityType: "opportunity",
+        entityId: converted.opportunityId,
+        newValues: {
+          opportunityId: converted.opportunityId,
+          opportunityNumber: opportunity?.opportunityNumber ?? "",
+          title: opportunityInput.title,
+          stage: "WON",
+          leadSource: "TENDER",
+          tenderId: id,
+          tenderNumber: existing.tenderNumber,
+          estimatedValue,
+          currencyCode,
+          wonAt: wonAt.toISOString(),
+          closedAt: wonAt.toISOString(),
+        },
+        ipAddress: meta.ipAddress,
+        userAgent: meta.userAgent,
+      });
+    } else {
+      updated = await this.repository.update(organizationId, id, actorId, {
+        ...input,
+        contactId,
+        ...snapshot,
+      });
+    }
     if (!updated) {
       throw new NotFoundError("Tender not found");
     }
@@ -240,6 +339,17 @@ export class TendersService {
       userAgent: meta.userAgent,
     });
   }
+}
+
+function toDateOnly(value: string | Date | null | undefined): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+  return date.toISOString().slice(0, 10);
 }
 
 function canSeeDeleted(permissions: string[]): boolean {
