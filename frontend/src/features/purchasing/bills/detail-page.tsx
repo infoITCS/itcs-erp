@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { PrintPreviewModal } from "@/components/documents/PrintPreviewModal.tsx";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
+import { purchasingKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import {
   PURCHASING_PERMISSIONS,
@@ -13,28 +15,46 @@ import {
   restoreVendorBill,
   voidVendorBill,
 } from "../api.ts";
-import { Detail, Metric, Panel, StatusPill, billBalance, docNumber, formatDate, formatMoney, formatQuantity, numberValue, statusLabel } from "../shared.tsx";
+import {
+  Detail,
+  ErrorState,
+  LoadingState,
+  MetricCard,
+  MetricGrid,
+  Panel,
+  StatusPill,
+  billBalance,
+  buildPrintableProps,
+  docNumber,
+  formatDate,
+  formatMoney,
+  formatQuantity,
+  numberValue,
+  statusLabel,
+} from "../shared.tsx";
 
 export default function VendorBillDetailPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canUpdate = useHasPermission(PURCHASING_PERMISSIONS.update);
+  const canApprove = useHasPermission("purchasing:approve");
   const canCreate = useHasPermission(PURCHASING_PERMISSIONS.create);
   const canDelete = useHasPermission(PURCHASING_PERMISSIONS.delete);
   const canRestore = useHasPermission(PURCHASING_PERMISSIONS.restore);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [voidOpen, setVoidOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const bill = useQuery({ queryKey: ["purchasing", "bills", id], queryFn: () => getVendorBill(id), enabled: Boolean(id) });
+  const bill = useQuery({ queryKey: purchasingKeys.bills.detail(id), queryFn: () => getVendorBill(id), enabled: Boolean(id) });
 
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "bills"] }),
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "payments"] }),
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "orders"] }),
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "hub"] }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.payments.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.orders.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
     ]);
   };
 
@@ -78,23 +98,56 @@ export default function VendorBillDetailPage() {
   });
 
   if (bill.isPending) {
-    return <p className="text-sm text-slate-500">Loading vendor bill…</p>;
+    return <LoadingState label="Loading vendor bill…" />;
   }
   if (bill.isError || !bill.data) {
-    return <p className="text-sm text-red-700">{bill.isError ? getApiErrorMessage(bill.error) : "Vendor bill not found"}</p>;
+    return (
+      <div className="mx-auto max-w-3xl p-6">
+        <ErrorState
+          message={bill.isError ? getApiErrorMessage(bill.error) : "Vendor bill not found"}
+          onRetry={() => bill.refetch()}
+          backTo="/purchasing/bills"
+          backLabel="Back to bills"
+        />
+      </div>
+    );
   }
 
   const row = bill.data;
   const lines = row.lines ?? [];
   const payments = row.payments ?? [];
   const balance = billBalance(row);
+  const printProps = buildPrintableProps({
+    type: "VENDOR BILL",
+    documentNumber: docNumber(row),
+    date: formatDate(row.billDate),
+    dueDate: formatDate(row.dueDate),
+    paymentTerms: row.paymentTerm ? `${row.paymentTerm.name} (${row.paymentTerm.dueDays} days)` : undefined,
+    partyName: row.vendor?.displayName ?? row.vendor?.name ?? "Vendor",
+    partyAddress: row.vendor?.email ?? undefined,
+    taxId: row.vendor?.legalName ?? undefined,
+    lines: lines.map((line) => ({
+      id: line.id,
+      name: line.productName ?? line.description ?? "Item",
+      description: line.description,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      taxAmount: line.lineTax,
+      lineTotal: line.lineTotal,
+    })),
+    subtotal: row.subtotal,
+    taxAmount: row.taxTotal,
+    total: row.total,
+    notes: row.notes ?? undefined,
+    currencyCode: row.currencyCode,
+  });
 
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <div className="border-b border-slate-200 pb-5">
         <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
           <span className="h-2 w-2 rounded-full bg-brand-600" />
-          <Link className="hover:underline" to="/purchasing/bills">Supply / Bills</Link>
+          <Link className="hover:underline" to="/purchasing/bills">Purchasing / Bills</Link>
           <span className="text-slate-400">/</span>
           <span className="font-mono text-slate-500">{docNumber(row)}</span>
         </p>
@@ -122,19 +175,20 @@ export default function VendorBillDetailPage() {
                     <Button variant="secondary">Edit</Button>
                   </Link>
                 ) : null}
-                {canUpdate && row.status === "DRAFT" ? (
+                {canApprove && row.status === "DRAFT" ? (
                   <Button className="bg-brand-800 hover:bg-brand-900" disabled={approve.isPending} onClick={() => approve.mutate()}>
                     {approve.isPending ? "Approving…" : "Approve bill"}
                   </Button>
                 ) : null}
-                {canCreate && balance > 0 && row.status !== "VOID" && !row.deletedAt ? (
+                {canCreate && balance > 0 && (row.status === "APPROVED" || row.status === "PARTIALLY_PAID") && !row.deletedAt ? (
                   <Link to={`/purchasing/payments/new?vendorId=${row.vendorId}&billId=${row.id}`}>
                     <Button variant="secondary">Record payment</Button>
                   </Link>
                 ) : null}
-                {canUpdate && !["VOID", "PAID"].includes(row.status) ? (
+                {canApprove && (row.status === "APPROVED" || row.status === "PARTIALLY_PAID") ? (
                   <Button variant="ghost" className="text-amber-800 hover:bg-amber-50" onClick={() => setVoidOpen(true)}>Void</Button>
                 ) : null}
+                <Button variant="secondary" onClick={() => setPrintOpen(true)}>Print preview</Button>
                 {canDelete && row.status === "DRAFT" ? (
                   <Button variant="ghost" className="text-red-700 hover:bg-red-50" onClick={() => setDeleteOpen(true)}>Delete</Button>
                 ) : null}
@@ -149,12 +203,12 @@ export default function VendorBillDetailPage() {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric label="Total" value={formatMoney(row.total, row.currencyCode)} />
-        <Metric label="Amount paid" value={formatMoney(row.amountPaid ?? "0", row.currencyCode)} />
-        <Metric label="Balance" value={formatMoney(balance, row.currencyCode)} />
-        <Metric label="Lines" value={String(lines.length)} />
-      </div>
+      <MetricGrid>
+        <MetricCard label="Total" value={formatMoney(row.total, row.currencyCode)} hint="Gross bill value" />
+        <MetricCard label="Amount paid" value={formatMoney(row.amountPaid ?? "0", row.currencyCode)} hint="Allocated payments" />
+        <MetricCard label="Balance" value={formatMoney(balance, row.currencyCode)} hint="Still payable" />
+        <MetricCard label="Lines" value={String(lines.length)} hint="Billed items" />
+      </MetricGrid>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <div className="flex flex-col gap-4">
@@ -265,6 +319,8 @@ export default function VendorBillDetailPage() {
         onCancel={() => setDeleteOpen(false)}
         onConfirm={() => remove.mutate()}
       />
+
+      <PrintPreviewModal isOpen={printOpen} onClose={() => setPrintOpen(false)} docProps={printProps} />
     </section>
   );
 }

@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/layouts/AppLayout.tsx";
 import { LoginPage } from "@/features/auth/index.tsx";
 import { MicrosoftCallbackPage } from "@/features/auth/callback.tsx";
 import { hasPermission, useHasPermission, useSessionUser } from "@/hooks/useSession.ts";
+import { LoadingState } from "@/features/purchasing/shared.tsx";
 import { GuestOnly, RequireAuth } from "./RequireAuth.tsx";
 import { navItems } from "./nav.tsx";
 
@@ -54,7 +55,7 @@ const explicitlyRoutedPaths = new Set([
 ]);
 
 function PageLoading() {
-  return <p className="text-sm text-slate-500">Loading page…</p>;
+  return <LoadingState label="Loading page…" />;
 }
 
 function RequirePermission({

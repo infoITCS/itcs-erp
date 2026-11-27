@@ -16,6 +16,22 @@ export const http = axios.create({
 
 let refreshPromise: Promise<string | null> | null = null;
 
+function tokenExpiryMs(token: string | null): number | null {
+  if (!token) {
+    return null;
+  }
+  const parts = token.split(".");
+  if (parts.length < 2) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return typeof payload.exp === "number" ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = tokenStore.getRefreshToken();
   if (!refreshToken) {
@@ -46,11 +62,26 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
-http.interceptors.request.use((config) => {
-  // During impersonation, use the impersonation token for all API calls
-  const token = tokenStore.isImpersonating()
-    ? tokenStore.getImpersonation()?.accessToken
-    : tokenStore.getRealAccessToken();
+http.interceptors.request.use(async (config) => {
+  const url = String(config.url ?? "");
+  const isAuthCall =
+    url.includes("/api/v1/auth/login") ||
+    url.includes("/api/v1/auth/refresh") ||
+    url.includes("/api/v1/auth/microsoft/exchange");
+
+  if (!tokenStore.isImpersonating() && !isAuthCall) {
+    let token = tokenStore.getRealAccessToken();
+    const expiry = tokenExpiryMs(token);
+    if (token && expiry !== null && expiry - Date.now() < 60_000) {
+      token = await refreshAccessToken();
+    }
+    if (token) {
+      config.headers.set("Authorization", `Bearer ${token}`);
+    }
+    return config;
+  }
+
+  const token = tokenStore.isImpersonating() ? tokenStore.getImpersonation()?.accessToken : null;
   if (token) {
     config.headers.set("Authorization", `Bearer ${token}`);
   }

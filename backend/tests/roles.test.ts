@@ -89,10 +89,18 @@ describe("permission catalog", () => {
     assert.ok(viewer);
     assert.deepEqual([...admin.permissions].sort(), [...ERP_PERMISSION_CODES].sort());
     assert.deepEqual([...viewer.permissions].sort(), [...SHARED_READ_PERMISSION_CODES].sort());
+    assert.equal(ERP_PERMISSION_CODES.includes("purchasing:restore"), true);
+    assert.equal(ERP_PERMISSION_CODES.includes("vendors:restore"), true);
     for (const role of ROLE_PRESETS) {
       if (role.code !== "admin") {
         assert.equal(role.permissions.includes("audit-logs:read"), false, `${role.code} has audit access`);
       }
+    }
+    for (const code of ["procurement-manager", "operations-manager"]) {
+      const role = ROLE_PRESETS.find((preset) => preset.code === code);
+      assert.ok(role);
+      assert.equal(role.permissions.includes("purchasing:restore"), true, `${code} lacks purchasing restore`);
+      assert.equal(role.permissions.includes("vendors:restore"), true, `${code} lacks vendors restore`);
     }
   });
 
@@ -155,6 +163,61 @@ describe("RBAC synchronization", () => {
     assert.equal(calls.updated.length, 1);
     assert.equal(calls.permissionDeletes, 0);
     assert.equal(calls.permissionCreates, 0);
+  });
+
+  it("backfills new restore permissions into matching system roles", async () => {
+    const createdPermissions: string[] = [];
+    const granted: string[] = [];
+    const restoreCodes = ["purchasing:restore", "vendors:restore"];
+    let findCalls = 0;
+    const db = {
+      permission: {
+        createMany: async ({ data }: { data: Array<{ code: string }> }) => {
+          createdPermissions.push(...data.map((permission) => permission.code));
+        },
+        findMany: async ({ where }: { where?: { code?: { in?: string[] } } }) => {
+          findCalls += 1;
+          const codes = where?.code?.in ?? [];
+          return codes
+            .filter((code) => findCalls > 1 || !restoreCodes.includes(code))
+            .map((code) => ({ id: `permission-${code}`, code }));
+        },
+      },
+      organization: { findMany: async () => [{ id: orgId }] },
+      role: {
+        findMany: async () => [
+          {
+            id: roleId,
+            code: "procurement-manager",
+            name: "Procurement Manager",
+            description: "Procurement",
+            isSystem: true,
+          },
+          {
+            id: "viewer-role",
+            code: "viewer",
+            name: "Viewer",
+            description: "Viewer",
+            isSystem: true,
+          },
+        ],
+        create: async () => undefined,
+        update: async () => undefined,
+      },
+      rolePermission: {
+        createMany: async ({ data }: { data: Array<{ permissionId: string }> }) => {
+          granted.push(...data.map((row) => row.permissionId));
+        },
+      },
+    } as unknown as PrismaClient;
+
+    await syncRbacCatalog(db);
+
+    assert.ok(createdPermissions.includes("purchasing:restore"));
+    assert.ok(createdPermissions.includes("vendors:restore"));
+    assert.ok(granted.includes("permission-purchasing:restore"));
+    assert.ok(granted.includes("permission-vendors:restore"));
+    assert.equal(granted.filter((code) => code === "permission-purchasing:restore").length, 1);
   });
 });
 

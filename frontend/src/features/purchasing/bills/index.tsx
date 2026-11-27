@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { DataTable, type DataTableColumn } from "@/components/tables/DataTable.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue.ts";
 import { useHasPermission } from "@/hooks/useSession.ts";
-import { queryKeys } from "@/lib/query-keys.ts";
+import { purchasingKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import {
   BILL_STATUSES,
@@ -16,21 +16,36 @@ import {
   restoreVendorBill,
   type VendorBill,
 } from "../api.ts";
-import { PageHeader, StatusPill, billBalance, docNumber, formatDate, formatMoney, statusLabel } from "../shared.tsx";
+import {
+  ErrorState,
+  MetricCard,
+  MetricGrid,
+  PageHeader,
+  RowLink,
+  StatusPill,
+  billBalance,
+  docNumber,
+  formatDate,
+  formatMoney,
+  statusLabel,
+  useFilterParams,
+} from "../shared.tsx";
 
-const PAGE_SIZE = 50;
+const FILTER_KEYS = ["q", "status", "vendorId", "purchaseOrderId", "includeDeleted"] as const;
 
 export default function VendorBillsPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
+  const { filters, setFilter, clearFilters } = useFilterParams(FILTER_KEYS);
   const canCreate = useHasPermission(PURCHASING_PERMISSIONS.create);
+  const canUpdate = useHasPermission(PURCHASING_PERMISSIONS.update);
   const canRestore = useHasPermission(PURCHASING_PERMISSIONS.restore);
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState(searchParams.get("status") ?? "");
-  const [vendorId, setVendorId] = useState(searchParams.get("vendorId") ?? "");
-  const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [pageSize, setPageSize] = useState(50);
   const [cursors, setCursors] = useState<Array<string | undefined>>([undefined]);
+  const q = filters.q ?? "";
+  const status = filters.status ?? "";
+  const vendorId = filters.vendorId ?? "";
+  const purchaseOrderId = filters.purchaseOrderId ?? "";
+  const includeDeleted = canRestore && filters.includeDeleted === "true";
   const debouncedQ = useDebouncedValue(q, 300);
   const cursor = cursors.at(-1);
 
@@ -38,31 +53,26 @@ export default function VendorBillsPage() {
     q: debouncedQ || undefined,
     status: status || undefined,
     vendorId: vendorId || undefined,
-    includeDeleted: canRestore && includeDeleted ? "true" : undefined,
+    purchaseOrderId: purchaseOrderId || undefined,
+    includeDeleted: includeDeleted || undefined,
     cursor,
-    limit: PAGE_SIZE,
+    limit: pageSize,
   };
 
-  const bills = useQuery({ queryKey: queryKeys.list("purchasing/bills", params), queryFn: () => listVendorBills(params) });
-  const formOptions = useQuery({ queryKey: ["purchasing", "bills", "form-options"], queryFn: getBillFormOptions });
+  const bills = useQuery({ queryKey: purchasingKeys.bills.list(params), queryFn: () => listVendorBills(params) });
+  const formOptions = useQuery({ queryKey: purchasingKeys.bills.formOptions(), queryFn: getBillFormOptions });
 
   const restore = useMutation({
     mutationFn: restoreVendorBill,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["purchasing", "bills"] });
+      await Promise.all([queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() })]);
     },
   });
 
   const rows = bills.data?.items ?? [];
   const activeRows = rows.filter((row) => !row.deletedAt);
   const currency = activeRows[0]?.currencyCode ?? "PKR";
-  const kpis = [
-    { label: "Drafts", value: String(activeRows.filter((row) => row.status === "DRAFT").length) },
-    { label: "Approved", value: String(activeRows.filter((row) => row.status === "APPROVED").length) },
-    { label: "Partially paid", value: String(activeRows.filter((row) => row.status === "PARTIALLY_PAID").length) },
-    { label: "Outstanding", value: formatMoney(activeRows.reduce((sum, row) => sum + billBalance(row), 0), currency) },
-  ];
-  const filtersActive = Boolean(q || status || vendorId || includeDeleted);
+  const filtersActive = Boolean(q || status || vendorId || purchaseOrderId || includeDeleted);
 
   function resetPage() {
     setCursors([undefined]);
@@ -78,9 +88,9 @@ export default function VendorBillsPage() {
           {row.deletedAt ? (
             <p className="mt-0.5 font-semibold text-slate-500">{row.vendor?.displayName ?? row.vendor?.name ?? "—"}</p>
           ) : (
-            <Link className="mt-0.5 block font-semibold text-slate-950 hover:text-brand-800" to={`/purchasing/bills/${row.id}`}>
-              {row.vendor?.displayName ?? row.vendor?.name ?? "—"}
-            </Link>
+            <RowLink to={`/purchasing/bills/${row.id}`} muted>
+              <span className="font-semibold text-slate-950">{row.vendor?.displayName ?? row.vendor?.name ?? "—"}</span>
+            </RowLink>
           )}
           <p className="mt-0.5 truncate text-xs text-slate-500">{row.vendorReference ?? "No reference"}</p>
         </div>
@@ -104,25 +114,31 @@ export default function VendorBillsPage() {
     {
       id: "total",
       header: "Total",
+      align: "right",
       cell: (row) => <span className="whitespace-nowrap tabular-nums text-slate-800">{formatMoney(row.total, row.currencyCode)}</span>,
     },
     {
       id: "balance",
       header: "Balance",
+      align: "right",
       cell: (row) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-950">{formatMoney(billBalance(row), row.currencyCode)}</span>,
     },
     {
       id: "order",
       header: "Order",
-      cell: (row) => (
-        <span className="whitespace-nowrap font-mono text-xs text-slate-600">
-          {row.purchaseOrder ? docNumber(row.purchaseOrder) : "Standalone"}
-        </span>
-      ),
+      cell: (row) =>
+        row.purchaseOrderId ? (
+          <RowLink to={`/purchasing/orders/${row.purchaseOrderId}`}>
+            <span className="font-mono">{row.purchaseOrder ? docNumber(row.purchaseOrder) : row.purchaseOrderId.slice(0, 8)}</span>
+          </RowLink>
+        ) : (
+          <span className="whitespace-nowrap text-xs text-slate-500">Standalone</span>
+        ),
     },
     {
       id: "actions",
       header: "Actions",
+      align: "right",
       cell: (row) => (
         <div className="flex justify-end gap-1 whitespace-nowrap text-xs font-medium">
           {row.deletedAt ? (
@@ -138,13 +154,9 @@ export default function VendorBillsPage() {
             ) : null
           ) : (
             <>
-              <button type="button" className="rounded px-2 py-1.5 text-slate-700 hover:bg-slate-100" onClick={() => navigate(`/purchasing/bills/${row.id}`)}>
-                View
-              </button>
-              {row.status === "DRAFT" ? (
-                <button type="button" className="rounded px-2 py-1.5 text-slate-700 hover:bg-slate-100" onClick={() => navigate(`/purchasing/bills/${row.id}/edit`)}>
-                  Edit
-                </button>
+              <RowLink to={`/purchasing/bills/${row.id}`}>View</RowLink>
+              {canUpdate && row.status === "DRAFT" ? (
+                <RowLink to={`/purchasing/bills/${row.id}/edit`}>Edit</RowLink>
               ) : null}
             </>
           )}
@@ -156,7 +168,7 @@ export default function VendorBillsPage() {
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <PageHeader
-        section="Supply / Purchasing"
+        section="Purchasing"
         title="Vendor bills"
         description="Capture supplier invoices from purchase orders or standalone, then approve and track payments."
         actions={
@@ -168,17 +180,19 @@ export default function VendorBillsPage() {
         }
       />
 
-      <div className="grid grid-cols-2 divide-x divide-y border-y border-slate-200 sm:grid-cols-4 sm:divide-y-0">
-        {kpis.map((kpi) => (
-          <div key={kpi.label} className="flex min-h-[76px] flex-col justify-center px-4 py-3 first:pl-0 sm:pl-5">
-            <p className="text-xs font-medium text-slate-500">{kpi.label}</p>
-            <p className="mt-1 truncate text-2xl font-semibold tabular-nums text-slate-950" title={kpi.value}>{kpi.value}</p>
-          </div>
-        ))}
-      </div>
+      <MetricGrid>
+        <MetricCard label="Drafts" value={String(activeRows.filter((row) => row.status === "DRAFT").length)} hint="Awaiting approval" />
+        <MetricCard label="Approved" value={String(activeRows.filter((row) => row.status === "APPROVED").length)} hint="Ready for payment" />
+        <MetricCard label="Partially paid" value={String(activeRows.filter((row) => row.status === "PARTIALLY_PAID").length)} hint="Open balances" />
+        <MetricCard
+          label="Outstanding"
+          value={formatMoney(activeRows.reduce((sum, row) => sum + billBalance(row), 0), currency)}
+          hint="Across this page"
+        />
+      </MetricGrid>
 
       <section className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_190px_240px]">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_190px_220px_240px]">
           <Input
             className="h-10"
             type="search"
@@ -186,7 +200,7 @@ export default function VendorBillsPage() {
             value={q}
             placeholder="Search bill number, vendor or reference"
             onChange={(event) => {
-              setQ(event.target.value);
+              setFilter("q", event.target.value);
               resetPage();
             }}
           />
@@ -195,7 +209,7 @@ export default function VendorBillsPage() {
             className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
             value={status}
             onChange={(event) => {
-              setStatus(event.target.value);
+              setFilter("status", event.target.value);
               resetPage();
             }}
           >
@@ -209,13 +223,27 @@ export default function VendorBillsPage() {
             className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
             value={vendorId}
             onChange={(event) => {
-              setVendorId(event.target.value);
+              setFilter("vendorId", event.target.value);
               resetPage();
             }}
           >
             <option value="">All vendors</option>
             {(formOptions.data?.vendors ?? []).map((vendor) => (
               <option key={vendor.id} value={vendor.id}>{vendor.displayName ?? vendor.name}</option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by purchase order"
+            className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
+            value={purchaseOrderId}
+            onChange={(event) => {
+              setFilter("purchaseOrderId", event.target.value);
+              resetPage();
+            }}
+          >
+            <option value="">All purchase orders</option>
+            {(formOptions.data?.purchaseOrders ?? []).map((order) => (
+              <option key={order.id} value={order.id}>{docNumber(order)}</option>
             ))}
           </select>
         </div>
@@ -227,7 +255,7 @@ export default function VendorBillsPage() {
                 type="checkbox"
                 checked={includeDeleted}
                 onChange={(event) => {
-                  setIncludeDeleted(event.target.checked);
+                  setFilter("includeDeleted", event.target.checked ? "true" : "");
                   resetPage();
                 }}
               />
@@ -237,13 +265,7 @@ export default function VendorBillsPage() {
             <span />
           )}
           {filtersActive ? (
-            <button type="button" className="text-xs font-medium text-brand-800 hover:underline" onClick={() => {
-              setQ("");
-              setStatus("");
-              setVendorId("");
-              setIncludeDeleted(false);
-              resetPage();
-            }}>
+            <button type="button" className="text-xs font-medium text-brand-800 hover:underline" onClick={() => { clearFilters(); resetPage(); }}>
               Clear filters
             </button>
           ) : null}
@@ -251,9 +273,7 @@ export default function VendorBillsPage() {
       </section>
 
       {restore.isError ? (
-        <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {getApiErrorMessage(restore.error)}
-        </p>
+        <ErrorState message={getApiErrorMessage(restore.error)} onRetry={() => { if (restore.variables) restore.mutate(restore.variables); }} backTo="/purchasing/bills" backLabel="Back to bills" />
       ) : null}
 
       <DataTable
@@ -272,6 +292,14 @@ export default function VendorBillsPage() {
           }
         }}
         onPrevious={() => setCursors((current) => (current.length > 1 ? current.slice(0, -1) : current))}
+        pageSize={pageSize}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          resetPage();
+        }}
+        onRetry={() => bills.refetch()}
+        onClearFilters={filtersActive ? () => { clearFilters(); resetPage(); } : undefined}
+        backTo="/purchasing"
       />
     </section>
   );

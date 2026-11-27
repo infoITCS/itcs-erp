@@ -54,6 +54,7 @@ export interface SalesOrder {
   taxTotal: string;
   total: string;
   totalBase: string | null;
+  cogsTotal: string;
   notes: string | null;
   terms: string | null;
   confirmedAt: string | null;
@@ -73,6 +74,7 @@ export interface SalesOrder {
   currency?: CurrencyRef | null;
   paymentTerm?: PaymentTermRef | null;
   lines?: DocumentLine[];
+  purchaseOrders?: Array<{ id: string; purchaseOrderNumber: string; status: string; total: string }>;
   invoices?: Array<{ id: string; invoiceNumber: string; status: string; issueDate: string; dueDate: string | null; total: string }>;
   _count?: { lines: number; invoices: number };
 }
@@ -147,6 +149,10 @@ export function restoreSalesOrder(id: string): Promise<SalesOrder> {
 
 export function changeSalesOrderStatus(id: string, status: SalesOrderStatus): Promise<SalesOrder> {
   return data(http.post(`/api/v1/sales-orders/${id}/status`, { status }));
+}
+
+export function fulfilSalesOrder(id: string): Promise<SalesOrder> {
+  return data(http.post(`/api/v1/sales-orders/${id}/fulfil`, {}));
 }
 
 export function convertSalesOrderToInvoice(

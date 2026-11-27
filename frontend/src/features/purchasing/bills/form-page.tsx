@@ -1,18 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FormField } from "@/components/forms/FormField.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
+import { purchasingKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import {
   PURCHASING_PERMISSIONS,
   createVendorBill,
   getBillFormOptions,
-  getPurchaseOrderReceiptOptions,
+  getPurchaseOrder,
   getVendorBill,
   updateVendorBill,
+  type VendorBillCreate,
   type VendorBillWrite,
 } from "../api.ts";
 import { LinesEditor, PageHeader, computeDocumentTotals, emptyLine, formatMoney, type DocumentLineInput } from "../shared.tsx";
@@ -21,6 +23,7 @@ export default function VendorBillFormPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const canCreate = useHasPermission(PURCHASING_PERMISSIONS.create);
   const canUpdate = useHasPermission(PURCHASING_PERMISSIONS.update);
   const isEdit = Boolean(id);
@@ -28,11 +31,11 @@ export default function VendorBillFormPage() {
   const requestedOrderId = searchParams.get("purchaseOrderId") ?? "";
   const requestedVendorId = searchParams.get("vendorId") ?? "";
 
-  const existing = useQuery({ queryKey: ["purchasing", "bills", id], queryFn: () => getVendorBill(id as string), enabled: isEdit });
-  const formOptions = useQuery({ queryKey: ["purchasing", "bills", "form-options"], queryFn: getBillFormOptions });
+  const existing = useQuery({ queryKey: purchasingKeys.bills.detail(id as string), queryFn: () => getVendorBill(id as string), enabled: isEdit });
+  const formOptions = useQuery({ queryKey: purchasingKeys.bills.formOptions(), queryFn: getBillFormOptions });
   const selectedOrder = useQuery({
-    queryKey: ["purchasing", "orders", requestedOrderId, "bill-options"],
-    queryFn: () => getPurchaseOrderReceiptOptions(requestedOrderId),
+    queryKey: purchasingKeys.orders.detail(requestedOrderId),
+    queryFn: () => getPurchaseOrder(requestedOrderId),
     enabled: !isEdit && Boolean(requestedOrderId),
   });
 
@@ -52,7 +55,7 @@ export default function VendorBillFormPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (isEdit || !existing.data) {
+    if (!isEdit || !existing.data) {
       return;
     }
     const bill = existing.data;
@@ -90,18 +93,18 @@ export default function VendorBillFormPage() {
     setVendorId(order.vendorId);
     setCurrencyCode(order.currencyCode || "PKR");
     setPurchaseOrderId(order.id);
-    const orderLines = order.lines ?? order.availableLines ?? [];
     setLines(
-      orderLines.map((line) => ({
+      (order.lines ?? []).map((line) => ({
         productId: line.productId ?? undefined,
         productCode: line.productCode ?? undefined,
-        productName: line.productName ?? line.description ?? "Item",
+        productName: line.productName,
         description: line.description ?? undefined,
-        quantity: Number(line.quantity ?? 0).toFixed(4),
-        unitPrice: Number(line.unitPrice ?? 0).toFixed(4),
-        discountPercent: "0",
-        taxCodeId: undefined,
-        taxRate: "0",
+        unitOfMeasure: line.unitOfMeasure ?? undefined,
+        quantity: Number(line.quantity).toFixed(4),
+        unitPrice: Number(line.unitPrice).toFixed(4),
+        discountPercent: Number(line.discountPercent ?? 0).toFixed(4),
+        taxCodeId: line.taxCodeId ?? undefined,
+        taxRate: Number(line.taxRate ?? 0).toFixed(4),
       })),
     );
   }, [isEdit, selectedOrder.data]);
@@ -111,7 +114,7 @@ export default function VendorBillFormPage() {
       return;
     }
     const vendor = formOptions.data?.vendors.find((item) => item.id === requestedVendorId);
-    if (vendor) {
+    if (vendor?.status === "ACTIVE") {
       setVendorId(vendor.id);
       setCurrencyCode(vendor.currencyCode || "PKR");
       setPaymentTermId(vendor.paymentTermId ?? "");
@@ -120,29 +123,41 @@ export default function VendorBillFormPage() {
 
   const totals = computeDocumentTotals(lines);
 
-  function selectOrder(value: string) {
+  async function selectOrder(value: string) {
     setPurchaseOrderId(value);
     setFieldErrors({});
-    const order = formOptions.data?.purchaseOrders.find((item) => item.id === value);
-    if (order) {
+    if (!value) {
+      return;
+    }
+    const option = formOptions.data?.purchaseOrders.find((item) => item.id === value);
+    if (option) {
+      setVendorId(option.vendorId);
+      setCurrencyCode(option.currencyCode || "PKR");
+    }
+    try {
+      const order = await queryClient.fetchQuery({
+        queryKey: purchasingKeys.orders.detail(value),
+        queryFn: () => getPurchaseOrder(value),
+      });
       setVendorId(order.vendorId);
       setCurrencyCode(order.currencyCode || "PKR");
-      const orderLines = order.lines ?? order.availableLines ?? [];
-      if (orderLines.length > 0) {
-        setLines(
-          orderLines.map((line) => ({
-            productId: line.productId ?? undefined,
-            productCode: line.productCode ?? undefined,
-            productName: line.productName ?? line.description ?? "Item",
-            description: line.description ?? undefined,
-            quantity: Number(line.quantity ?? 0).toFixed(4),
-            unitPrice: Number(line.unitPrice ?? 0).toFixed(4),
-            discountPercent: "0",
-            taxCodeId: undefined,
-            taxRate: "0",
-          })),
-        );
-      }
+      setPaymentTermId(order.paymentTermId ?? "");
+      setLines(
+        (order.lines ?? []).map((line) => ({
+          productId: line.productId ?? undefined,
+          productCode: line.productCode ?? undefined,
+          productName: line.productName,
+          description: line.description ?? undefined,
+          unitOfMeasure: line.unitOfMeasure ?? undefined,
+          quantity: Number(line.quantity).toFixed(4),
+          unitPrice: Number(line.unitPrice).toFixed(4),
+          discountPercent: Number(line.discountPercent ?? 0).toFixed(4),
+          taxCodeId: line.taxCodeId ?? undefined,
+          taxRate: Number(line.taxRate ?? 0).toFixed(4),
+        })),
+      );
+    } catch (loadError) {
+      setError(getApiErrorMessage(loadError));
     }
   }
 
@@ -156,6 +171,16 @@ export default function VendorBillFormPage() {
     }
   }
 
+  async function refreshAfterSave() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.all() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.payments.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.payments.all() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+    ]);
+  }
+
   async function submit() {
     setError(null);
     setFieldErrors({});
@@ -163,13 +188,30 @@ export default function VendorBillFormPage() {
       setFieldErrors({ vendorId: "Choose a vendor." });
       return;
     }
-    const invalid = lines.findIndex((line) => !line.productId && !line.productName && !line.description);
-    if (invalid >= 0) {
-      setFieldErrors({ lines: `Line ${invalid + 1}: choose a product or enter a description.` });
+    if (formOptions.data && !formOptions.data.vendors.some((vendor) => vendor.id === vendorId && vendor.status === "ACTIVE")) {
+      setFieldErrors({ vendorId: "Choose an active vendor." });
       return;
     }
-    const body: VendorBillWrite = {
-      purchaseOrderId: purchaseOrderId || undefined,
+    const invalid = lines.findIndex((line) => !line.productId);
+    if (invalid >= 0) {
+      setFieldErrors({ lines: `Line ${invalid + 1}: choose a product.` });
+      return;
+    }
+    const shouldOmitLines = !isEdit && Boolean(purchaseOrderId);
+    const mappedLines = lines.map((line) => ({
+      productId: line.productId,
+      productCode: line.productCode,
+      productName: line.productName,
+      description: line.description,
+      unitOfMeasure: line.unitOfMeasure,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      discountPercent: line.discountPercent || "0",
+      taxCodeId: line.taxCodeId,
+      taxRate: line.taxRate || "0",
+      expenseAccount: expenseAccount || undefined,
+    }));
+  const body: VendorBillWrite = {
       vendorId,
       billDate,
       dueDate: dueDate || undefined,
@@ -179,28 +221,34 @@ export default function VendorBillFormPage() {
       expenseAccount: expenseAccount || undefined,
       liabilityAccount: liabilityAccount || undefined,
       notes: notes || undefined,
-      lines: lines.map((line) => ({
-        productId: line.productId,
-        productCode: line.productCode,
-        productName: line.productName,
-        description: line.description,
-        unitOfMeasure: line.unitOfMeasure,
-        quantity: line.quantity,
-        unitPrice: line.unitPrice,
-        discountPercent: line.discountPercent || "0",
-        taxCodeId: line.taxCodeId,
-        taxRate: line.taxRate || "0",
-        expenseAccount: expenseAccount || undefined,
-      })),
+      lines: shouldOmitLines ? [] : mappedLines,
     };
     setBusy(true);
     try {
       if (id) {
-        await updateVendorBill(id, body);
+        const updateBody: Partial<VendorBillWrite> = {
+          ...body,
+          dueDate: dueDate || null,
+          vendorReference: vendorReference || null,
+          paymentTermId: paymentTermId || null,
+          expenseAccount: expenseAccount || null,
+          liabilityAccount: liabilityAccount || null,
+          notes: notes || null,
+        };
+        await updateVendorBill(id, updateBody);
+        await refreshAfterSave();
         navigate(`/purchasing/bills/${id}`);
         return;
       }
-      const created = await createVendorBill(body);
+      const createBody: VendorBillCreate = {
+        ...body,
+        purchaseOrderId: purchaseOrderId || undefined,
+      };
+      if (shouldOmitLines) {
+        delete (createBody as Partial<VendorBillCreate>).lines;
+      }
+      const created = await createVendorBill(createBody);
+      await refreshAfterSave();
       navigate(`/purchasing/bills/${created.id}`);
     } catch (submitError) {
       setError(getApiErrorMessage(submitError));
@@ -260,11 +308,14 @@ export default function VendorBillFormPage() {
               onChange={(event) => selectVendor(event.target.value)}
             >
               <option value="">Choose a vendor</option>
-              {(formOptions.data?.vendors ?? []).map((vendor) => (
+              {(formOptions.data?.vendors ?? []).filter((vendor) => vendor.status === "ACTIVE").map((vendor) => (
                 <option key={vendor.id} value={vendor.id}>
                   {vendor.displayName ?? vendor.name}
                 </option>
               ))}
+              {vendorId && !(formOptions.data?.vendors ?? []).some((vendor) => vendor.id === vendorId && vendor.status === "ACTIVE") ? (
+                <option value={vendorId}>{(formOptions.data?.vendors ?? []).find((vendor) => vendor.id === vendorId)?.displayName ?? (formOptions.data?.vendors ?? []).find((vendor) => vendor.id === vendorId)?.name ?? existing.data?.vendor?.displayName ?? existing.data?.vendor?.name ?? vendorId}</option>
+              ) : null}
             </select>
           </FormField>
           <FormField label="Currency" htmlFor="currencyCode" required>
@@ -347,7 +398,7 @@ export default function VendorBillFormPage() {
             taxCodes={formOptions.data?.taxCodes ?? []}
             currency={currencyCode}
             disabled={busy}
-            invalidLines={lines.flatMap((line, index) => (!line.productId && !line.productName && !line.description ? [index] : []))}
+            invalidLines={lines.flatMap((line, index) => (!line.productId ? [index] : []))}
           />
           {fieldErrors.lines ? (
             <p role="alert" className="mt-2 text-sm text-red-700">
@@ -381,7 +432,7 @@ export default function VendorBillFormPage() {
           <Link className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-sm text-slate-700" to={id ? `/purchasing/bills/${id}` : "/purchasing/bills"}>
             Cancel
           </Link>
-          <Button className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy || existing.isPending} onClick={submit}>
+          <Button className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy || existing.isLoading} onClick={submit}>
             {busy ? "Saving…" : isEdit ? "Save changes" : "Create bill"}
           </Button>
         </div>

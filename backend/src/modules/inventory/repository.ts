@@ -6,7 +6,7 @@ import { cursorFilter, decodeCursor, toCursorPage } from "../../common/paginatio
 import type { StockUpdate } from "./valuation";
 import type { DecimalLike } from "./valuation";
 import type { StockQuery, MovementQuery } from "./validation";
-import { DEFAULT_LOCATION, INVENTORY_MOVEMENT_TYPE_LABELS } from "./types";
+import { DEFAULT_LOCATION, INVENTORY_ADJUSTMENT_REASONS, INVENTORY_MOVEMENT_TYPE_LABELS } from "./types";
 
 interface ModelDelegate {
   findMany(args?: Record<string, unknown>): Promise<unknown[]>;
@@ -95,14 +95,47 @@ export class InventoryRepository extends BaseRepository {
       stockFilters.push({ updatedAt: range });
     }
     if (decoded) {
+      const [cursorProductId, ...cursorLocationParts] = decoded.id.split(":");
+      const compare = query.order === "desc" ? "lt" : "gt";
+      const updatedAt = new Date(decoded.createdAt);
       stockFilters.push({
-        updatedAt: query.order === "desc" ? { lt: new Date(decoded.createdAt) } : { gt: new Date(decoded.createdAt) },
+        OR: [
+          { updatedAt: { [compare]: updatedAt } },
+          {
+            AND: [
+              { updatedAt },
+              {
+                OR: [
+                  { productId: { [compare]: cursorProductId } },
+                  {
+                    AND: [
+                      { productId: cursorProductId },
+                      { location: { [compare]: cursorLocationParts.join(":") } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
       });
     }
+    const search = query.q?.trim();
     const rows = (await db(this.db).inventoryBalance.findMany({
       where: {
         organizationId,
         ...(query.productId ? { productId: query.productId } : {}),
+        ...(query.location ? { location: query.location } : {}),
+        ...(search
+          ? {
+              product: {
+                OR: [
+                  { code: { contains: search, mode: "insensitive" } },
+                  { name: { contains: search, mode: "insensitive" } },
+                ],
+              },
+            }
+          : {}),
         ...(stockFilters.length > 0 ? { AND: stockFilters } : {}),
       },
       orderBy: [{ updatedAt: query.order }, { productId: query.order }, { location: query.order }],
@@ -140,13 +173,31 @@ export class InventoryRepository extends BaseRepository {
   async listMovements(organizationId: string, query: MovementQuery) {
     const decoded = query.cursor ? decodeCursor(query.cursor) : null;
     const range = createdAtRange(query.from, query.to);
+    const movementFilters: Record<string, unknown>[] = [];
+    if (range) {
+      movementFilters.push({ createdAt: range });
+    }
+    if (decoded) {
+      movementFilters.push(cursorFilter(decoded, query.order));
+    }
+    const search = query.q?.trim();
+    if (search) {
+      movementFilters.push({
+        OR: [
+          { product: { code: { contains: search, mode: "insensitive" } } },
+          { product: { name: { contains: search, mode: "insensitive" } } },
+          { referenceType: { contains: search, mode: "insensitive" } },
+          { referenceId: { contains: search, mode: "insensitive" } },
+        ],
+      });
+    }
     const rows = (await db(this.db).inventoryMovement.findMany({
       where: {
         organizationId,
         ...(query.productId ? { productId: query.productId } : {}),
+        ...(query.location ? { location: query.location } : {}),
         ...(query.type ? { movementType: query.type } : {}),
-        ...(range ? { createdAt: range } : {}),
-        ...(decoded ? { OR: cursorFilter(decoded, query.order) } : {}),
+        ...(movementFilters.length > 0 ? { AND: movementFilters } : {}),
       },
       orderBy: [{ createdAt: query.order }, { id: query.order }],
       take: query.limit + 1,
@@ -229,7 +280,11 @@ export class InventoryRepository extends BaseRepository {
     ];
 
     const locations = [
-      ...new Set([DEFAULT_LOCATION, ...balances.map((balance) => balance.location), ...products.map((product) => product.receivingLocation)]),
+      ...new Set([
+        DEFAULT_LOCATION,
+        ...balances.map((balance) => balance.location),
+        ...products.map((product) => product.receivingLocation).filter((location): location is string => Boolean(location)),
+      ]),
     ].sort();
 
     return {
@@ -238,6 +293,8 @@ export class InventoryRepository extends BaseRepository {
         id: product.id,
         code: product.code,
         name: product.name,
+        value: product.id,
+        label: product.code ? `${product.code} · ${product.name}` : product.name,
         location: product.receivingLocation || DEFAULT_LOCATION,
         minimumStockQuantity: product.minimumStockQuantity.toString(),
         trackInventory: product.trackInventory,
@@ -245,6 +302,7 @@ export class InventoryRepository extends BaseRepository {
         unitOfMeasure: product.unitOfMeasure,
       })),
       movementTypes: Object.entries(INVENTORY_MOVEMENT_TYPE_LABELS).map(([value, label]) => ({ value, label })),
+      reasons: INVENTORY_ADJUSTMENT_REASONS.map(({ value, label }) => ({ value, label })),
     };
   }
 
@@ -258,7 +316,7 @@ export class InventoryRepository extends BaseRepository {
           organizationId,
           productId: input.productId,
           movementType: "ADJUSTMENT",
-          quantity: input.movement.quantity,
+          quantity: input.movement.delta,
           unitCost: input.unitCost,
           location: input.location,
           referenceType: "ADJUSTMENT",

@@ -3,7 +3,7 @@ import { ForbiddenError, NotFoundError, ValidationFailedError } from "../../comm
 import { computeCurrencySnapshot } from "../opportunities/currency-snapshot";
 import type { AuditWriter } from "../audit-logs/types";
 import type { RequestMeta } from "../auth/types";
-import { applyInventoryMovement, type DecimalLike } from "../inventory/valuation";
+import type { DecimalLike } from "../inventory/valuation";
 import { DEFAULT_LOCATION } from "../inventory/types";
 import { addDays, computeDocumentMoney, computeLineMoney, today } from "../../common/sales/totals";
 import { applyVendorBillPaymentDelta, purchaseOrderStatusAfterReceipt, sumAmounts } from "./money";
@@ -44,6 +44,7 @@ import {
 import type {
   ChangeOrderStatusInput,
   CreateBillInput,
+  CreateOrderFromSalesOrderInput,
   CreateOrderInput,
   CreatePaymentInput,
   CreateReceiptInput,
@@ -202,6 +203,119 @@ export class PurchasingService {
       purchaseOrderNumber: order.purchaseOrderNumber,
       vendorId: order.vendorId,
       status: order.status,
+      total: order.total.toString(),
+    });
+    return order;
+  }
+
+  async createOrderFromSalesOrder(
+    organizationId: string,
+    actorId: string,
+    input: CreateOrderFromSalesOrderInput,
+    meta: RequestMeta,
+  ) {
+    const source = await this.repository.findSalesOrderForPurchase(organizationId, input.salesOrderId);
+    if (!source) {
+      throw new NotFoundError("Sales order not found");
+    }
+    if (!["DRAFT", "CONFIRMED", "PROCESSING"].includes(source.status)) {
+      throw new ValidationFailedError({ salesOrderId: ["Only an open sales order can be converted to a purchase order"] });
+    }
+
+    const orderDate = input.orderDate ?? today();
+    if (input.expectedDeliveryDate && input.expectedDeliveryDate < orderDate) {
+      throw new ValidationFailedError({
+        expectedDeliveryDate: ["The expected delivery date cannot be before the order date"],
+      });
+    }
+    const vendor = await this.requireVendor(organizationId, input.vendorId);
+    const currencyCode = vendor.currencyCode ?? (await this.baseCurrency(organizationId));
+    await this.requireCurrency(currencyCode);
+    await this.requireOwner(organizationId, input.ownerUserId ?? actorId);
+
+    const productIds = unique(
+      source.lines.flatMap((line) => (line.productId ? [line.productId] : [])),
+    );
+    const [products, stock] = await Promise.all([
+      this.repository.findProductsByIds(organizationId, productIds),
+      this.repository.sumInventoryByProducts(organizationId, productIds),
+    ]);
+    const productMap = new Map(products.map((product) => [product.id, product]));
+    const availableMap = new Map(stock.map((row) => [row.productId, row.quantity]));
+
+    const lineInputs: Array<PurchasingLineInput & { sourceSalesOrderLineId: string }> = [];
+    for (const line of source.lines) {
+      const remaining = decimal(line.quantity).sub(decimal(line.fulfilledQuantity));
+      if (remaining.lte(0) || !line.productId) {
+        continue;
+      }
+      const product = productMap.get(line.productId);
+      if (!product) {
+        throw new ValidationFailedError({ salesOrderId: ["A sales order line references an invalid product"] });
+      }
+      const available = product.trackInventory ? decimal(availableMap.get(product.id) ?? 0) : decimal(0);
+      const quantity = product.trackInventory ? remaining.sub(available) : remaining;
+      if (quantity.lte(0)) {
+        continue;
+      }
+      const estimatedCost = decimal(product.weightedAveragePrice ?? 0).gt(0)
+        ? decimal(product.weightedAveragePrice)
+        : decimal(line.unitPrice);
+      lineInputs.push({
+        productId: product.id,
+        productCode: line.productCode ?? product.code,
+        productName: line.productName ?? product.name,
+        description: line.description ?? undefined,
+        unitOfMeasure: line.unitOfMeasure ?? product.unitOfMeasure?.code,
+        quantity: quantity.toFixed(4),
+        unitPrice: estimatedCost.toFixed(4),
+        discountPercent: "0",
+        expenseAccount: DEFAULT_EXPENSE_ACCOUNT,
+        taxCodeId: line.taxCodeId ?? product.taxCodeId ?? undefined,
+        taxRate: decimal(line.taxRate ?? product.taxCode?.rate ?? 0).toFixed(4),
+        sourceSalesOrderLineId: line.id,
+      });
+    }
+    if (lineInputs.length === 0) {
+      throw new ValidationFailedError({ salesOrderId: ["This sales order has no quantity left to purchase"] });
+    }
+
+    const lines = await this.buildLines(organizationId, lineInputs);
+    const linkedLines = lines.map((line, index) => ({
+      ...line,
+      sourceSalesOrderLineId: lineInputs[index].sourceSalesOrderLineId,
+    }));
+    const money = computeDocumentMoney(linkedLines);
+    const snapshot = await this.computeSnapshot(organizationId, money.total, currencyCode, orderDate);
+
+    const order = await this.repository.createOrder(organizationId, actorId, {
+      vendorId: vendor.id,
+      sourceSalesOrderId: source.id,
+      ownerUserId: input.ownerUserId ?? actorId,
+      orderDate,
+      expectedDeliveryDate: input.expectedDeliveryDate ?? null,
+      vendorReference: input.vendorReference ?? null,
+      currencyCode,
+      exchangeRateToBase: snapshot.exchangeRateToBase,
+      baseCurrencyCode: snapshot.baseCurrencyCode,
+      subtotal: money.subtotal,
+      discountTotal: money.discountTotal,
+      taxTotal: money.taxTotal,
+      total: money.total,
+      totalBase: snapshot.estimatedValueBase,
+      notes: input.notes ?? null,
+      lines: linkedLines,
+    });
+    if (!order) {
+      throw new NotFoundError("Purchase order not found");
+    }
+
+    await this.record(organizationId, actorId, "purchasing.order.created_from_sales_order", "purchase-order", order.id, meta, {
+      purchaseOrderId: order.id,
+      purchaseOrderNumber: order.purchaseOrderNumber,
+      salesOrderId: source.id,
+      salesOrderNumber: source.salesOrderNumber,
+      vendorId: order.vendorId,
       total: order.total.toString(),
     });
     return order;
@@ -448,11 +562,7 @@ export class PurchasingService {
     const orderLines = new Map(order.lines.map((line) => [line.id, line]));
 
     const lineUpdates: ReceiptPostingPayload["lineUpdates"] = [];
-    const movements: ReceiptPostingPayload["movements"] = [];
-    const balances = new Map<
-      string,
-      { organizationId: string; productId: string; location: string; quantity: string; averageCost: string }
-    >();
+    const receiptLines: ReceiptPostingPayload["receiptLines"] = [];
 
     for (const line of receipt.lines) {
       const orderLine = orderLines.get(line.purchaseOrderLineId);
@@ -467,39 +577,23 @@ export class PurchasingService {
           lines: [`Only ${available.toFixed(4)} can still be received for this purchase order line`],
         });
       }
-
-      const key = `${line.productId}:${line.location}`;
-      const previous =
-        balances.get(key) ?? (await this.repository.findBalance(organizationId, line.productId, line.location));
-      const applied = applyInventoryMovement(previous, line.receivedQuantity, line.unitCost, false);
-      balances.set(key, {
-        organizationId,
-        productId: line.productId,
-        location: line.location,
-        quantity: applied.quantity,
-        averageCost: applied.averageCost,
-      });
-      movements.push({
-        organizationId,
-        productId: line.productId,
-        movementType: "PURCHASE_RECEIPT",
-        quantity: line.receivedQuantity.toString(),
-        unitCost: line.unitCost.toString(),
-        location: line.location,
-        referenceType: "GOODS_RECEIPT",
-        referenceId: receipt.id,
-        balanceAfter: applied.balanceAfter,
-        createdById: actorId,
-      });
       lineUpdates.push({
         id: orderLine.id,
         receivedQuantity: decimal(orderLine.receivedQuantity).add(decimal(line.receivedQuantity)).toFixed(4),
       });
+      receiptLines.push({
+        purchaseOrderLineId: line.purchaseOrderLineId,
+        productId: line.productId,
+        receivedQuantity: line.receivedQuantity.toString(),
+        unitCost: line.unitCost.toString(),
+        location: line.location,
+      });
     }
 
-    const amountReceived = lineUpdates.reduce((sum, update) => {
-      const orderLine = orderLines.get(update.id);
-      return orderLine ? sum.add(decimal(update.receivedQuantity).mul(decimal(orderLine.unitPrice))) : sum;
+    const amountReceived = order.lines.reduce((sum, line) => {
+      const receivedQuantity =
+        lineUpdates.find((update) => update.id === line.id)?.receivedQuantity ?? line.receivedQuantity;
+      return sum.add(decimal(receivedQuantity).mul(decimal(line.unitPrice)));
     }, new Prisma.Decimal(0));
     const status = purchaseOrderStatusAfterReceipt(
       order.lines.map((line) => ({
@@ -512,8 +606,7 @@ export class PurchasingService {
       status,
       amountReceived: amountReceived.toFixed(4),
       lineUpdates,
-      movements,
-      balances: [...balances.values()],
+      receiptLines,
     });
     if (!posted) {
       throw new NotFoundError("Goods receipt not found");
@@ -524,7 +617,7 @@ export class PurchasingService {
       receiptNumber: receipt.receiptNumber,
       purchaseOrderId: order.id,
       status,
-      movementCount: movements.length,
+      movementCount: receiptLines.length,
     });
     return posted;
   }
@@ -556,6 +649,21 @@ export class PurchasingService {
     return this.getReceipt(organizationId, id);
   }
 
+  async cancelReceipt(organizationId: string, actorId: string, id: string, meta: RequestMeta) {
+    const existing = await this.getReceipt(organizationId, id);
+    assertGoodsReceiptTransition(existing.status, "CANCELLED");
+    const cancelled = await this.repository.cancelReceipt(organizationId, id, actorId);
+    if (!cancelled) {
+      throw new NotFoundError("Goods receipt not found");
+    }
+    await this.record(organizationId, actorId, "purchasing.receipt.cancelled", "goods-receipt", id, meta, {
+      goodsReceiptId: id,
+      receiptNumber: existing.receiptNumber,
+      status: "CANCELLED",
+    });
+    return this.getReceipt(organizationId, id);
+  }
+
   async getBill(organizationId: string, id: string) {
     const bill = await this.repository.findBill(organizationId, id);
     if (!bill) {
@@ -572,8 +680,10 @@ export class PurchasingService {
       if (order.vendorId !== vendor.id) {
         throw new ValidationFailedError({ vendorId: ["The vendor does not match the purchase order"] });
       }
-      if (order.status === "CANCELLED") {
-        throw new ValidationFailedError({ purchaseOrderId: ["A cancelled purchase order cannot be billed"] });
+      if (!["APPROVED", "SENT", "PARTIALLY_RECEIVED", "RECEIVED", "BILLED"].includes(order.status)) {
+        throw new ValidationFailedError({
+          purchaseOrderId: ["Only an active purchase order can be linked to a vendor bill"],
+        });
       }
     }
 
@@ -583,7 +693,8 @@ export class PurchasingService {
     }
     const paymentTerm = input.paymentTermId ? await this.requirePaymentTerm(organizationId, input.paymentTermId) : null;
     const dueDate = input.dueDate ?? (paymentTerm ? addDays(billDate, paymentTerm.dueDays) : null);
-    const currencyCode = input.currencyCode ?? order?.currencyCode ?? vendor.currencyCode ?? (await this.baseCurrency(organizationId));
+    const currencyCode =
+      order?.currencyCode ?? input.currencyCode ?? vendor.currencyCode ?? (await this.baseCurrency(organizationId));
     await this.requireCurrency(currencyCode);
 
     const lineInputs =
@@ -644,11 +755,13 @@ export class PurchasingService {
     }
 
     const vendor = await this.requireVendor(organizationId, input.vendorId ?? existing.vendorId);
+    let orderCurrency: string | null = null;
     if (existing.purchaseOrderId) {
       const order = await this.getOrder(organizationId, existing.purchaseOrderId);
       if (order.vendorId !== vendor.id) {
         throw new ValidationFailedError({ vendorId: ["The vendor does not match the purchase order"] });
       }
+      orderCurrency = order.currencyCode;
     }
     const billDate = input.billDate ?? existing.billDate.toISOString().slice(0, 10);
     const dueDate = resolveNullable(input.dueDate, existing.dueDate ? existing.dueDate.toISOString().slice(0, 10) : null);
@@ -657,7 +770,7 @@ export class PurchasingService {
     }
     const paymentTermId = resolveNullable(input.paymentTermId, existing.paymentTermId);
     const paymentTerm = paymentTermId ? await this.requirePaymentTerm(organizationId, paymentTermId) : null;
-    const currencyCode = input.currencyCode ?? existing.currencyCode;
+    const currencyCode = orderCurrency ?? input.currencyCode ?? existing.currencyCode;
     await this.requireCurrency(currencyCode);
 
     const lines = await this.buildLines(
@@ -709,6 +822,13 @@ export class PurchasingService {
     };
     if (bill.purchaseOrderId) {
       const order = await this.getOrder(organizationId, bill.purchaseOrderId);
+      if (["DRAFT", "CANCELLED", "CLOSED"].includes(order.status)) {
+        throw new ValidationFailedError({ purchaseOrderId: ["This purchase order cannot be billed"] });
+      }
+      assertPurchaseOrderTransition(order.status, "BILLED");
+      if (order.currencyCode && order.currencyCode !== bill.currencyCode) {
+        throw new ValidationFailedError({ currencyCode: ["A purchase-order bill must use the order currency"] });
+      }
       const requested = new Map<string, Prisma.Decimal>();
       for (const line of bill.lines) {
         if (!line.productId) {
@@ -825,7 +945,7 @@ export class PurchasingService {
     const vendor = await this.requireVendor(organizationId, input.vendorId);
     const currencyCode = input.currencyCode ?? vendor.currencyCode ?? (await this.baseCurrency(organizationId));
     await this.requireCurrency(currencyCode);
-    await this.validateAllocations(organizationId, vendor.id, input.allocations);
+    await this.validateAllocations(organizationId, vendor.id, currencyCode, input.allocations);
     if (!decimal(sumAmounts(input.allocations.map((allocation) => allocation.amount))).eq(decimal(input.amount))) {
       throw new ValidationFailedError({ amount: ["The allocations must add up to the payment amount"] });
     }
@@ -876,7 +996,7 @@ export class PurchasingService {
       amount: allocation.amount.toString(),
     }));
     const amount = input.amount ?? existing.amount.toString();
-    await this.validateAllocations(organizationId, vendor.id, allocations, id);
+    await this.validateAllocations(organizationId, vendor.id, currencyCode, allocations, id);
     if (!decimal(sumAmounts(allocations.map((allocation) => allocation.amount))).eq(decimal(amount))) {
       throw new ValidationFailedError({ amount: ["The allocations must add up to the payment amount"] });
     }
@@ -918,6 +1038,17 @@ export class PurchasingService {
     const bills = await this.repository.findBillsForAllocation(organizationId, [...grouped.keys()]);
     if (bills.length !== grouped.size) {
       throw new ValidationFailedError({ allocations: ["One or more bills are no longer available"] });
+    }
+    if (bills.some((bill) => bill.vendorId !== payment.vendorId)) {
+      throw new ValidationFailedError({ allocations: ["All bills must belong to the payment vendor"] });
+    }
+    if (bills.some((bill) => bill.currencyCode !== payment.currencyCode)) {
+      throw new ValidationFailedError({ currencyCode: ["Payment and bill currencies must match"] });
+    }
+    if (
+      bills.some((bill) => bill.status !== "APPROVED" && bill.status !== "PARTIALLY_PAID")
+    ) {
+      throw new ValidationFailedError({ allocations: ["Only approved bills can be paid"] });
     }
 
     const billUpdates = bills.map((bill) => {
@@ -968,9 +1099,25 @@ export class PurchasingService {
     return this.getPayment(organizationId, id);
   }
 
+  async cancelPayment(organizationId: string, actorId: string, id: string, meta: RequestMeta) {
+    const existing = await this.getPayment(organizationId, id);
+    assertVendorPaymentTransition(existing.status, "CANCELLED");
+    const cancelled = await this.repository.cancelPayment(organizationId, id, actorId);
+    if (!cancelled) {
+      throw new NotFoundError("Vendor payment not found");
+    }
+    await this.record(organizationId, actorId, "purchasing.payment.cancelled", "vendor-payment", id, meta, {
+      vendorPaymentId: id,
+      paymentNumber: existing.paymentNumber,
+      status: "CANCELLED",
+    });
+    return this.getPayment(organizationId, id);
+  }
+
   private async validateAllocations(
     organizationId: string,
     vendorId: string,
+    currencyCode: string,
     allocations: Array<{ billId: string; amount: string }>,
     excludePaymentId?: string,
   ) {
@@ -990,6 +1137,9 @@ export class PurchasingService {
       }
       if (bill.vendorId !== vendorId) {
         throw new ValidationFailedError({ allocations: ["All bills must belong to the selected vendor"] });
+      }
+      if (bill.currencyCode && bill.currencyCode !== currencyCode) {
+        throw new ValidationFailedError({ currencyCode: ["Payment and bill currencies must match"] });
       }
       if (bill.status !== "APPROVED" && bill.status !== "PARTIALLY_PAID") {
         throw new ValidationFailedError({ allocations: ["Only approved bills can be paid"] });
@@ -1155,7 +1305,7 @@ export class PurchasingService {
 }
 
 function canSeeDeleted(permissions: PermissionSet, module: string): boolean {
-  return permissions.includes(`${module}:delete`);
+  return permissions.includes(`${module}:delete`) || permissions.includes(`${module}:restore`);
 }
 
 function isString(value: string | null | undefined): value is string {

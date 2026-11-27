@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FormField } from "@/components/forms/FormField.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
+import { purchasingKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import {
   PURCHASING_PERMISSIONS,
@@ -20,14 +21,15 @@ export default function PurchaseOrderFormPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const canCreate = useHasPermission(PURCHASING_PERMISSIONS.create);
   const canUpdate = useHasPermission(PURCHASING_PERMISSIONS.update);
   const isEdit = Boolean(id);
   const allowed = isEdit ? canUpdate : canCreate;
   const requestedVendorId = searchParams.get("vendorId") ?? "";
 
-  const existing = useQuery({ queryKey: ["purchasing", "orders", id], queryFn: () => getPurchaseOrder(id as string), enabled: isEdit });
-  const formOptions = useQuery({ queryKey: ["purchasing", "orders", "form-options"], queryFn: getPurchaseOrderFormOptions });
+  const existing = useQuery({ queryKey: purchasingKeys.orders.detail(id as string), queryFn: () => getPurchaseOrder(id as string), enabled: isEdit });
+  const formOptions = useQuery({ queryKey: purchasingKeys.orders.formOptions(), queryFn: getPurchaseOrderFormOptions });
 
   const [vendorId, setVendorId] = useState(requestedVendorId);
   const [orderDate, setOrderDate] = useState(today());
@@ -43,17 +45,17 @@ export default function PurchaseOrderFormPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (isEdit || !requestedVendorId) {
+    if (isEdit || !requestedVendorId || !formOptions.data) {
       return;
     }
-    const vendor = formOptions.data?.vendors.find((item) => item.id === requestedVendorId);
-    if (vendor) {
+    const vendor = formOptions.data.vendors.find((item) => item.id === requestedVendorId);
+    const active = vendor?.status === "ACTIVE";
+    setVendorId(active ? requestedVendorId : "");
+    if (active && vendor) {
       setCurrencyCode(vendor.currencyCode || "PKR");
       setPaymentTermId(vendor.paymentTermId ?? "");
-    } else if (!vendorId) {
-      setVendorId(requestedVendorId);
     }
-  }, [formOptions.data, isEdit, requestedVendorId, vendorId]);
+  }, [formOptions.data, isEdit, requestedVendorId]);
 
   useEffect(() => {
     if (!existing.data) {
@@ -97,6 +99,14 @@ export default function PurchaseOrderFormPage() {
     }
   }
 
+  async function refreshAfterSave() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.orders.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.orders.all() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+    ]);
+  }
+
   async function submit() {
     setError(null);
     setFieldErrors({});
@@ -104,11 +114,27 @@ export default function PurchaseOrderFormPage() {
       setFieldErrors({ vendorId: "Choose a vendor." });
       return;
     }
-    const invalid = lines.findIndex((line) => !line.productId && !line.productName && !line.description);
-    if (invalid >= 0) {
-      setFieldErrors({ lines: `Line ${invalid + 1}: choose a product or enter a description.` });
+    if (formOptions.data && !formOptions.data.vendors.some((vendor) => vendor.id === vendorId && vendor.status === "ACTIVE")) {
+      setFieldErrors({ vendorId: "Choose an active vendor." });
       return;
     }
+    const invalid = lines.findIndex((line) => !line.productId);
+    if (invalid >= 0) {
+      setFieldErrors({ lines: `Line ${invalid + 1}: choose a product.` });
+      return;
+    }
+    const linePayload = lines.map((line) => ({
+      productId: line.productId,
+      productCode: line.productCode,
+      productName: line.productName,
+      description: line.description,
+      unitOfMeasure: line.unitOfMeasure,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      discountPercent: line.discountPercent || "0",
+      taxCodeId: line.taxCodeId,
+      taxRate: line.taxRate || "0",
+    }));
     const body: PurchaseOrderWrite = {
       vendorId,
       orderDate: orderDate || undefined,
@@ -118,27 +144,26 @@ export default function PurchaseOrderFormPage() {
       paymentTermId: paymentTermId || undefined,
       notes: notes || undefined,
       terms: terms || undefined,
-      lines: lines.map((line) => ({
-        productId: line.productId,
-        productCode: line.productCode,
-        productName: line.productName,
-        description: line.description,
-        unitOfMeasure: line.unitOfMeasure,
-        quantity: line.quantity,
-        unitPrice: line.unitPrice,
-        discountPercent: line.discountPercent || "0",
-        taxCodeId: line.taxCodeId,
-        taxRate: line.taxRate || "0",
-      })),
+      lines: linePayload,
     };
     setBusy(true);
     try {
       if (id) {
-        await updatePurchaseOrder(id, body);
+        const updateBody: Partial<PurchaseOrderWrite> = {
+          ...body,
+          expectedDeliveryDate: expectedDeliveryDate || null,
+          vendorReference: vendorReference || null,
+          paymentTermId: paymentTermId || null,
+          notes: notes || null,
+          terms: terms || null,
+        };
+        await updatePurchaseOrder(id, updateBody);
+        await refreshAfterSave();
         navigate(`/purchasing/orders/${id}`);
         return;
       }
       const created = await createPurchaseOrder(body);
+      await refreshAfterSave();
       navigate(`/purchasing/orders/${created.id}`);
     } catch (submitError) {
       setError(getApiErrorMessage(submitError));
@@ -179,14 +204,17 @@ export default function PurchaseOrderFormPage() {
               onChange={(event) => selectVendor(event.target.value)}
             >
               <option value="">Choose a vendor</option>
-              {(formOptions.data?.vendors ?? []).map((vendor) => (
+              {(formOptions.data?.vendors ?? []).filter((vendor) => vendor.status === "ACTIVE").map((vendor) => (
                 <option key={vendor.id} value={vendor.id}>
-                  {vendor.code ? `${vendor.code} · ` : ""}
+                  {vendor.code ? `${vendor.code} A� ` : ""}
                   {vendor.displayName ?? vendor.name}
                 </option>
               ))}
-              {isEdit && selectedVendor && !(formOptions.data?.vendors ?? []).some((vendor) => vendor.id === selectedVendor.id) ? (
-                <option value={selectedVendor.id}>{selectedVendor.displayName ?? selectedVendor.name}</option>
+              {selectedVendor && selectedVendor.status !== "ACTIVE" ? (
+                <option value={selectedVendor.id}>
+                  {selectedVendor.code ? `${selectedVendor.code} A� ` : ""}
+                  {selectedVendor.displayName ?? selectedVendor.name}
+                </option>
               ) : null}
             </select>
           </FormField>
@@ -250,7 +278,7 @@ export default function PurchaseOrderFormPage() {
             taxCodes={formOptions.data?.taxCodes ?? []}
             currency={currencyCode}
             disabled={busy}
-            invalidLines={lines.flatMap((line, index) => (!line.productId && !line.productName && !line.description ? [index] : []))}
+            invalidLines={lines.flatMap((line, index) => (!line.productId ? [index] : []))}
           />
           {fieldErrors.lines ? (
             <p role="alert" className="mt-2 text-sm text-red-700">
@@ -294,7 +322,7 @@ export default function PurchaseOrderFormPage() {
           <Link className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-sm text-slate-700" to={id ? `/purchasing/orders/${id}` : "/purchasing/orders"}>
             Cancel
           </Link>
-          <Button className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy || existing.isPending} onClick={submit}>
+          <Button className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy || existing.isLoading} onClick={submit}>
             {busy ? "Saving…" : isEdit ? "Save changes" : "Create order"}
           </Button>
         </div>

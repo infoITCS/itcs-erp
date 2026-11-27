@@ -11,11 +11,23 @@ import type {
 } from "../sales/shared.tsx";
 import type { VendorOption } from "@/features/vendors/api.ts";
 
+type ProductOptionApi = Omit<ProductOption, "taxCode"> & { taxCode?: string | { code?: string | null } | null };
+
+function normalizeProductOption(product: ProductOptionApi): ProductOption {
+  const taxCode = typeof product.taxCode === "string" ? product.taxCode : product.taxCode?.code ?? null;
+  return { ...product, taxCode };
+}
+
+function normalizeProductOptions(products: ProductOptionApi[] | undefined): ProductOption[] {
+  return (products ?? []).map(normalizeProductOption);
+}
+
 export const PURCHASING_PERMISSIONS = {
   read: "purchasing:read",
   create: "purchasing:create",
   update: "purchasing:update",
   delete: "purchasing:delete",
+  approve: "purchasing:approve",
   restore: "purchasing:restore",
 } as const;
 
@@ -43,10 +55,10 @@ export const PURCHASE_ORDER_STATUSES: PurchaseOrderStatus[] = [
 export const PURCHASE_ORDER_STATUS_TRANSITIONS: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = {
   DRAFT: ["APPROVED", "CANCELLED"],
   APPROVED: ["SENT", "CANCELLED"],
-  SENT: ["PARTIALLY_RECEIVED", "RECEIVED", "CANCELLED"],
-  PARTIALLY_RECEIVED: ["RECEIVED", "CANCELLED"],
-  RECEIVED: ["BILLED", "CLOSED"],
-  BILLED: ["CLOSED"],
+  SENT: ["CANCELLED"],
+  PARTIALLY_RECEIVED: ["CANCELLED"],
+  RECEIVED: ["CLOSED", "CANCELLED"],
+  BILLED: ["CLOSED", "CANCELLED"],
   CLOSED: [],
   CANCELLED: [],
 };
@@ -75,6 +87,7 @@ export const VENDOR_PAYMENT_METHODS: VendorPaymentMethod[] = [
 export interface PurchaseOrderLine extends DocumentLine {
   purchaseOrderLineId?: string;
   receivedQuantity?: string;
+  sourceSalesOrderLineId?: string | null;
   location?: string | null;
 }
 
@@ -85,6 +98,8 @@ export interface PurchaseOrder {
   orderNumber?: string | null;
   vendorId: string;
   vendor?: VendorOption | null;
+  sourceSalesOrderId?: string | null;
+  sourceSalesOrder?: { id: string; salesOrderNumber: string; status: string; total: string } | null;
   status: PurchaseOrderStatus;
   orderDate?: string;
   issueDate?: string;
@@ -142,16 +157,26 @@ export interface PurchaseOrderFormOptions {
   statuses: Array<{ value: PurchaseOrderStatus; label: string }>;
 }
 
+export interface CreatePurchaseOrderFromSalesOrderWrite {
+  salesOrderId: string;
+  vendorId: string;
+  ownerUserId?: string;
+  orderDate?: string;
+  expectedDeliveryDate?: string | null;
+  vendorReference?: string | null;
+  notes?: string | null;
+}
+
 export interface PurchaseOrderWrite {
   vendorId: string;
   orderDate?: string;
   issueDate?: string;
-  expectedDeliveryDate?: string;
-  vendorReference?: string;
+  expectedDeliveryDate?: string | null;
+  vendorReference?: string | null;
   currencyCode: string;
-  paymentTermId?: string;
-  notes?: string;
-  terms?: string;
+  paymentTermId?: string | null;
+  notes?: string | null;
+  terms?: string | null;
   lines: DocumentLineInput[];
 }
 
@@ -165,6 +190,8 @@ export interface ReceivableLineOption {
   quantity: string;
   orderedQuantity?: string;
   receivedQuantity?: string;
+  pendingQuantity?: string;
+  availableQuantity?: string;
   unitPrice?: string;
   location?: string | null;
 }
@@ -209,13 +236,12 @@ export interface GoodsReceipt {
 export interface GoodsReceiptWrite {
   purchaseOrderId: string;
   receiptDate: string;
-  currencyCode: string;
-  vendorReference?: string;
-  notes?: string;
+  vendorReference?: string | null;
+  notes?: string | null;
   lines: Array<{
     purchaseOrderLineId: string;
     receivedQuantity: string;
-    location?: string;
+    location?: string | null;
   }>;
 }
 
@@ -278,6 +304,8 @@ export interface BillOption {
   dueDate?: string | null;
   total?: string;
   amountPaid?: string;
+  pendingAmount?: string;
+  availableBalance?: string;
   balance?: string;
 }
 
@@ -298,17 +326,20 @@ export interface BillLineWrite extends DocumentLineInput {
 }
 
 export interface VendorBillWrite {
-  purchaseOrderId?: string;
   vendorId: string;
   billDate: string;
-  dueDate?: string;
-  vendorReference?: string;
+  dueDate?: string | null;
+  vendorReference?: string | null;
   currencyCode: string;
-  paymentTermId?: string;
-  expenseAccount?: string;
-  liabilityAccount?: string;
-  notes?: string;
+  paymentTermId?: string | null;
+  expenseAccount?: string | null;
+  liabilityAccount?: string | null;
+  notes?: string | null;
   lines: BillLineWrite[];
+}
+
+export interface VendorBillCreate extends VendorBillWrite {
+  purchaseOrderId?: string;
 }
 
 export interface PaymentAllocation {
@@ -357,9 +388,9 @@ export interface VendorPaymentWrite {
   method: VendorPaymentMethod;
   amount: string;
   currencyCode: string;
-  reference?: string;
-  notes?: string;
-  bankAccount?: string;
+  reference?: string | null;
+  notes?: string | null;
+  bankAccount?: string | null;
   allocations: Array<{ billId: string; amount: string }>;
 }
 
@@ -372,7 +403,10 @@ export function listPurchaseOrders(params: Record<string, string | number | bool
 }
 
 export function getPurchaseOrderFormOptions(): Promise<PurchaseOrderFormOptions> {
-  return data(http.get<ApiSuccess<PurchaseOrderFormOptions>>("/api/v1/purchasing/orders/form-options"));
+  return data(http.get<ApiSuccess<PurchaseOrderFormOptions>>("/api/v1/purchasing/orders/form-options")).then((options) => ({
+    ...options,
+    products: normalizeProductOptions(options.products as unknown as ProductOptionApi[]),
+  }));
 }
 
 export function getPurchaseOrder(id: string): Promise<PurchaseOrder> {
@@ -381,6 +415,10 @@ export function getPurchaseOrder(id: string): Promise<PurchaseOrder> {
 
 export function createPurchaseOrder(body: PurchaseOrderWrite): Promise<PurchaseOrder> {
   return data(http.post("/api/v1/purchasing/orders", body));
+}
+
+export function createPurchaseOrderFromSalesOrder(body: CreatePurchaseOrderFromSalesOrderWrite): Promise<PurchaseOrder> {
+  return data(http.post("/api/v1/purchasing/orders/from-sales-order", body));
 }
 
 export function updatePurchaseOrder(id: string, body: Partial<PurchaseOrderWrite>): Promise<PurchaseOrder> {
@@ -403,8 +441,8 @@ export function listGoodsReceipts(params: Record<string, string | number | boole
   return data(http.get<ApiSuccess<Page<GoodsReceipt>>>("/api/v1/purchasing/receipts", { params }));
 }
 
-export function getPurchaseOrderReceiptOptions(id: string): Promise<PurchaseOrderOption> {
-  return data(http.get<ApiSuccess<PurchaseOrderOption>>(`/api/v1/purchasing/orders/${id}`));
+export function getPurchaseOrderReceiptOptions(id: string): Promise<PurchaseOrder> {
+  return data(http.get<ApiSuccess<PurchaseOrder>>(`/api/v1/purchasing/orders/${id}`));
 }
 
 export function getGoodsReceipt(id: string): Promise<GoodsReceipt> {
@@ -432,14 +470,17 @@ export function listVendorBills(params: Record<string, string | number | boolean
 }
 
 export function getBillFormOptions(): Promise<BillFormOptions> {
-  return data(http.get<ApiSuccess<BillFormOptions>>("/api/v1/purchasing/bills/form-options"));
+  return data(http.get<ApiSuccess<BillFormOptions>>("/api/v1/purchasing/bills/form-options")).then((options) => ({
+    ...options,
+    products: normalizeProductOptions(options.products as unknown as ProductOptionApi[]),
+  }));
 }
 
 export function getVendorBill(id: string): Promise<VendorBill> {
   return data(http.get<ApiSuccess<VendorBill>>(`/api/v1/purchasing/bills/${id}`));
 }
 
-export function createVendorBill(body: VendorBillWrite): Promise<VendorBill> {
+export function createVendorBill(body: VendorBillCreate): Promise<VendorBill> {
   return data(http.post("/api/v1/purchasing/bills", body));
 }
 

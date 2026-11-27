@@ -130,7 +130,7 @@ export const vendorListQuerySchema = listQuerySchema.extend({
     .enum(["true", "false"])
     .optional()
     .transform((value) => value === "true"),
-  sort: z.enum(["createdAt", "name", "vendorNumber", "code"]).optional(),
+  sort: z.enum(["createdAt", "name", "vendorNumber", "code", "status"]).optional(),
 });
 
 export const vendorIdParamSchema = z.object({ id: z.uuid() });

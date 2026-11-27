@@ -1,10 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { FormField } from "@/components/forms/FormField.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
+import { purchasingKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import {
   PURCHASING_PERMISSIONS,
@@ -16,7 +17,7 @@ import {
   type VendorPaymentMethod,
   type VendorPaymentWrite,
 } from "../api.ts";
-import { PageHeader, formatMoney, numberValue, statusLabel } from "../shared.tsx";
+import { PageHeader, billAvailableBalance, formatMoney, numberValue, statusLabel } from "../shared.tsx";
 
 interface AllocationDraft {
   billId: string;
@@ -30,6 +31,7 @@ export default function VendorPaymentFormPage() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const canCreate = useHasPermission(PURCHASING_PERMISSIONS.create);
   const canUpdate = useHasPermission(PURCHASING_PERMISSIONS.update);
   const isEdit = Boolean(id);
@@ -37,8 +39,8 @@ export default function VendorPaymentFormPage() {
   const requestedVendorId = searchParams.get("vendorId") ?? "";
   const requestedBillId = searchParams.get("billId") ?? "";
 
-  const existing = useQuery({ queryKey: ["purchasing", "payments", id], queryFn: () => getVendorPayment(id as string), enabled: isEdit });
-  const formOptions = useQuery({ queryKey: ["purchasing", "payments", "form-options"], queryFn: getVendorPaymentFormOptions });
+  const existing = useQuery({ queryKey: purchasingKeys.payments.detail(id as string), queryFn: () => getVendorPayment(id as string), enabled: isEdit });
+  const formOptions = useQuery({ queryKey: purchasingKeys.payments.formOptions(), queryFn: getVendorPaymentFormOptions });
 
   const [vendorId, setVendorId] = useState(requestedVendorId);
   const [paidDate, setPaidDate] = useState(today());
@@ -52,6 +54,15 @@ export default function VendorPaymentFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ vendorId?: string; amount?: string; allocations?: string }>({});
   const [busy, setBusy] = useState(false);
+
+  const activeVendors = (formOptions.data?.vendors ?? []).filter((vendor) => vendor.status === "ACTIVE");
+  const availableBills = (formOptions.data?.bills ?? []).filter(
+    (bill) =>
+      Boolean(vendorId) &&
+      bill.vendorId === vendorId &&
+      (bill.status === "APPROVED" || bill.status === "PARTIALLY_PAID") &&
+      billAvailableBalance(bill) > 0,
+  );
 
   useEffect(() => {
     if (!existing.data) {
@@ -84,17 +95,23 @@ export default function VendorPaymentFormPage() {
     if (isEdit || requestedVendorId || !requestedBillId) {
       return;
     }
-    const bill = formOptions.data?.bills.find((item) => item.id === requestedBillId);
+    const bill = (formOptions.data?.bills ?? []).find(
+      (item) =>
+        item.id === requestedBillId &&
+        (item.status === "APPROVED" || item.status === "PARTIALLY_PAID") &&
+        billAvailableBalance(item) > 0,
+    );
     if (bill) {
+      const available = String(billAvailableBalance(bill));
       setVendorId(bill.vendorId);
       setCurrencyCode(bill.currencyCode);
-      setAmount(bill.balance ?? "0");
+      setAmount(available);
       setAllocations([
         {
           billId: bill.id,
-          amount: bill.balance ?? "0",
+          amount: available,
           label: bill.billNumber ?? bill.id,
-          balance: bill.balance ?? "0",
+          balance: available,
           currencyCode: bill.currencyCode,
         },
       ]);
@@ -105,16 +122,13 @@ export default function VendorPaymentFormPage() {
     if (isEdit || requestedBillId || !requestedVendorId) {
       return;
     }
-    const vendor = formOptions.data?.vendors.find((item) => item.id === requestedVendorId);
+    const vendor = activeVendors.find((item) => item.id === requestedVendorId);
     if (vendor) {
       setVendorId(vendor.id);
       setCurrencyCode(vendor.currencyCode || "PKR");
     }
   }, [formOptions.data, isEdit, requestedVendorId, requestedBillId]);
 
-  const availableBills = (formOptions.data?.bills ?? []).filter(
-    (bill) => !vendorId || bill.vendorId === vendorId,
-  );
   const allocatedTotal = allocations.reduce((sum, line) => sum + numberValue(line.amount), 0);
 
   function selectVendor(value: string) {
@@ -128,20 +142,21 @@ export default function VendorPaymentFormPage() {
   }
 
   function addAllocation() {
-    const bill = availableBills.find((item) => numberValue(item.balance) > 0 && !allocations.some((line) => line.billId === item.id));
+    const bill = availableBills.find((item) => billAvailableBalance(item) > 0 && !allocations.some((line) => line.billId === item.id));
     const fallback = availableBills.find((item) => !allocations.some((line) => line.billId === item.id));
     const selected = bill ?? fallback;
     if (!selected) {
       setFieldErrors((current) => ({ ...current, allocations: "No further bills are available for this vendor." }));
       return;
     }
+    const available = String(billAvailableBalance(selected));
     setAllocations((current) => [
       ...current,
       {
         billId: selected.id,
-        amount: String(Math.max(numberValue(selected.balance), 0)),
+        amount: available,
         label: selected.billNumber ?? selected.id,
-        balance: selected.balance ?? "0",
+        balance: available,
         currencyCode: selected.currencyCode,
       },
     ]);
@@ -159,13 +174,24 @@ export default function VendorPaymentFormPage() {
       updateAllocation(index, { billId, amount: "0", label: billId, balance: "0" });
       return;
     }
+    const available = String(billAvailableBalance(bill));
     updateAllocation(index, {
       billId,
-      amount: String(Math.max(numberValue(bill.balance), 0)),
+      amount: available,
       label: bill.billNumber ?? bill.id,
-      balance: bill.balance ?? "0",
+      balance: available,
       currencyCode: bill.currencyCode,
     });
+  }
+
+  async function refreshAfterSave() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.payments.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.payments.all() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.all() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+    ]);
   }
 
   async function submit() {
@@ -173,6 +199,10 @@ export default function VendorPaymentFormPage() {
     setFieldErrors({});
     if (!vendorId) {
       setFieldErrors({ vendorId: "Choose a vendor." });
+      return;
+    }
+    if (formOptions.data && !activeVendors.some((vendor) => vendor.id === vendorId)) {
+      setFieldErrors({ vendorId: "Choose an active vendor." });
       return;
     }
     if (numberValue(amount) <= 0) {
@@ -187,6 +217,13 @@ export default function VendorPaymentFormPage() {
     if (overLimit) {
       setFieldErrors({ allocations: `${overLimit.label}: allocation exceeds the bill's remaining balance.` });
       return;
+    }
+    if (formOptions.data) {
+      const ineligible = allocations.find((line) => !availableBills.some((bill) => bill.id === line.billId));
+      if (ineligible) {
+        setFieldErrors({ allocations: `${ineligible.label}: choose an approved bill with an outstanding balance.` });
+        return;
+      }
     }
     if (Math.abs(allocatedTotal - numberValue(amount)) > 0.0001) {
       setFieldErrors({ allocations: `Allocations total ${allocatedTotal.toFixed(4)} but the payment is ${numberValue(amount).toFixed(4)}. They must match.` });
@@ -206,11 +243,19 @@ export default function VendorPaymentFormPage() {
     setBusy(true);
     try {
       if (id) {
-        await updateVendorPayment(id, body);
+        const updateBody: Partial<VendorPaymentWrite> = {
+          ...body,
+          reference: reference || null,
+          notes: notes || null,
+          bankAccount: bankAccount || null,
+        };
+        await updateVendorPayment(id, updateBody);
+        await refreshAfterSave();
         navigate(`/purchasing/payments/${id}`);
         return;
       }
       const created = await createVendorPayment(body);
+      await refreshAfterSave();
       navigate(`/purchasing/payments/${created.id}`);
     } catch (submitError) {
       setError(getApiErrorMessage(submitError));
@@ -250,9 +295,12 @@ export default function VendorPaymentFormPage() {
               onChange={(event) => selectVendor(event.target.value)}
             >
               <option value="">Choose a vendor</option>
-              {(formOptions.data?.vendors ?? []).map((vendor) => (
+              {activeVendors.map((vendor) => (
                 <option key={vendor.id} value={vendor.id}>{vendor.displayName ?? vendor.name}</option>
               ))}
+              {vendorId && !activeVendors.some((vendor) => vendor.id === vendorId) ? (
+                <option value={vendorId}>{(formOptions.data?.vendors ?? []).find((vendor) => vendor.id === vendorId)?.displayName ?? (formOptions.data?.vendors ?? []).find((vendor) => vendor.id === vendorId)?.name ?? existing.data?.vendor?.displayName ?? existing.data?.vendor?.name ?? vendorId}</option>
+              ) : null}
             </select>
           </FormField>
           <FormField label="Paid date" htmlFor="paidDate">
@@ -287,12 +335,21 @@ export default function VendorPaymentFormPage() {
             />
           </FormField>
           <FormField label="Currency" htmlFor="currencyCode" required>
-            <Input
+            <select
               id="currencyCode"
               required
+              className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
               value={currencyCode}
-              onChange={(event) => setCurrencyCode(event.target.value.toUpperCase())}
-            />
+              onChange={(event) => setCurrencyCode(event.target.value)}
+            >
+              <option value="">Choose a currency</option>
+              {(formOptions.data?.currencies ?? []).map((currency) => (
+                <option key={currency.code} value={currency.code}>
+                  {currency.code}
+                  {currency.name ? ` · ${currency.name}` : ""}
+                </option>
+              ))}
+            </select>
           </FormField>
           <FormField label="Reference" htmlFor="reference">
             <Input id="reference" value={reference} placeholder="Cheque, transaction or transfer reference" onChange={(event) => setReference(event.target.value)} />
@@ -344,7 +401,7 @@ export default function VendorPaymentFormPage() {
                         >
                           {availableBills.map((bill) => (
                             <option key={bill.id} value={bill.id}>
-                              {bill.billNumber ?? bill.id} · {formatMoney(bill.balance ?? "0", bill.currencyCode)} due
+                              {bill.billNumber ?? bill.id} A� {formatMoney(billAvailableBalance(bill), bill.currencyCode)} due
                             </option>
                           ))}
                           {!availableBills.some((bill) => bill.id === line.billId) ? (
@@ -412,7 +469,7 @@ export default function VendorPaymentFormPage() {
           <Link className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-sm text-slate-700" to={id ? `/purchasing/payments/${id}` : "/purchasing/payments"}>
             Cancel
           </Link>
-          <Button className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy || existing.isPending} onClick={submit}>
+          <Button className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy || existing.isLoading} onClick={submit}>
             {busy ? "Saving…" : isEdit ? "Save changes" : "Record payment"}
           </Button>
         </div>

@@ -47,6 +47,7 @@ export interface Invoice {
   taxTotal: string;
   total: string;
   totalBase: string | null;
+  cogsTotal: string;
   amountPaid: string;
   notes: string | null;
   terms: string | null;

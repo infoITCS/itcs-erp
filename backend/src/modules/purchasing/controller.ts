@@ -8,6 +8,7 @@ import type { PurchasingService } from "./service";
 import type {
   ChangeOrderStatusInput,
   CreateBillInput,
+  CreateOrderFromSalesOrderInput,
   CreateOrderInput,
   CreatePaymentInput,
   CreateReceiptInput,
@@ -101,6 +102,16 @@ export class PurchasingController {
     sendSuccess(res, { message: "Purchase order created", data: order }, 201);
   });
 
+  createOrderFromSalesOrder = asyncHandler(async (req: Request, res: Response) => {
+    const order = await this.purchasingService.createOrderFromSalesOrder(
+      organizationId(req),
+      actorId(req),
+      req.validated?.body as CreateOrderFromSalesOrderInput,
+      meta(req),
+    );
+    sendSuccess(res, { message: "Purchase order created from sales order", data: order }, 201);
+  });
+
   getOrder = asyncHandler(async (req: Request, res: Response) => {
     const order = await this.purchasingService.getOrder(organizationId(req), id(req));
     sendSuccess(res, { message: "Purchase order", data: order });
@@ -176,6 +187,11 @@ export class PurchasingController {
   restoreReceipt = asyncHandler(async (req: Request, res: Response) => {
     const receipt = await this.purchasingService.restoreReceipt(organizationId(req), actorId(req), id(req), meta(req));
     sendSuccess(res, { message: "Goods receipt restored", data: receipt });
+  });
+
+  cancelReceipt = asyncHandler(async (req: Request, res: Response) => {
+    const receipt = await this.purchasingService.cancelReceipt(organizationId(req), actorId(req), id(req), meta(req));
+    sendSuccess(res, { message: "Goods receipt cancelled", data: receipt });
   });
 
   listBills = asyncHandler(async (req: Request, res: Response) => {
@@ -281,5 +297,10 @@ export class PurchasingController {
   restorePayment = asyncHandler(async (req: Request, res: Response) => {
     const payment = await this.purchasingService.restorePayment(organizationId(req), actorId(req), id(req), meta(req));
     sendSuccess(res, { message: "Vendor payment restored", data: payment });
+  });
+
+  cancelPayment = asyncHandler(async (req: Request, res: Response) => {
+    const payment = await this.purchasingService.cancelPayment(organizationId(req), actorId(req), id(req), meta(req));
+    sendSuccess(res, { message: "Vendor payment cancelled", data: payment });
   });
 }

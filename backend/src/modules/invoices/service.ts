@@ -75,11 +75,13 @@ export class InvoicesService {
       throw new ValidationFailedError({ dueDate: ["The due date cannot be before the issue date"] });
     }
 
+    let cogsTotal = "0";
     if (input.sourceSalesOrderId) {
       const salesOrder = await this.repository.findSalesOrder(organizationId, input.sourceSalesOrderId);
       if (!salesOrder) {
         throw new ValidationFailedError({ sourceSalesOrderId: ["Choose a valid sales order"] });
       }
+      cogsTotal = salesOrder.cogsTotal.toString();
     }
 
     const lines = await this.buildLines(organizationId, customer.pricesIncludeTax, input.lines);
@@ -104,6 +106,7 @@ export class InvoicesService {
       taxTotal: money.taxTotal,
       total: money.total,
       totalBase: snapshot.estimatedValueBase,
+      cogsTotal,
       notes: input.notes,
       terms: input.terms,
       lines,

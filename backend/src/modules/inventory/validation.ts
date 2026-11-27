@@ -5,11 +5,13 @@ import { INVENTORY_MOVEMENT_TYPES } from "./types";
 
 export const stockQuerySchema = listQuerySchema.extend({
   productId: z.uuid().optional(),
+  location: optionalText(120),
   lowStock: z.enum(["true", "false"]).optional().transform((value) => value === "true"),
 });
 
 export const movementQuerySchema = listQuerySchema.extend({
   productId: z.uuid().optional(),
+  location: optionalText(120),
   type: z.enum(INVENTORY_MOVEMENT_TYPES).optional(),
 });
 

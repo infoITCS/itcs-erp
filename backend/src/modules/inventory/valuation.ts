@@ -10,6 +10,7 @@ export interface StockSnapshot {
 
 export interface StockUpdate {
   quantity: string;
+  delta: string;
   averageCost: string;
   balanceAfter: string;
 }
@@ -52,6 +53,7 @@ export function applyInventoryMovement(
 
   return {
     quantity: scale(nextQuantity),
+    delta: scale(delta),
     averageCost: scale(nextAverageCost),
     balanceAfter: scale(nextQuantity),
   };

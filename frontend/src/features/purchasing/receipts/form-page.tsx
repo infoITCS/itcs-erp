@@ -1,19 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { FormField } from "@/components/forms/FormField.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
+import { purchasingKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import {
   PURCHASING_PERMISSIONS,
   createGoodsReceipt,
-  getPurchaseOrderReceiptOptions,
+  getPurchaseOrder,
   listPurchaseOrders,
   type PurchaseOrder,
 } from "../api.ts";
-import { PageHeader, docNumber as numberLabel, formatDate, formatQuantity, numberValue, statusLabel } from "../shared.tsx";
+import { PageHeader, docNumber as numberLabel, formatDate, formatQuantity, numberValue, remainingQuantity, statusLabel } from "../shared.tsx";
 
 interface ReceiptLineDraft {
   purchaseOrderLineId: string;
@@ -30,6 +31,7 @@ const ELIGIBLE_STATUSES = ["APPROVED", "SENT", "PARTIALLY_RECEIVED"];
 export default function GoodsReceiptFormPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const canCreate = useHasPermission(PURCHASING_PERMISSIONS.create);
   const requestedId = searchParams.get("purchaseOrderId") ?? "";
 
@@ -44,13 +46,13 @@ export default function GoodsReceiptFormPage() {
   const [busy, setBusy] = useState(false);
 
   const availableOrders = useQuery({
-    queryKey: ["purchasing", "orders", "receivable"],
+    queryKey: purchasingKeys.orders.receivable(),
     queryFn: () => listPurchaseOrders({ limit: 100 }),
     enabled: canCreate,
   });
   const selectedOrder = useQuery({
-    queryKey: ["purchasing", "orders", purchaseOrderId, "receipt-options"],
-    queryFn: () => getPurchaseOrderReceiptOptions(purchaseOrderId),
+    queryKey: purchasingKeys.orders.detail(purchaseOrderId),
+    queryFn: () => getPurchaseOrder(purchaseOrderId),
     enabled: Boolean(purchaseOrderId),
   });
 
@@ -60,29 +62,23 @@ export default function GoodsReceiptFormPage() {
   const currentOrder = availableOrders.data?.items.find((order) => order.id === purchaseOrderId) ?? selectedOrder.data;
 
   useEffect(() => {
-    if (requestedId && !purchaseOrderId) {
-      setPurchaseOrderId(requestedId);
-    }
-  }, [purchaseOrderId, requestedId]);
-
-  useEffect(() => {
     const order = selectedOrder.data;
     if (!order) {
       return;
     }
     setCurrencyCode(order.currencyCode || "PKR");
-    const orderLines = order.lines ?? order.availableLines ?? [];
     setLines(
-      orderLines.map((line) => {
-        const ordered = Number(line.quantity ?? 0) || 0;
-        const alreadyReceived = Number(line.receivedQuantity ?? 0) || 0;
+      (order.lines ?? []).map((line) => {
+        const ordered = numberValue(line.quantity);
+        const alreadyReceived = numberValue(line.receivedQuantity);
+        const available = remainingQuantity(line);
         return {
           purchaseOrderLineId: line.id ?? line.purchaseOrderLineId ?? "",
           productName: line.productName ?? line.description ?? "Item",
           productCode: line.productCode ?? "",
           orderedQuantity: String(ordered),
           alreadyReceived: String(alreadyReceived),
-          receivedQuantity: String(Math.max(ordered - alreadyReceived, 0)),
+          receivedQuantity: String(Math.max(available, 0)),
           location: line.location ?? "",
         };
       }),
@@ -102,6 +98,14 @@ export default function GoodsReceiptFormPage() {
     setLines((current) => current.map((line, i) => (i === index ? { ...line, ...patch } : line)));
   }
 
+  async function refreshAfterSave() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.receipts.all() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.orders.all() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+    ]);
+  }
+
   async function submit() {
     setError(null);
     setFieldErrors({});
@@ -119,8 +123,9 @@ export default function GoodsReceiptFormPage() {
       return;
     }
     const invalid = selected.find((line) => {
-      const remaining = numberValue(line.orderedQuantity) - numberValue(line.alreadyReceived);
-      return numberValue(line.receivedQuantity) > remaining;
+      const source = (selectedOrder.data?.lines ?? []).find((item) => (item.id ?? item.purchaseOrderLineId) === line.purchaseOrderLineId);
+      const remaining = source ? remainingQuantity(source) : Math.max(numberValue(line.orderedQuantity) - numberValue(line.alreadyReceived), 0);
+      return numberValue(line.receivedQuantity) > remaining + 0.0001;
     });
     if (invalid) {
       setFieldErrors({ lines: `${invalid.productName}: received quantity exceeds the open quantity on the order.` });
@@ -131,15 +136,15 @@ export default function GoodsReceiptFormPage() {
       const created = await createGoodsReceipt({
         purchaseOrderId,
         receiptDate,
-        currencyCode,
-        vendorReference: vendorReference || undefined,
-        notes: notes || undefined,
+        vendorReference: vendorReference || null,
+        notes: notes || null,
         lines: selected.map((line) => ({
           purchaseOrderLineId: line.purchaseOrderLineId,
           receivedQuantity: line.receivedQuantity,
-          location: line.location || undefined,
+          location: line.location || null,
         })),
       });
+      await refreshAfterSave();
       navigate(`/purchasing/receipts/${created.id}`);
     } catch (submitError) {
       setError(getApiErrorMessage(submitError));
@@ -192,8 +197,8 @@ export default function GoodsReceiptFormPage() {
           <FormField label="Receipt date" htmlFor="receiptDate">
             <Input id="receiptDate" type="date" value={receiptDate} onChange={(event) => setReceiptDate(event.target.value)} />
           </FormField>
-          <FormField label="Currency" htmlFor="currencyCode" required>
-            <Input id="currencyCode" required value={currencyCode} onChange={(event) => setCurrencyCode(event.target.value.toUpperCase())} />
+          <FormField label="Currency (from order)" htmlFor="currencyCode">
+            <Input id="currencyCode" readOnly className="bg-slate-50" value={currencyCode} />
           </FormField>
           <FormField label="Vendor reference" htmlFor="vendorReference">
             <Input id="vendorReference" value={vendorReference} placeholder="Delivery note or waybill" onChange={(event) => setVendorReference(event.target.value)} />
@@ -295,7 +300,7 @@ export default function GoodsReceiptFormPage() {
           <Link className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-sm text-slate-700" to="/purchasing/receipts">
             Cancel
           </Link>
-          <Button className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy || selectedOrder.isPending} onClick={submit}>
+          <Button className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy || selectedOrder.isLoading} onClick={submit}>
             {busy ? "Saving…" : "Create receipt"}
           </Button>
         </div>

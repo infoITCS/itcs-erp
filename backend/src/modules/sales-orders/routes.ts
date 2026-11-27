@@ -2,12 +2,13 @@ import { Router } from "express";
 import { listQuerySchema } from "../../common/pagination/list-query";
 import { validate } from "../../common/validation/validate";
 import { authenticate } from "../../middleware/authenticate";
-import { requirePermission } from "../../middleware/authorize";
+import { requireAnyPermission, requirePermission } from "../../middleware/authorize";
 import type { SalesOrdersController } from "./controller";
 import {
   changeSalesOrderStatusSchema,
   convertSalesOrderSchema,
   createSalesOrderSchema,
+  fulfilSalesOrderSchema,
   salesOrderIdParamSchema,
   salesOrderListQuerySchema,
   updateSalesOrderSchema,
@@ -60,6 +61,12 @@ export function createSalesOrdersRouter(controller: SalesOrdersController): Rout
     requirePermission("sales-orders:update"),
     validate({ params: salesOrderIdParamSchema, body: changeSalesOrderStatusSchema }),
     controller.changeStatus,
+  );
+  router.post(
+    "/:id/fulfil",
+    requireAnyPermission("sales-orders:update", "inventory:manage"),
+    validate({ params: salesOrderIdParamSchema, body: fulfilSalesOrderSchema }),
+    controller.fulfil,
   );
   router.post(
     "/:id/convert-to-invoice",

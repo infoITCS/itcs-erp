@@ -1,9 +1,10 @@
-import type { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma, type PrismaClient } from "@prisma/client";
 import { BaseRepository } from "../../common/database/base-repository";
 import { ConflictError } from "../../common/errors/app-error";
 import { allocateDocumentNumberIn } from "../../common/numbering/allocate";
 import { cursorFilter, decodeCursor, toCursorPage } from "../../common/pagination/cursor";
 import { addDays, today } from "../../common/sales/totals";
+import { applyInventoryMovement, type DecimalLike } from "../inventory/valuation";
 import { currentSalesPriceWhere } from "../products/repository";
 import { buildSalesOrderListWhere, type SalesOrderListFilter } from "./list-filter";
 
@@ -15,6 +16,8 @@ const lineSelect = {
   description: true,
   unitOfMeasure: true,
   quantity: true,
+  fulfilledQuantity: true,
+  cogsAmount: true,
   unitPrice: true,
   discountPercent: true,
   taxCodeId: true,
@@ -49,6 +52,7 @@ const salesOrderListSelect = {
   taxTotal: true,
   total: true,
   totalBase: true,
+  cogsTotal: true,
   notes: true,
   terms: true,
   confirmedAt: true,
@@ -76,6 +80,10 @@ const salesOrderDetailSelect = {
   invoices: {
     orderBy: { createdAt: "desc" },
     select: { id: true, invoiceNumber: true, status: true, issueDate: true, dueDate: true, total: true },
+  },
+  purchaseOrders: {
+    orderBy: { createdAt: "desc" },
+    select: { id: true, purchaseOrderNumber: true, status: true },
   },
 } satisfies Prisma.SalesOrderSelect;
 
@@ -105,6 +113,17 @@ export interface SalesOrderWriteData {
   notes?: string | null;
   terms?: string | null;
   lines: SalesOrderLineWriteData[];
+}
+
+export interface SalesOrderFulfilmentLine {
+  id: string;
+  productId: string | null;
+  trackInventory: boolean;
+  quantity: string;
+  unitCost: string;
+  cogsAmount: string;
+  location: string;
+  allowNegativeStock: boolean;
 }
 
 export class SalesOrdersRepository extends BaseRepository {
@@ -214,14 +233,30 @@ export class SalesOrdersRepository extends BaseRepository {
     }
     return this.db.product.findMany({
       where: { organizationId, id: { in: ids }, deletedAt: null },
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        taxCodeId: true,
-        unitOfMeasure: { select: { code: true } },
-        taxCode: { select: { id: true, code: true, rate: true } },
-      },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          taxCodeId: true,
+          trackInventory: true,
+          weightedAveragePrice: true,
+          allowNegativeStock: true,
+          deliveryLocation: true,
+          receivingLocation: true,
+          minimumStockQuantity: true,
+          unitOfMeasure: { select: { code: true } },
+          taxCode: { select: { id: true, code: true, rate: true } },
+        },
+    });
+  }
+
+  async findInventoryBalances(organizationId: string, productIds: string[]) {
+    if (productIds.length === 0) {
+      return [];
+    }
+    return this.db.inventoryBalance.findMany({
+      where: { organizationId, productId: { in: productIds } },
+      select: { productId: true, location: true, quantity: true, averageCost: true },
     });
   }
 
@@ -236,7 +271,7 @@ export class SalesOrdersRepository extends BaseRepository {
   }
 
   async formOptions(organizationId: string) {
-    const [customers, owners, currencies, paymentTerms, taxCodes, products, quotes] = await Promise.all([
+    const [customers, owners, currencies, paymentTerms, taxCodes, products, quotes, balances] = await Promise.all([
       this.db.customer.findMany({
         where: { organizationId, deletedAt: null, status: "ACTIVE" },
         orderBy: { displayName: "asc" },
@@ -273,6 +308,9 @@ export class SalesOrdersRepository extends BaseRepository {
           name: true,
           productType: true,
           taxCodeId: true,
+          trackInventory: true,
+          deliveryLocation: true,
+          receivingLocation: true,
           unitOfMeasure: { select: { code: true } },
           taxCode: { select: { id: true, code: true, rate: true } },
           prices: {
@@ -289,7 +327,17 @@ export class SalesOrdersRepository extends BaseRepository {
         take: 200,
         select: { id: true, quoteNumber: true, customerId: true, currencyCode: true, total: true },
       }),
+      this.db.inventoryBalance.findMany({
+        where: { organizationId },
+        select: { productId: true, quantity: true },
+      }),
     ]);
+
+    const availableByProduct = new Map<string, Prisma.Decimal>();
+    for (const balance of balances) {
+      const current = availableByProduct.get(balance.productId) ?? new Prisma.Decimal(0);
+      availableByProduct.set(balance.productId, current.add(balance.quantity));
+    }
 
     return {
       customers,
@@ -310,6 +358,12 @@ export class SalesOrdersRepository extends BaseRepository {
         currentPrice: product.prices[0]?.amount.toString() ?? null,
         currentPriceCurrency: product.prices[0]?.currencyCode ?? null,
         currentPriceList: product.prices[0]?.priceListCode ?? null,
+        trackInventory: product.trackInventory,
+        deliveryLocation: product.deliveryLocation,
+        receivingLocation: product.receivingLocation,
+        availableQuantity: product.trackInventory
+          ? (availableByProduct.get(product.id) ?? new Prisma.Decimal(0)).toFixed(4)
+          : null,
       })),
     };
   }
@@ -433,6 +487,129 @@ export class SalesOrdersRepository extends BaseRepository {
     return result.count === 1;
   }
 
+  async fulfilOrder(
+    organizationId: string,
+    actorId: string,
+    id: string,
+    lines: SalesOrderFulfilmentLine[],
+  ) {
+    return this.transaction(async (tx) => {
+      const order = (await tx.salesOrder.findFirst({
+        where: { id, organizationId, deletedAt: null },
+        select: {
+          id: true,
+          lines: {
+            select: { id: true, productId: true, quantity: true, fulfilledQuantity: true, cogsAmount: true },
+          },
+        },
+      })) as {
+        id: string;
+        lines: Array<{
+          id: string;
+          productId: string | null;
+          quantity: DecimalLike;
+          fulfilledQuantity: DecimalLike;
+          cogsAmount: DecimalLike;
+        }>;
+      } | null;
+      if (!order) {
+        return null;
+      }
+
+      const orderLines = new Map(order.lines.map((line) => [line.id, line]));
+      for (const line of lines) {
+        const orderLine = orderLines.get(line.id);
+        if (!orderLine) {
+          throw new ConflictError("The fulfilment references an invalid sales order line");
+        }
+        const already = new Prisma.Decimal(orderLine.fulfilledQuantity.toString());
+        const quantity = new Prisma.Decimal(line.quantity);
+        const next = already.add(quantity);
+        if (next.gt(new Prisma.Decimal(orderLine.quantity.toString()))) {
+          throw new ConflictError("The fulfilment quantity exceeds the sales order line");
+        }
+
+        if (line.productId && line.trackInventory) {
+          const balance = (await tx.inventoryBalance.findFirst({
+            where: { organizationId, productId: line.productId, location: line.location },
+            select: { quantity: true, averageCost: true },
+          })) as { quantity: DecimalLike; averageCost: DecimalLike } | null;
+          const applied = applyInventoryMovement(
+            balance,
+            quantity.neg().toFixed(4),
+            line.unitCost,
+            line.allowNegativeStock,
+          );
+          await tx.inventoryMovement.create({
+            data: {
+              organizationId,
+              productId: line.productId,
+              movementType: "SALE",
+              quantity: applied.delta,
+              unitCost: line.unitCost,
+              location: line.location,
+              referenceType: "SALES_ORDER",
+              referenceId: id,
+              balanceAfter: applied.balanceAfter,
+              createdById: actorId,
+            },
+          });
+          await tx.inventoryBalance.upsert({
+            where: {
+              organizationId_productId_location: {
+                organizationId,
+                productId: line.productId,
+                location: line.location,
+              },
+            },
+            create: {
+              organizationId,
+              productId: line.productId,
+              location: line.location,
+              quantity: applied.quantity,
+              averageCost: applied.averageCost,
+              updatedAt: new Date(),
+            },
+            update: {
+              quantity: applied.quantity,
+              averageCost: applied.averageCost,
+              updatedAt: new Date(),
+            },
+          });
+        }
+
+        await tx.salesOrderLine.update({
+          where: { id: line.id },
+          data: {
+            fulfilledQuantity: next.toFixed(4),
+            cogsAmount: new Prisma.Decimal(orderLine.cogsAmount.toString()).add(line.cogsAmount).toFixed(4),
+          },
+        });
+      }
+
+      const refreshed = (await tx.salesOrderLine.findMany({
+        where: { salesOrderId: id, organizationId },
+        select: { quantity: true, fulfilledQuantity: true, cogsAmount: true },
+      })) as Array<{ quantity: DecimalLike; fulfilledQuantity: DecimalLike; cogsAmount: DecimalLike }>;
+      const cogsTotal = refreshed.reduce(
+        (sum, line) => sum.add(new Prisma.Decimal(line.cogsAmount.toString())),
+        new Prisma.Decimal(0),
+      );
+      const isFulfilled = refreshed.every((line) =>
+        new Prisma.Decimal(line.fulfilledQuantity.toString()).gte(new Prisma.Decimal(line.quantity.toString())),
+      );
+      await tx.salesOrder.update({
+        where: { id },
+        data: {
+          cogsTotal: cogsTotal.toFixed(4),
+          updatedById: actorId,
+          ...(isFulfilled ? { status: "FULFILLED" as const, fulfilledAt: new Date() } : {}),
+        },
+      });
+      return true;
+    });
+  }
+
   async convertToInvoice(
     organizationId: string,
     id: string,
@@ -460,6 +637,7 @@ export class SalesOrdersRepository extends BaseRepository {
           taxTotal: true,
           total: true,
           totalBase: true,
+          cogsTotal: true,
           notes: true,
           terms: true,
           paymentTerm: { select: { dueDays: true } },
@@ -499,6 +677,7 @@ export class SalesOrdersRepository extends BaseRepository {
           taxTotal: order.taxTotal,
           total: order.total,
           totalBase: order.totalBase,
+          cogsTotal: order.cogsTotal,
           notes: order.notes,
           terms: order.terms,
           createdById: actorId,
@@ -521,6 +700,7 @@ export class SalesOrdersRepository extends BaseRepository {
               lineDiscount: line.lineDiscount,
               lineTax: line.lineTax,
               lineTotal: line.lineTotal,
+              cogsAmount: line.cogsAmount,
               sortOrder: line.sortOrder,
             })),
           },

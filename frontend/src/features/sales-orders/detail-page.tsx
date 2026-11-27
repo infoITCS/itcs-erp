@@ -9,11 +9,14 @@ import { Input } from "@/components/ui/Input.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import { getCustomer } from "@/features/customers/api.ts";
+import { createPurchaseOrderFromSalesOrder } from "@/features/purchasing/api.ts";
+import { listVendors, type Vendor } from "@/features/vendors/api.ts";
 import {
   SALES_ORDER_STATUS_TRANSITIONS,
   changeSalesOrderStatus,
   convertSalesOrderToInvoice,
   deleteSalesOrder,
+  fulfilSalesOrder,
   getSalesOrder,
   restoreSalesOrder,
   type SalesOrderStatus,
@@ -28,14 +31,20 @@ export default function SalesOrderDetailPage() {
   const canDelete = useHasPermission("sales-orders:delete");
   const canRestore = useHasPermission("sales-orders:restore");
   const canInvoice = useHasPermission("invoices:create");
+  const canPurchase = useHasPermission("purchasing:create");
+  const canFulfil = useHasPermission("sales-orders:update") || useHasPermission("inventory:manage");
 
   const [statusOpen, setStatusOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [purchaseOpen, setPurchaseOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [targetStatus, setTargetStatus] = useState<SalesOrderStatus | "">("");
   const [issueDate, setIssueDate] = useState(today());
   const [dueDate, setDueDate] = useState("");
+  const [vendorId, setVendorId] = useState("");
+  const [purchaseOrderDate, setPurchaseOrderDate] = useState(today());
+  const [purchaseExpectedDate, setPurchaseExpectedDate] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
 
   const order = useQuery({ queryKey: ["sales-orders", id], queryFn: () => getSalesOrder(id), enabled: Boolean(id) });
@@ -46,11 +55,18 @@ export default function SalesOrderDetailPage() {
     queryFn: () => getCustomer(orderCustomerId as string),
     enabled: Boolean(orderCustomerId),
   });
+  const vendors = useQuery({
+    queryKey: ["vendors", { status: "ACTIVE", limit: 100 }],
+    queryFn: () => listVendors({ status: "ACTIVE", limit: 100 }),
+    enabled: purchaseOpen,
+  });
 
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["sales-orders"] }),
       queryClient.invalidateQueries({ queryKey: ["invoices"] }),
+      queryClient.invalidateQueries({ queryKey: ["purchasing"] }),
+      queryClient.invalidateQueries({ queryKey: ["inventory"] }),
     ]);
   };
 
@@ -101,6 +117,35 @@ export default function SalesOrderDetailPage() {
     },
   });
 
+  const fulfil = useMutation({
+    mutationFn: () => fulfilSalesOrder(id),
+    onSuccess: async () => {
+      setActionError(null);
+      await refresh();
+    },
+    onError: (error) => setActionError(getApiErrorMessage(error)),
+  });
+
+  const purchase = useMutation({
+    mutationFn: () =>
+      createPurchaseOrderFromSalesOrder({
+        salesOrderId: id,
+        vendorId,
+        orderDate: purchaseOrderDate || undefined,
+        expectedDeliveryDate: purchaseExpectedDate || null,
+      }),
+    onSuccess: async (result) => {
+      setPurchaseOpen(false);
+      setActionError(null);
+      await refresh();
+      navigate(`/purchasing/orders/${result.id}`);
+    },
+    onError: (error) => {
+      setPurchaseOpen(false);
+      setActionError(getApiErrorMessage(error));
+    },
+  });
+
   if (order.isPending) {
     return <p className="text-sm text-slate-500">Loading sales order…</p>;
   }
@@ -116,12 +161,23 @@ export default function SalesOrderDetailPage() {
   const allowedStatuses = SALES_ORDER_STATUS_TRANSITIONS[row.status] ?? [];
   const canEdit = canUpdate && row.status === "DRAFT" && !row.deletedAt;
   const canInvoiceNow = canInvoice && !row.deletedAt && ["CONFIRMED", "PROCESSING", "FULFILLED"].includes(row.status);
+  const canPurchaseNow = canPurchase && !row.deletedAt && ["DRAFT", "CONFIRMED", "PROCESSING"].includes(row.status);
+  const canFulfilNow =
+    canFulfil && !row.deletedAt && ["CONFIRMED", "PROCESSING"].includes(row.status) && linesHaveRemaining(row.lines);
   const lines = row.lines ?? [];
 
   function openInvoice() {
     setIssueDate(today());
     setDueDate("");
     setInvoiceOpen(true);
+  }
+
+  function openPurchase() {
+    setVendorId("");
+    setPurchaseOrderDate(today());
+    setPurchaseExpectedDate("");
+    setActionError(null);
+    setPurchaseOpen(true);
   }
 
   return (
@@ -172,6 +228,20 @@ export default function SalesOrderDetailPage() {
                     Change status
                   </Button>
                 ) : null}
+                {canPurchaseNow ? (
+                  <Button variant="secondary" onClick={openPurchase}>
+                    Create purchase order
+                  </Button>
+                ) : null}
+                {canFulfilNow ? (
+                  <Button
+                    className="bg-brand-800 hover:bg-brand-900"
+                    disabled={fulfil.isPending}
+                    onClick={() => fulfil.mutate()}
+                  >
+                    {fulfil.isPending ? "Fulfilling…" : "Fulfil from stock"}
+                  </Button>
+                ) : null}
                 {canInvoiceNow ? (
                   <Button className="bg-brand-800 hover:bg-brand-900" onClick={openInvoice}>
                     Create invoice
@@ -208,6 +278,11 @@ export default function SalesOrderDetailPage() {
         <Metric label="Total" value={formatMoney(row.total, row.currencyCode)} />
         <Metric label="Subtotal" value={formatMoney(row.subtotal, row.currencyCode)} />
         <Metric label="Tax" value={formatMoney(row.taxTotal, row.currencyCode)} />
+        <Metric label="COGS" value={formatMoney(row.cogsTotal ?? "0", row.currencyCode)} />
+        <Metric
+          label="Fulfilled units"
+          value={lines.reduce((sum, line) => sum + Number(line.fulfilledQuantity ?? 0), 0).toFixed(2)}
+        />
         <Metric label="Invoices" value={String(row._count?.invoices ?? 0)} />
       </div>
 
@@ -220,8 +295,10 @@ export default function SalesOrderDetailPage() {
                   <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-500">
                     <th className="py-2 pr-3">Product</th>
                     <th className="py-2 pr-3 text-right">Qty</th>
+                    <th className="py-2 pr-3 text-right">Fulfilled</th>
                     <th className="py-2 pr-3 text-right">Unit price</th>
                     <th className="py-2 pr-3 text-right">Tax</th>
+                    <th className="py-2 pr-3 text-right">COGS</th>
                     <th className="py-2 text-right">Total</th>
                   </tr>
                 </thead>
@@ -234,33 +311,39 @@ export default function SalesOrderDetailPage() {
                         <p className="font-mono text-[11px] text-slate-400">{line.productCode ?? "—"}</p>
                       </td>
                       <td className="py-2 pr-3 text-right tabular-nums">{Number(line.quantity).toFixed(2)}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">
+                        {Number(line.fulfilledQuantity ?? 0).toFixed(2)}
+                      </td>
                       <td className="py-2 pr-3 text-right tabular-nums">{formatMoney(line.unitPrice, row.currencyCode)}</td>
                       <td className="py-2 pr-3 text-right tabular-nums">{formatMoney(line.lineTax, row.currencyCode)}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">
+                        {formatMoney(line.cogsAmount ?? "0", row.currencyCode)}
+                      </td>
                       <td className="py-2 text-right font-medium tabular-nums">{formatMoney(line.lineTotal, row.currencyCode)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={4} className="pt-3 text-right text-slate-500">
+                    <td colSpan={6} className="pt-3 text-right text-slate-500">
                       Subtotal
                     </td>
                     <td className="pt-3 text-right tabular-nums">{formatMoney(row.subtotal, row.currencyCode)}</td>
                   </tr>
                   <tr>
-                    <td colSpan={4} className="text-right text-slate-500">
+                    <td colSpan={6} className="text-right text-slate-500">
                       Discount
                     </td>
                     <td className="text-right tabular-nums">{formatMoney(row.discountTotal, row.currencyCode)}</td>
                   </tr>
                   <tr>
-                    <td colSpan={4} className="text-right text-slate-500">
+                    <td colSpan={6} className="text-right text-slate-500">
                       Tax
                     </td>
                     <td className="text-right tabular-nums">{formatMoney(row.taxTotal, row.currencyCode)}</td>
                   </tr>
                   <tr>
-                    <td colSpan={4} className="border-t border-slate-200 pt-2 text-right font-semibold text-slate-900">
+                    <td colSpan={6} className="border-t border-slate-200 pt-2 text-right font-semibold text-slate-900">
                       Total
                     </td>
                     <td className="border-t border-slate-200 pt-2 text-right font-semibold tabular-nums text-slate-950">
@@ -271,6 +354,22 @@ export default function SalesOrderDetailPage() {
               </table>
             </div>
           </Panel>
+
+          {row.purchaseOrders && row.purchaseOrders.length > 0 ? (
+            <Panel title="Linked purchase orders">
+              <ul className="flex flex-col gap-2 text-sm">
+                {row.purchaseOrders.map((item) => (
+                  <li key={item.id} className="flex flex-wrap items-center justify-between gap-2">
+                    <Link className="font-medium text-brand-800 hover:underline" to={`/purchasing/orders/${item.id}`}>
+                      {item.purchaseOrderNumber}
+                    </Link>
+                    <StatusPill status={item.status} />
+                    <span className="tabular-nums text-slate-800">{formatMoney(item.total, row.currencyCode)}</span>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          ) : null}
 
           {row.invoices && row.invoices.length > 0 ? (
             <Panel title="Invoices">
@@ -349,6 +448,66 @@ export default function SalesOrderDetailPage() {
               </option>
             ))}
           </select>
+        </div>
+      </Modal>
+
+      <Modal
+        open={purchaseOpen}
+        title="Create purchase order from sales order"
+        onClose={purchase.isPending ? () => undefined : () => setPurchaseOpen(false)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPurchaseOpen(false)} disabled={purchase.isPending}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-brand-800 hover:bg-brand-900"
+              onClick={() => purchase.mutate()}
+              disabled={purchase.isPending || !vendorId}
+            >
+              {purchase.isPending ? "Creating…" : "Create purchase order"}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <label className="text-sm font-medium text-slate-700" htmlFor="purchaseVendor">
+            Vendor
+          </label>
+          <select
+            id="purchaseVendor"
+            className="h-9 rounded-md border border-slate-300 bg-white px-3 text-sm"
+            value={vendorId}
+            onChange={(event) => setVendorId(event.target.value)}
+          >
+            <option value="">Choose a vendor</option>
+            {(vendors.data?.items ?? []).map((vendor: Vendor) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.displayName ?? vendor.name ?? vendor.code ?? vendor.id}
+              </option>
+            ))}
+          </select>
+          <label className="text-sm font-medium text-slate-700" htmlFor="purchaseOrderDate">
+            Order date
+          </label>
+          <Input
+            id="purchaseOrderDate"
+            type="date"
+            value={purchaseOrderDate}
+            onChange={(event) => setPurchaseOrderDate(event.target.value)}
+          />
+          <label className="text-sm font-medium text-slate-700" htmlFor="purchaseExpectedDate">
+            Expected delivery date
+          </label>
+          <Input
+            id="purchaseExpectedDate"
+            type="date"
+            value={purchaseExpectedDate}
+            onChange={(event) => setPurchaseExpectedDate(event.target.value)}
+          />
+          <p className="text-xs text-slate-500">
+            Purchase quantities are based on the open order minus stock already available.
+          </p>
         </div>
       </Modal>
 
@@ -446,6 +605,12 @@ export default function SalesOrderDetailPage() {
         }}
       />
     </section>
+  );
+}
+
+function linesHaveRemaining(lines: Array<{ quantity: string; fulfilledQuantity?: string }> | undefined): boolean {
+  return Boolean(
+    lines?.some((line) => Number(line.quantity) > Number(line.fulfilledQuantity ?? 0)),
   );
 }
 

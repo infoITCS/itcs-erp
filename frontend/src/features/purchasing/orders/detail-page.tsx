@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
+import { PrintPreviewModal } from "@/components/documents/PrintPreviewModal.tsx";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog.tsx";
 import { Modal } from "@/components/modals/Modal.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
+import { purchasingKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import {
   PURCHASE_ORDER_STATUS_TRANSITIONS,
@@ -16,12 +18,30 @@ import {
   restorePurchaseOrder,
   type PurchaseOrderStatus,
 } from "../api.ts";
-import { Detail, Metric, Panel, StatusPill, docNumber, formatDate, formatMoney, formatQuantity, numberValue, remainingQuantity, statusLabel } from "../shared.tsx";
+import {
+  Detail,
+  ErrorState,
+  LoadingState,
+  MetricCard,
+  MetricGrid,
+  Panel,
+  PURCHASE_ORDER_MANUAL_STATUSES,
+  PURCHASING_APPROVE_PERMISSION,
+  StatusPill,
+  buildPrintableProps,
+  docNumber,
+  formatDate,
+  formatMoney,
+  formatQuantity,
+  remainingQuantity,
+  statusLabel,
+} from "../shared.tsx";
 
 export default function PurchaseOrderDetailPage() {
   const { id = "" } = useParams();
   const queryClient = useQueryClient();
   const canUpdate = useHasPermission(PURCHASING_PERMISSIONS.update);
+  const canApprove = useHasPermission(PURCHASING_APPROVE_PERMISSION);
   const canDelete = useHasPermission(PURCHASING_PERMISSIONS.delete);
   const canRestore = useHasPermission(PURCHASING_PERMISSIONS.restore);
   const canCreate = useHasPermission(PURCHASING_PERMISSIONS.create);
@@ -33,14 +53,14 @@ export default function PurchaseOrderDetailPage() {
   const [reason, setReason] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const order = useQuery({ queryKey: ["purchasing", "orders", id], queryFn: () => getPurchaseOrder(id), enabled: Boolean(id) });
+  const order = useQuery({ queryKey: purchasingKeys.orders.detail(id), queryFn: () => getPurchaseOrder(id), enabled: Boolean(id) });
 
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "orders"] }),
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "bills"] }),
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "receipts"] }),
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "hub"] }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.orders.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.receipts.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
     ]);
   };
 
@@ -75,25 +95,63 @@ export default function PurchaseOrderDetailPage() {
   });
 
   if (order.isPending) {
-    return <p className="text-sm text-slate-500">Loading purchase order…</p>;
+    return <LoadingState label="Loading purchase order…" />;
   }
   if (order.isError || !order.data) {
-    return <p className="text-sm text-red-700">{order.isError ? getApiErrorMessage(order.error) : "Purchase order not found"}</p>;
+    return (
+      <div className="mx-auto max-w-3xl p-6">
+        <ErrorState
+          message={order.isError ? getApiErrorMessage(order.error) : "Purchase order not found"}
+          onRetry={() => order.refetch()}
+          backTo="/purchasing/orders"
+          backLabel="Back to orders"
+        />
+      </div>
+    );
   }
 
   const row = order.data;
   const lines = row.lines ?? [];
-  const transitions = PURCHASE_ORDER_STATUS_TRANSITIONS[row.status] ?? [];
+  const transitions = (PURCHASE_ORDER_STATUS_TRANSITIONS[row.status] ?? []).filter((status) =>
+    PURCHASE_ORDER_MANUAL_STATUSES.includes(status as (typeof PURCHASE_ORDER_MANUAL_STATUSES)[number]),
+  );
+  const canChangeStatus = (status: PurchaseOrderStatus) =>
+    status === "APPROVED" || status === "SENT" ? canApprove : canUpdate;
+  const allowedTransitions = transitions.filter(canChangeStatus);
   const canEdit = canUpdate && row.status === "DRAFT" && !row.deletedAt;
   const canReceive = canCreate && !row.deletedAt && ["APPROVED", "SENT", "PARTIALLY_RECEIVED"].includes(row.status);
   const canBill = canCreate && !row.deletedAt && ["RECEIVED", "PARTIALLY_RECEIVED", "SENT"].includes(row.status);
+  const printProps = buildPrintableProps({
+    type: "PURCHASE ORDER",
+    documentNumber: docNumber(row),
+    date: formatDate(row.orderDate ?? row.issueDate),
+    dueDate: formatDate(row.expectedDeliveryDate),
+    paymentTerms: row.paymentTerm ? `${row.paymentTerm.name} (${row.paymentTerm.dueDays} days)` : undefined,
+    partyName: row.vendor?.displayName ?? row.vendor?.name ?? "Vendor",
+    partyAddress: row.vendor?.email ?? undefined,
+    taxId: row.vendor?.legalName ?? undefined,
+    lines: lines.map((line) => ({
+      id: line.id,
+      name: line.productName,
+      description: line.description,
+      quantity: line.quantity,
+      unitPrice: line.unitPrice,
+      taxAmount: line.lineTax,
+      lineTotal: line.lineTotal,
+    })),
+    subtotal: row.subtotal,
+    taxAmount: row.taxTotal,
+    total: row.total,
+    notes: row.notes ?? row.terms ?? undefined,
+    currencyCode: row.currencyCode,
+  });
 
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <div className="border-b border-slate-200 pb-5">
         <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
           <span className="h-2 w-2 rounded-full bg-brand-600" />
-          <Link className="hover:underline" to="/purchasing/orders">Supply / Orders</Link>
+          <Link className="hover:underline" to="/purchasing/orders">Purchasing / Orders</Link>
           <span className="text-slate-400">/</span>
           <span className="font-mono text-slate-500">{docNumber(row)}</span>
         </p>
@@ -105,6 +163,14 @@ export default function PurchaseOrderDetailPage() {
             </div>
             <p className="mt-1 text-sm text-slate-600">
               Issued {formatDate(row.orderDate ?? row.issueDate)} · Expected {formatDate(row.expectedDeliveryDate)} · {row.currencyCode}
+              {row.sourceSalesOrder ? (
+                <>
+                  {" · From "}
+                  <Link className="font-medium text-brand-800 hover:underline" to={`/sales-orders/${row.sourceSalesOrder.id}`}>
+                    {row.sourceSalesOrder.salesOrderNumber}
+                  </Link>
+                </>
+              ) : null}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -121,7 +187,7 @@ export default function PurchaseOrderDetailPage() {
                     <Button variant="secondary">Edit</Button>
                   </Link>
                 ) : null}
-                {canUpdate && transitions.length > 0 ? (
+                {allowedTransitions.length > 0 && !row.deletedAt ? (
                   <Button variant="secondary" onClick={() => setStatusOpen(true)}>Change status</Button>
                 ) : null}
                 {canReceive ? (
@@ -154,12 +220,12 @@ export default function PurchaseOrderDetailPage() {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric label="Total" value={formatMoney(row.total, row.currencyCode)} />
-        <Metric label="Subtotal" value={formatMoney(row.subtotal ?? "0", row.currencyCode)} />
-        <Metric label="Tax" value={formatMoney(row.taxTotal ?? "0", row.currencyCode)} />
-        <Metric label="Lines" value={String(lines.length)} />
-      </div>
+      <MetricGrid>
+        <MetricCard label="Total" value={formatMoney(row.total, row.currencyCode)} hint="Order value" />
+        <MetricCard label="Subtotal" value={formatMoney(row.subtotal ?? "0", row.currencyCode)} hint="Before tax" />
+        <MetricCard label="Tax" value={formatMoney(row.taxTotal ?? "0", row.currencyCode)} hint="Assessed tax" />
+        <MetricCard label="Lines" value={String(lines.length)} hint="Items ordered" />
+      </MetricGrid>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <div className="flex flex-col gap-4">
@@ -276,7 +342,7 @@ export default function PurchaseOrderDetailPage() {
                 </li>
               ))}
             </ol>
-            {transitions.length > 0 && canUpdate && !row.deletedAt ? (
+            {allowedTransitions.length > 0 && !row.deletedAt ? (
               <Button className="mt-4 w-full" variant="secondary" onClick={() => setStatusOpen(true)}>
                 Move to next status
               </Button>
@@ -307,7 +373,7 @@ export default function PurchaseOrderDetailPage() {
               onChange={(event) => setTargetStatus(event.target.value as PurchaseOrderStatus | "")}
             >
               <option value="">Choose a status</option>
-              {transitions.map((status) => (
+              {allowedTransitions.map((status) => (
                 <option key={status} value={status}>{statusLabel(status)}</option>
               ))}
             </select>
@@ -329,53 +395,7 @@ export default function PurchaseOrderDetailPage() {
         onConfirm={() => remove.mutate()}
       />
 
-      <Modal open={printOpen} title="Print preview" onClose={() => setPrintOpen(false)}>
-        <div className="flex flex-col gap-4 text-sm">
-          <div className="rounded-lg border border-slate-200 bg-white p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-brand-800">Purchase order</p>
-                <p className="mt-1 font-mono text-lg font-semibold text-slate-950">{docNumber(row)}</p>
-              </div>
-              <div className="text-right text-xs text-slate-500">
-                <p>Issued {formatDate(row.orderDate ?? row.issueDate)}</p>
-                <p>Status {statusLabel(row.status)}</p>
-              </div>
-            </div>
-            <div className="mt-4">
-              <p className="font-semibold text-slate-900">{row.vendor?.displayName ?? row.vendor?.name ?? "Vendor"}</p>
-              <p className="text-xs text-slate-500">{row.vendor?.email ?? "—"}</p>
-            </div>
-            <table className="mt-4 w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="py-2">Item</th>
-                  <th className="py-2 text-right">Qty</th>
-                  <th className="py-2 text-right">Price</th>
-                  <th className="py-2 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map((line, index) => (
-                  <tr key={line.id ?? index} className="border-b border-slate-100">
-                    <td className="py-2">{line.productName}</td>
-                    <td className="py-2 text-right tabular-nums">{formatQuantity(line.quantity)}</td>
-                    <td className="py-2 text-right tabular-nums">{formatMoney(line.unitPrice, row.currencyCode)}</td>
-                    <td className="py-2 text-right tabular-nums">{formatMoney(line.lineTotal, row.currencyCode)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="mt-3 flex justify-end gap-6">
-              <span className="text-slate-500">Total</span>
-              <span className="font-semibold tabular-nums text-slate-950">{formatMoney(numberValue(row.total), row.currencyCode)}</span>
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <Button variant="secondary" onClick={() => window.print()}>Print / save as PDF</Button>
-          </div>
-        </div>
-      </Modal>
+      <PrintPreviewModal isOpen={printOpen} onClose={() => setPrintOpen(false)} docProps={printProps} />
     </section>
   );
 }

@@ -4,13 +4,35 @@ import { Link, useParams } from "react-router-dom";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
+import { purchasingKeys, vendorKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
-import { Detail, Panel, StatusPill, formatDate, statusLabel } from "../sales/shared.tsx";
+import {
+  PURCHASING_PERMISSIONS,
+  listGoodsReceipts,
+  listPurchaseOrders,
+  listVendorBills,
+  listVendorPayments,
+} from "../purchasing/api.ts";
+import {
+  Detail,
+  ErrorState,
+  LoadingState,
+  MetricCard,
+  MetricGrid,
+  Panel,
+  RowLink,
+  StatusPill,
+  docNumber,
+  formatDate,
+  formatMoney,
+  statusLabel,
+} from "../purchasing/shared.tsx";
 import {
   VENDOR_PERMISSIONS,
   deleteVendor,
   getVendor,
   restoreVendor,
+  updateVendor,
   type Vendor,
 } from "./api.ts";
 
@@ -20,16 +42,41 @@ export default function VendorDetailPage() {
   const canUpdate = useHasPermission(VENDOR_PERMISSIONS.update);
   const canDelete = useHasPermission(VENDOR_PERMISSIONS.delete);
   const canRestore = useHasPermission(VENDOR_PERMISSIONS.restore);
+  const canReadPurchasing = useHasPermission(PURCHASING_PERMISSIONS.read);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const vendor = useQuery({ queryKey: ["vendors", id], queryFn: () => getVendor(id), enabled: Boolean(id) });
+  const vendor = useQuery({ queryKey: vendorKeys.detail(id), queryFn: () => getVendor(id), enabled: Boolean(id) });
+  const orders = useQuery({
+    queryKey: [...vendorKeys.detail(id), "purchase-orders"],
+    queryFn: () => listPurchaseOrders({ vendorId: id, limit: 5 }),
+    enabled: Boolean(id) && canReadPurchasing,
+  });
+  const receipts = useQuery({
+    queryKey: [...vendorKeys.detail(id), "receipts"],
+    queryFn: () => listGoodsReceipts({ vendorId: id, limit: 5 }),
+    enabled: Boolean(id) && canReadPurchasing,
+  });
+  const bills = useQuery({
+    queryKey: [...vendorKeys.detail(id), "bills"],
+    queryFn: () => listVendorBills({ vendorId: id, limit: 5 }),
+    enabled: Boolean(id) && canReadPurchasing,
+  });
+  const payments = useQuery({
+    queryKey: [...vendorKeys.detail(id), "payments"],
+    queryFn: () => listVendorPayments({ vendorId: id, limit: 5 }),
+    enabled: Boolean(id) && canReadPurchasing,
+  });
 
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["vendors", id] }),
-      queryClient.invalidateQueries({ queryKey: ["vendors", "list"] }),
-      queryClient.invalidateQueries({ queryKey: ["vendors"] }),
+      queryClient.invalidateQueries({ queryKey: vendorKeys.all() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.all() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.formOptions() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.orders.formOptions() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.formOptions() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.payments.formOptions() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
     ]);
   };
 
@@ -51,16 +98,67 @@ export default function VendorDetailPage() {
     onError: (error) => setActionError(getApiErrorMessage(error)),
   });
 
+  const setStatus = useMutation({
+    mutationFn: (status: Vendor["status"]) => updateVendor(id, { status }),
+    onSuccess: async () => {
+      setActionError(null);
+      await refresh();
+    },
+    onError: (error) => setActionError(getApiErrorMessage(error)),
+  });
+
   if (vendor.isPending) {
-    return <p className="text-sm text-slate-500">Loading vendor…</p>;
+    return <LoadingState label="Loading vendor…" />;
   }
   if (vendor.isError || !vendor.data) {
-    return <p className="text-sm text-red-700">{vendor.isError ? getApiErrorMessage(vendor.error) : "Vendor not found"}</p>;
+    return (
+      <div className="mx-auto max-w-3xl p-6">
+        <ErrorState
+          message={vendor.isError ? getApiErrorMessage(vendor.error) : "Vendor not found"}
+          onRetry={() => vendor.refetch()}
+          backTo="/vendors"
+          backLabel="Back to vendors"
+        />
+      </div>
+    );
   }
 
   const row: Vendor = vendor.data;
   const displayName = row.displayName ?? row.name;
   const address = [row.addressLine1, row.addressLine2, row.city, row.stateProvince, row.postalCode, row.countryCode].filter(Boolean).join(", ");
+  const linkedDocuments = [
+    ...(orders.data?.items ?? []).map((item) => ({
+      id: item.id,
+      label: docNumber(item),
+      meta: `${statusLabel(item.status)} · ${formatMoney(item.total, item.currencyCode)}`,
+      to: `/purchasing/orders/${item.id}`,
+    })),
+    ...(receipts.data?.items ?? []).map((item) => ({
+      id: item.id,
+      label: docNumber(item),
+      meta: `${statusLabel(item.status)} · ${formatDate(item.receiptDate)}`,
+      to: `/purchasing/receipts/${item.id}`,
+    })),
+    ...(bills.data?.items ?? []).map((item) => ({
+      id: item.id,
+      label: docNumber(item),
+      meta: `${statusLabel(item.status)} · ${formatMoney(item.total, item.currencyCode)}`,
+      to: `/purchasing/bills/${item.id}`,
+    })),
+    ...(payments.data?.items ?? []).map((item) => ({
+      id: item.id,
+      label: docNumber(item),
+      meta: `${statusLabel(item.status)} · ${formatMoney(item.amount, item.currencyCode)}`,
+      to: `/purchasing/payments/${item.id}`,
+    })),
+  ];
+  const activity = [
+    row.createdAt ? { id: "created", label: "Vendor created", at: row.createdAt, tone: "bg-slate-400" } : null,
+    row.updatedAt && row.updatedAt !== row.createdAt
+      ? { id: "updated", label: "Vendor updated", at: row.updatedAt, tone: "bg-brand-600" }
+      : null,
+    row.deletedAt ? { id: "deleted", label: "Vendor deleted", at: row.deletedAt, tone: "bg-amber-500" } : null,
+  ].filter((item): item is { id: string; label: string; at: string; tone: string } => Boolean(item));
 
   return (
     <section className="mx-auto flex w-full max-w-6xl flex-col gap-5">
@@ -115,7 +213,38 @@ export default function VendorDetailPage() {
             {actionError}
           </p>
         ) : null}
+        {canUpdate && !row.deletedAt ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Status</span>
+            {row.status !== "ACTIVE" ? (
+              <Button
+                className="bg-emerald-700 hover:bg-emerald-800"
+                disabled={setStatus.isPending}
+                onClick={() => setStatus.mutate("ACTIVE")}
+              >
+                {setStatus.variables === "ACTIVE" && setStatus.isPending ? "Updating…" : "Activate"}
+              </Button>
+            ) : null}
+            {row.status !== "SUSPENDED" ? (
+              <Button variant="secondary" disabled={setStatus.isPending} onClick={() => setStatus.mutate("SUSPENDED")}>
+                {setStatus.variables === "SUSPENDED" && setStatus.isPending ? "Updating…" : "Suspend"}
+              </Button>
+            ) : null}
+            {row.status !== "INACTIVE" ? (
+              <Button variant="ghost" disabled={setStatus.isPending} onClick={() => setStatus.mutate("INACTIVE")}>
+                {setStatus.variables === "INACTIVE" && setStatus.isPending ? "Updating…" : "Deactivate"}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
+
+      <MetricGrid>
+        <MetricCard label="Vendor code" value={row.code ?? row.id.slice(0, 8)} hint="Supplier identifier" />
+        <MetricCard label="Currency" value={row.currencyCode} hint="Settlement currency" />
+        <MetricCard label="Status" value={statusLabel(row.status)} hint="Purchasing eligibility" />
+        <MetricCard label="Linked documents" value={String(linkedDocuments.length)} hint="Recent purchase records" />
+      </MetricGrid>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <div className="flex flex-col gap-4">
@@ -157,36 +286,39 @@ export default function VendorDetailPage() {
               <Detail label="Updated" value={formatDate(row.updatedAt)} />
             </dl>
           </Panel>
-          <Panel title="Audit timeline">
-            <ol className="flex flex-col gap-4 text-sm">
-              {row.deletedAt ? (
-                <li className="flex gap-3">
-                  <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
-                  <div>
-                    <p className="font-medium text-slate-900">Vendor deleted</p>
-                    <p className="text-xs text-slate-500">{formatDate(row.deletedAt)}</p>
-                  </div>
-                </li>
-              ) : null}
-              <li className="flex gap-3">
-                <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-brand-600" />
-                <div>
-                  <p className="font-medium text-slate-900">Record updated</p>
-                  <p className="text-xs text-slate-500">{formatDate(row.updatedAt)}</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-slate-400" />
-                <div>
-                  <p className="font-medium text-slate-900">Vendor created</p>
-                  <p className="text-xs text-slate-500">{formatDate(row.createdAt)}</p>
-                </div>
-              </li>
-            </ol>
-            <p className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500">
-              Detailed user-level audit events will appear here when the audit feed is available.
-            </p>
-          </Panel>
+
+          {canReadPurchasing ? (
+            <Panel title="Recent purchasing documents">
+              {linkedDocuments.length === 0 ? (
+                <p className="text-sm text-slate-500">No purchase orders, receipts, bills or payments are linked to this vendor yet.</p>
+              ) : (
+                <ul className="flex flex-col gap-1 text-sm">
+                  {linkedDocuments.map((item) => (
+                    <li key={`${item.to}-${item.id}`} className="flex items-center justify-between gap-3 border-b border-slate-100 py-2 last:border-0">
+                      <RowLink to={item.to}>{item.label}</RowLink>
+                      <span className="text-right text-xs text-slate-500">{item.meta}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Panel>
+          ) : null}
+
+          {activity.length > 0 ? (
+            <Panel title="Record activity">
+              <ol className="flex flex-col gap-4 text-sm">
+                {activity.map((item) => (
+                  <li key={item.id} className="flex gap-3">
+                    <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${item.tone}`} />
+                    <div>
+                      <p className="font-medium text-slate-900">{item.label}</p>
+                      <p className="text-xs text-slate-500">{formatDate(item.at)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </Panel>
+          ) : null}
         </div>
       </div>
 

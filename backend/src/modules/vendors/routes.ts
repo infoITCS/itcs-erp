@@ -14,7 +14,7 @@ export function createVendorsRouter(controller: VendorsController): Router {
   router.post("/", requirePermission("vendors:create"), validate({ body: createVendorSchema }), controller.create);
   router.post(
     "/:id/restore",
-    requirePermission("vendors:update"),
+    requirePermission("vendors:restore"),
     validate({ params: vendorIdParamSchema }),
     controller.restore,
   );

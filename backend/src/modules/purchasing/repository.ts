@@ -1,10 +1,12 @@
-import { DocumentType, type PrismaClient } from "@prisma/client";
-import type { Prisma } from "@prisma/client";
+import { DocumentType, Prisma, type PrismaClient } from "@prisma/client";
 import { BaseRepository } from "../../common/database/base-repository";
+import { ValidationFailedError } from "../../common/errors/app-error";
 import { allocateDocumentNumberIn } from "../../common/numbering/allocate";
 import { createdAtRange } from "../../common/pagination/list-query";
 import { cursorFilter, decodeCursor, toCursorPage } from "../../common/pagination/cursor";
+import { applyInventoryMovement } from "../inventory/valuation";
 import { applyVendorBillPaymentDelta } from "./money";
+import { assertPurchaseOrderTransition } from "./types";
 import type {
   OrderListQuery,
   ReceiptListQuery,
@@ -52,14 +54,18 @@ interface PurchasingDb {
   currency: ModelDelegate;
   exchangeRate: ModelDelegate;
   organization: ModelDelegate;
+  salesOrder: ModelDelegate;
+  salesOrderLine: ModelDelegate;
   user: ModelDelegate;
 }
 
 export interface VendorSummary {
   id: string;
+  status: string;
   vendorNumber?: string;
+  code?: string | null;
+  name?: string;
   displayName?: string;
-  status?: string;
   currencyCode?: string;
   paymentTermId?: string | null;
 }
@@ -72,6 +78,33 @@ export interface ProductSummary {
   unitOfMeasure?: { code: string } | null;
   taxCode?: { id: string; code: string; rate: DecimalLike } | null;
   receivingLocation?: string | null;
+  deliveryLocation?: string | null;
+  trackInventory?: boolean;
+  weightedAveragePrice?: DecimalLike;
+  allowNegativeStock?: boolean;
+}
+
+export interface SalesOrderPurchaseLine {
+  id: string;
+  productId: string | null;
+  productCode: string | null;
+  productName: string;
+  description: string | null;
+  unitOfMeasure: string | null;
+  quantity: DecimalLike;
+  fulfilledQuantity: DecimalLike;
+  unitPrice: DecimalLike;
+  taxCodeId: string | null;
+  taxCode: string | null;
+  taxRate: DecimalLike;
+}
+
+export interface SalesOrderPurchaseSource {
+  id: string;
+  salesOrderNumber: string;
+  status: string;
+  currencyCode: string;
+  lines: SalesOrderPurchaseLine[];
 }
 
 export interface TaxCodeSummary {
@@ -96,6 +129,7 @@ export interface LineSnapshot {
   lineDiscount: string;
   lineTax: string;
   lineTotal: string;
+  sourceSalesOrderLineId?: string | null;
   sortOrder: number;
 }
 
@@ -105,11 +139,23 @@ export interface OrderLineRow extends LineSnapshot {
   billedQuantity: DecimalLike;
 }
 
+export interface OrderSummaryRow {
+  id: string;
+  receiptNumber?: string | null;
+  status: string;
+  receiptDate?: Date;
+  billNumber?: string | null;
+  billDate?: Date;
+  total?: DecimalLike;
+  amountPaid?: DecimalLike;
+}
+
 export interface OrderRow {
   id: string;
   organizationId: string;
   purchaseOrderNumber: string;
   vendorId: string;
+  sourceSalesOrderId: string | null;
   ownerUserId: string;
   status: PurchaseOrderStatusValue;
   orderDate: Date;
@@ -135,6 +181,8 @@ export interface OrderRow {
   updatedAt: Date;
   vendor?: VendorSummary | null;
   lines: OrderLineRow[];
+  receipts?: OrderSummaryRow[];
+  bills?: OrderSummaryRow[];
 }
 
 export interface ReceiptLineRow {
@@ -176,6 +224,8 @@ export interface ReceiptRow {
 
 export interface BillLineRow extends LineSnapshot {
   id: string;
+  receivedQuantity?: DecimalLike;
+  billedQuantity?: DecimalLike;
 }
 
 export interface BillRow {
@@ -210,13 +260,21 @@ export interface BillRow {
   lines: BillLineRow[];
   purchaseOrder?: OrderRow | null;
   vendor?: VendorSummary | null;
+  payments?: Array<{
+    id: string;
+    paymentNumber?: string | null;
+    status?: string;
+    paidDate?: Date;
+    amount?: DecimalLike;
+    currencyCode?: string;
+  }>;
 }
 
 export interface AllocationRow {
   id: string;
   billId: string;
   amount: DecimalLike;
-  bill?: Pick<BillRow, "id" | "billNumber" | "status" | "total" | "amountPaid" | "vendorId"> | null;
+  bill?: Pick<BillRow, "id" | "billNumber" | "status" | "total" | "amountPaid" | "vendorId" | "currencyCode"> | null;
 }
 
 export interface PaymentRow {
@@ -243,6 +301,7 @@ export interface PaymentRow {
 
 export interface OrderWriteData {
   vendorId: string;
+  sourceSalesOrderId?: string | null;
   ownerUserId: string;
   orderDate: string;
   expectedDeliveryDate?: string | null;
@@ -321,7 +380,7 @@ export interface PaymentWriteData {
 export interface InventoryMovementWrite {
   organizationId: string;
   productId: string;
-  movementType: "PURCHASE_RECEIPT";
+  movementType: "PURCHASE_RECEIPT" | "SALE";
   quantity: string;
   unitCost: string;
   location: string;
@@ -343,8 +402,13 @@ export interface ReceiptPostingPayload {
   status: PurchaseOrderStatusValue;
   amountReceived: string;
   lineUpdates: Array<{ id: string; receivedQuantity: string }>;
-  movements: InventoryMovementWrite[];
-  balances: InventoryBalanceWrite[];
+  receiptLines: Array<{
+    purchaseOrderLineId: string;
+    productId: string;
+    receivedQuantity: string;
+    unitCost: string;
+    location: string;
+  }>;
 }
 
 export interface BillApprovalPayload {
@@ -364,11 +428,31 @@ function dateOnly(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
 }
 
+const receiptSummarySelect = {
+  id: true,
+  receiptNumber: true,
+  status: true,
+  receiptDate: true,
+  postedAt: true,
+  lines: { select: { lineTotal: true } },
+};
+
+const billSummarySelect = {
+  id: true,
+  billNumber: true,
+  status: true,
+  billDate: true,
+  dueDate: true,
+  total: true,
+  amountPaid: true,
+};
+
 const orderListSelect = {
   id: true,
   organizationId: true,
   purchaseOrderNumber: true,
   vendorId: true,
+  sourceSalesOrderId: true,
   ownerUserId: true,
   status: true,
   orderDate: true,
@@ -388,10 +472,12 @@ const orderListSelect = {
   createdAt: true,
   updatedAt: true,
   vendor: { select: { id: true, vendorNumber: true, displayName: true, status: true, currencyCode: true } },
+  receipts: { select: receiptSummarySelect, orderBy: { receiptDate: "desc" } },
+  bills: { select: billSummarySelect, orderBy: { billDate: "desc" } },
   _count: { select: { lines: true, receipts: true, bills: true } },
 };
 
-const lineSelect = {
+const orderLineSelect = {
   id: true,
   productId: true,
   productCode: true,
@@ -410,6 +496,27 @@ const lineSelect = {
   lineTotal: true,
   receivedQuantity: true,
   billedQuantity: true,
+  sourceSalesOrderLineId: true,
+  sortOrder: true,
+};
+
+const billLineSelect = {
+  id: true,
+  productId: true,
+  productCode: true,
+  productName: true,
+  description: true,
+  unitOfMeasure: true,
+  quantity: true,
+  unitPrice: true,
+  discountPercent: true,
+  taxCodeId: true,
+  taxCode: true,
+  taxRate: true,
+  lineSubtotal: true,
+  lineDiscount: true,
+  lineTax: true,
+  lineTotal: true,
   sortOrder: true,
 };
 
@@ -485,6 +592,56 @@ const paymentListSelect = {
   _count: { select: { allocations: true } },
 };
 
+const paymentSummarySelect = {
+  id: true,
+  paymentNumber: true,
+  status: true,
+  paidDate: true,
+  amount: true,
+  currencyCode: true,
+};
+
+function toDecimal(value: DecimalLike | null | undefined): Prisma.Decimal {
+  return new Prisma.Decimal(value === null || value === undefined ? 0 : value.toString());
+}
+
+function mapOrderSummaries<T extends OrderRow>(row: T): T {
+  return {
+    ...row,
+    receipts: (row.receipts ?? []).map((receipt) => {
+      const { lines, ...summary } = receipt as OrderSummaryRow & { lines?: Array<{ lineTotal: DecimalLike }> };
+      return {
+        ...summary,
+        total: sumDecimal((lines ?? []).map((line) => line.lineTotal)),
+      };
+    }),
+    bills: row.bills ?? [],
+  };
+}
+
+function sumDecimal(values: DecimalLike[]): string {
+  return values
+    .reduce<Prisma.Decimal>((sum, value) => sum.add(toDecimal(value)), new Prisma.Decimal(0))
+    .toFixed(4);
+}
+
+function mapBillLines(
+  lines: BillLineRow[],
+  orderLines: Array<{ productId: string | null; receivedQuantity: DecimalLike; billedQuantity: DecimalLike }>,
+): BillLineRow[] {
+  if (orderLines.length === 0) {
+    return lines;
+  }
+  return lines.map((line) => {
+    const matches = orderLines.filter((orderLine) => orderLine.productId && orderLine.productId === line.productId);
+    return {
+      ...line,
+      receivedQuantity: sumDecimal(matches.map((orderLine) => orderLine.receivedQuantity)),
+      billedQuantity: sumDecimal(matches.map((orderLine) => orderLine.billedQuantity)),
+    };
+  });
+}
+
 export class PurchasingRepository extends BaseRepository {
   constructor(client: PrismaClient) {
     super(client);
@@ -523,11 +680,16 @@ export class PurchasingRepository extends BaseRepository {
       take: query.limit + 1,
       select: orderListSelect,
     })) as OrderRow[];
-    return toCursorPage(rows, query.limit);
+    return toCursorPage(rows.map(mapOrderSummaries), query.limit);
   }
 
-  async findOrder(organizationId: string, id: string, includeDeleted = false) {
-    return (await db(this.db).purchaseOrder.findFirst({
+  async findOrder(
+    organizationId: string,
+    id: string,
+    includeDeleted = false,
+    client: PrismaClient | Prisma.TransactionClient = this.db,
+  ) {
+    const row = (await db(client).purchaseOrder.findFirst({
       where: { id, organizationId, ...(includeDeleted ? {} : { deletedAt: null }) },
       select: {
         ...orderListSelect,
@@ -536,9 +698,10 @@ export class PurchasingRepository extends BaseRepository {
         paymentTermId: true,
         notes: true,
         terms: true,
-        lines: { orderBy: { sortOrder: "asc" }, select: lineSelect },
+        lines: { orderBy: { sortOrder: "asc" }, select: orderLineSelect },
       },
     })) as OrderRow | null;
+    return row ? mapOrderSummaries(row) : null;
   }
 
   async findVendor(organizationId: string, vendorId: string) {
@@ -622,6 +785,51 @@ export class PurchasingRepository extends BaseRepository {
     })) as ProductSummary[];
   }
 
+  async findSalesOrderForPurchase(organizationId: string, id: string) {
+    return (await db(this.db).salesOrder.findFirst({
+      where: { id, organizationId, deletedAt: null },
+      select: {
+        id: true,
+        salesOrderNumber: true,
+        status: true,
+        currencyCode: true,
+        lines: {
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            productId: true,
+            productCode: true,
+            productName: true,
+            description: true,
+            unitOfMeasure: true,
+            quantity: true,
+            fulfilledQuantity: true,
+            unitPrice: true,
+            taxCodeId: true,
+            taxCode: true,
+            taxRate: true,
+          },
+        },
+      },
+    })) as SalesOrderPurchaseSource | null;
+  }
+
+  async sumInventoryByProducts(organizationId: string, productIds: string[]) {
+    if (productIds.length === 0) {
+      return [];
+    }
+    const rows = (await db(this.db).inventoryBalance.findMany({
+      where: { organizationId, productId: { in: productIds } },
+      select: { productId: true, quantity: true },
+    })) as Array<{ productId: string; quantity: DecimalLike }>;
+    const totals = new Map<string, Prisma.Decimal>();
+    for (const row of rows) {
+      const current = totals.get(row.productId) ?? new Prisma.Decimal(0);
+      totals.set(row.productId, current.add(new Prisma.Decimal(row.quantity.toString())));
+    }
+    return [...totals.entries()].map(([productId, quantity]) => ({ productId, quantity: quantity.toFixed(4) }));
+  }
+
   async findTaxCodesByIds(organizationId: string, ids: string[]) {
     if (ids.length === 0) {
       return [];
@@ -638,7 +846,16 @@ export class PurchasingRepository extends BaseRepository {
         where: { organizationId, deletedAt: null, status: "ACTIVE" },
         orderBy: { displayName: "asc" },
         take: 500,
-        select: { id: true, vendorNumber: true, displayName: true, currencyCode: true, paymentTermId: true },
+        select: {
+          id: true,
+          vendorNumber: true,
+          code: true,
+          name: true,
+          displayName: true,
+          status: true,
+          currencyCode: true,
+          paymentTermId: true,
+        },
       }),
       db(this.db).product.findMany({
         where: { organizationId, deletedAt: null, status: "ACTIVE" },
@@ -650,6 +867,10 @@ export class PurchasingRepository extends BaseRepository {
           name: true,
           taxCodeId: true,
           receivingLocation: true,
+          deliveryLocation: true,
+          trackInventory: true,
+          weightedAveragePrice: true,
+          allowNegativeStock: true,
           unitOfMeasure: { select: { code: true } },
           taxCode: { select: { id: true, code: true, rate: true } },
         },
@@ -719,19 +940,87 @@ export class PurchasingRepository extends BaseRepository {
       Array<{ id: string; billNumber: string; vendorId: string; status: string; total: DecimalLike; amountPaid: DecimalLike }>,
     ];
 
+    const orderIds = orders.map((order) => order.id);
+    const orderLines = orderIds.length
+      ? ((await db(this.db).purchaseOrderLine.findMany({
+          where: { organizationId, purchaseOrderId: { in: orderIds } },
+          orderBy: [{ purchaseOrderId: "asc" }, { sortOrder: "asc" }],
+          select: {
+            id: true,
+            purchaseOrderId: true,
+            productId: true,
+            productCode: true,
+            productName: true,
+            description: true,
+            unitOfMeasure: true,
+            quantity: true,
+            receivedQuantity: true,
+            unitPrice: true,
+            sortOrder: true,
+          },
+        })) as Array<{
+          id: string;
+          purchaseOrderId: string;
+          productId: string | null;
+          productCode: string | null;
+          productName: string;
+          description: string | null;
+          unitOfMeasure: string | null;
+          quantity: DecimalLike;
+          receivedQuantity: DecimalLike;
+          unitPrice: DecimalLike;
+          sortOrder: number;
+        }>)
+      : [];
+    const pendingReceipts = await this.sumPendingReceiptQuantities(
+      organizationId,
+      orderLines.map((line) => line.id),
+    );
+    const mappedOrderLines = orderLines.map((line) => {
+      const pendingQuantity = pendingReceipts.get(line.id) ?? "0.0000";
+      return {
+        ...line,
+        pendingQuantity,
+        availableQuantity: toDecimal(line.quantity)
+          .sub(toDecimal(line.receivedQuantity))
+          .sub(toDecimal(pendingQuantity))
+          .toFixed(4),
+      };
+    });
+    const linesByOrder = new Map<string, typeof mappedOrderLines>();
+    for (const line of mappedOrderLines) {
+      const lines = linesByOrder.get(line.purchaseOrderId) ?? [];
+      lines.push(line);
+      linesByOrder.set(line.purchaseOrderId, lines);
+    }
+
+    const billIds = bills.map((bill) => bill.id);
+    const pendingPayments = await this.sumPendingAllocations(organizationId, billIds);
+    const mappedBills = bills.map((bill) => {
+      const pendingAmount = pendingPayments.get(bill.id) ?? "0.0000";
+      const balance = toDecimal(bill.total).sub(toDecimal(bill.amountPaid));
+      return {
+        ...bill,
+        pendingAmount,
+        availableBalance: balance.sub(toDecimal(pendingAmount)).toFixed(4),
+      };
+    });
+
     return {
       vendors,
       products: products.map((product) => ({
         ...product,
         unitOfMeasure: product.unitOfMeasure?.code ?? null,
+        taxCode: product.taxCode?.code ?? null,
         taxRate: product.taxCode?.rate.toString() ?? "0",
       })),
       currencies,
       paymentTerms,
       taxCodes,
       owners,
-      orders,
-      bills,
+      orders: orders.map((order) => ({ ...order, lines: linesByOrder.get(order.id) ?? [] })),
+      orderLines: mappedOrderLines,
+      bills: mappedBills,
     };
   }
 
@@ -744,6 +1033,7 @@ export class PurchasingRepository extends BaseRepository {
           organizationId,
           purchaseOrderNumber,
           vendorId: input.vendorId,
+          sourceSalesOrderId: input.sourceSalesOrderId ?? null,
           ownerUserId: input.ownerUserId,
           status: "DRAFT",
           orderDate: dateOnly(input.orderDate),
@@ -766,7 +1056,7 @@ export class PurchasingRepository extends BaseRepository {
         },
         select: { id: true },
       })) as { id: string };
-      return this.findOrder(organizationId, created.id);
+      return this.findOrder(organizationId, created.id, false, tx);
     });
   }
 
@@ -853,6 +1143,7 @@ export class PurchasingRepository extends BaseRepository {
       where: {
         organizationId,
         ...(query.includeDeleted ? {} : { deletedAt: null }),
+        ...(query.status ? { status: query.status } : {}),
         ...(query.vendorId ? { vendorId: query.vendorId } : {}),
         ...(query.purchaseOrderId ? { purchaseOrderId: query.purchaseOrderId } : {}),
         ...(range ? { createdAt: range } : {}),
@@ -881,8 +1172,13 @@ export class PurchasingRepository extends BaseRepository {
     return toCursorPage(rows, query.limit);
   }
 
-  async findReceipt(organizationId: string, id: string, includeDeleted = false) {
-    return (await db(this.db).goodsReceipt.findFirst({
+  async findReceipt(
+    organizationId: string,
+    id: string,
+    includeDeleted = false,
+    client: PrismaClient | Prisma.TransactionClient = this.db,
+  ) {
+    return (await db(client).goodsReceipt.findFirst({
       where: { id, organizationId, ...(includeDeleted ? {} : { deletedAt: null }) },
       select: {
         ...receiptListSelect,
@@ -903,7 +1199,7 @@ export class PurchasingRepository extends BaseRepository {
     const rows = (await db(this.db).goodsReceiptLine.findMany({
       where: {
         purchaseOrderLineId: { in: purchaseOrderLineIds },
-        receipt: {
+        goodsReceipt: {
           organizationId,
           status: "DRAFT",
           deletedAt: null,
@@ -916,7 +1212,7 @@ export class PurchasingRepository extends BaseRepository {
     const result = new Map<string, string>();
     for (const row of rows) {
       const current = result.get(row.purchaseOrderLineId) ?? "0";
-      result.set(row.purchaseOrderLineId, (Number(current) + Number(row.receivedQuantity)).toFixed(4));
+      result.set(row.purchaseOrderLineId, toDecimal(current).add(toDecimal(row.receivedQuantity)).toFixed(4));
     }
     return result;
   }
@@ -942,7 +1238,7 @@ export class PurchasingRepository extends BaseRepository {
         },
         select: { id: true },
       })) as { id: string };
-      return this.findReceipt(organizationId, created.id);
+      return this.findReceipt(organizationId, created.id, false, tx);
     });
   }
 
@@ -964,10 +1260,41 @@ export class PurchasingRepository extends BaseRepository {
         return null;
       }
 
+      const purchaseOrder = client.purchaseOrder?.findFirst
+        ? ((await client.purchaseOrder.findFirst({
+            where: { id: receipt.purchaseOrderId, organizationId },
+            select: {
+              sourceSalesOrderId: true,
+              lines: { select: { id: true, sourceSalesOrderLineId: true } },
+            },
+          })) as {
+            sourceSalesOrderId: string | null;
+            lines: Array<{ id: string; sourceSalesOrderLineId: string | null }>;
+          } | null)
+        : null;
+      const sourceLineByPurchaseLine = new Map(
+        (purchaseOrder?.lines ?? [])
+          .filter((line) => line.sourceSalesOrderLineId)
+          .map((line) => [line.id, line.sourceSalesOrderLineId as string]),
+      );
+      let salesLines: Array<{
+        id: string;
+        quantity: DecimalLike;
+        fulfilledQuantity: DecimalLike;
+        cogsAmount: DecimalLike;
+      }> = [];
+      if (purchaseOrder?.sourceSalesOrderId && sourceLineByPurchaseLine.size > 0) {
+        salesLines = (await client.salesOrderLine.findMany({
+          where: { organizationId, id: { in: [...sourceLineByPurchaseLine.values()] } },
+          select: { id: true, quantity: true, fulfilledQuantity: true, cogsAmount: true },
+        })) as typeof salesLines;
+      }
+      const salesUpdates = new Map<string, { quantity: Prisma.Decimal; cogs: Prisma.Decimal }>();
+
       for (const line of payload.lineUpdates) {
         await client.purchaseOrderLine.update({
           where: { id: line.id },
-          data: { receivedQuantity: { increment: line.receivedQuantity } },
+          data: { receivedQuantity: line.receivedQuantity },
         });
       }
       await client.purchaseOrder.update({
@@ -983,10 +1310,87 @@ export class PurchasingRepository extends BaseRepository {
         where: { id },
         data: { status: "POSTED", postedAt: new Date(), updatedById: actorId },
       });
-      if (payload.movements.length > 0) {
-        await client.inventoryMovement.createMany({ data: payload.movements });
+
+      const movements: InventoryMovementWrite[] = [];
+      const balances = new Map<string, InventoryBalanceWrite>();
+      for (const line of payload.receiptLines) {
+        const key = `${line.productId}:${line.location}`;
+        const previous =
+          balances.get(key) ??
+          ((await client.inventoryBalance.findFirst({
+            where: { organizationId, productId: line.productId, location: line.location },
+            select: { quantity: true, averageCost: true },
+          })) as { quantity: DecimalLike; averageCost: DecimalLike } | null);
+        const applied = applyInventoryMovement(previous, line.receivedQuantity, line.unitCost, false);
+        balances.set(key, {
+          organizationId,
+          productId: line.productId,
+          location: line.location,
+          quantity: applied.quantity,
+          averageCost: applied.averageCost,
+        });
+        movements.push({
+          organizationId,
+          productId: line.productId,
+          movementType: "PURCHASE_RECEIPT",
+          quantity: line.receivedQuantity,
+          unitCost: line.unitCost,
+          location: line.location,
+          referenceType: "GOODS_RECEIPT",
+          referenceId: id,
+          balanceAfter: applied.balanceAfter,
+          createdById: actorId,
+        });
+
+        const salesLineId = sourceLineByPurchaseLine.get(line.purchaseOrderLineId);
+        const salesLine = salesLineId ? salesLines.find((candidate) => candidate.id === salesLineId) : undefined;
+        if (purchaseOrder?.sourceSalesOrderId && salesLine) {
+          const remaining = new Prisma.Decimal(salesLine.quantity.toString()).sub(
+            new Prisma.Decimal(salesLine.fulfilledQuantity.toString()),
+          );
+          const received = new Prisma.Decimal(line.receivedQuantity);
+          const saleQuantity = remaining.lt(received) ? remaining : received;
+          if (saleQuantity.gt(0)) {
+            const issue = applyInventoryMovement(
+              { quantity: applied.quantity, averageCost: applied.averageCost },
+              saleQuantity.neg().toFixed(4),
+              applied.averageCost,
+              false,
+            );
+            balances.set(key, {
+              organizationId,
+              productId: line.productId,
+              location: line.location,
+              quantity: issue.quantity,
+              averageCost: issue.averageCost,
+            });
+            movements.push({
+              organizationId,
+              productId: line.productId,
+              movementType: "SALE",
+              quantity: issue.delta,
+              unitCost: applied.averageCost,
+              location: line.location,
+              referenceType: "SALES_ORDER",
+              referenceId: purchaseOrder.sourceSalesOrderId,
+              balanceAfter: issue.balanceAfter,
+              createdById: actorId,
+            });
+            const current = salesUpdates.get(salesLine.id) ?? {
+              quantity: new Prisma.Decimal(0),
+              cogs: new Prisma.Decimal(0),
+            };
+            salesUpdates.set(salesLine.id, {
+              quantity: current.quantity.add(saleQuantity),
+              cogs: current.cogs.add(saleQuantity.mul(applied.averageCost)),
+            });
+          }
+        }
       }
-      for (const balance of payload.balances) {
+      if (movements.length > 0) {
+        await client.inventoryMovement.createMany({ data: movements });
+      }
+      for (const balance of balances.values()) {
         await client.inventoryBalance.upsert({
           where: {
             organizationId_productId_location: {
@@ -1003,7 +1407,45 @@ export class PurchasingRepository extends BaseRepository {
           },
         });
       }
-      return this.findReceipt(organizationId, id);
+
+      for (const [lineId, update] of salesUpdates) {
+        const salesLine = salesLines.find((candidate) => candidate.id === lineId);
+        if (!salesLine) {
+          continue;
+        }
+        await client.salesOrderLine.update({
+          where: { id: lineId },
+          data: {
+            fulfilledQuantity: new Prisma.Decimal(salesLine.fulfilledQuantity.toString())
+              .add(update.quantity)
+              .toFixed(4),
+            cogsAmount: new Prisma.Decimal(salesLine.cogsAmount.toString()).add(update.cogs).toFixed(4),
+          },
+        });
+      }
+      if (purchaseOrder?.sourceSalesOrderId && salesUpdates.size > 0) {
+        const refreshed = (await client.salesOrderLine.findMany({
+          where: { organizationId, salesOrderId: purchaseOrder.sourceSalesOrderId },
+          select: { quantity: true, fulfilledQuantity: true, cogsAmount: true },
+        })) as Array<{ quantity: DecimalLike; fulfilledQuantity: DecimalLike; cogsAmount: DecimalLike }>;
+        const cogsTotal = refreshed.reduce(
+          (sum, line) => sum.add(new Prisma.Decimal(line.cogsAmount.toString())),
+          new Prisma.Decimal(0),
+        );
+        const isFulfilled = refreshed.every((line) =>
+          new Prisma.Decimal(line.fulfilledQuantity.toString()).gte(new Prisma.Decimal(line.quantity.toString())),
+        );
+        await client.salesOrder.update({
+          where: { id: purchaseOrder.sourceSalesOrderId },
+          data: {
+            cogsTotal: cogsTotal.toFixed(4),
+            updatedById: actorId,
+            ...(isFulfilled ? { status: "FULFILLED" as const, fulfilledAt: new Date() } : {}),
+          },
+        });
+      }
+
+      return this.findReceipt(organizationId, id, false, tx);
     });
   }
 
@@ -1019,6 +1461,14 @@ export class PurchasingRepository extends BaseRepository {
     const result = await db(this.db).goodsReceipt.updateMany({
       where: { id, organizationId, deletedAt: { not: null } },
       data: { deletedAt: null, updatedById: actorId },
+    });
+    return result.count === 1;
+  }
+
+  async cancelReceipt(organizationId: string, id: string, actorId: string) {
+    const result = await db(this.db).goodsReceipt.updateMany({
+      where: { id, organizationId, deletedAt: null, status: "DRAFT" },
+      data: { status: "CANCELLED", updatedById: actorId },
     });
     return result.count === 1;
   }
@@ -1060,8 +1510,13 @@ export class PurchasingRepository extends BaseRepository {
     return toCursorPage(rows, query.limit);
   }
 
-  async findBill(organizationId: string, id: string, includeDeleted = false) {
-    return (await db(this.db).vendorBill.findFirst({
+  async findBill(
+    organizationId: string,
+    id: string,
+    includeDeleted = false,
+    client: PrismaClient | Prisma.TransactionClient = this.db,
+  ) {
+    const billWithAllocations = (await db(client).vendorBill.findFirst({
       where: { id, organizationId, ...(includeDeleted ? {} : { deletedAt: null }) },
       select: {
         ...billListSelect,
@@ -1070,9 +1525,31 @@ export class PurchasingRepository extends BaseRepository {
         paymentTermId: true,
         expenseAccount: true,
         liabilityAccount: true,
-        lines: { orderBy: { sortOrder: "asc" }, select: lineSelect },
+        lines: { orderBy: { sortOrder: "asc" }, select: billLineSelect },
+        paymentAllocations: {
+          orderBy: { createdAt: "asc" },
+          select: { payment: { select: paymentSummarySelect } },
+        },
       },
-    })) as BillRow | null;
+    })) as (BillRow & {
+      paymentAllocations: Array<{ payment: NonNullable<BillRow["payments"]>[number] }>;
+    }) | null;
+    if (!billWithAllocations) {
+      return null;
+    }
+    const { paymentAllocations, ...billBase } = billWithAllocations;
+    const bill: BillRow = {
+      ...billBase,
+      payments: paymentAllocations.map((allocation) => allocation.payment),
+    };
+    if (!bill.purchaseOrderId) {
+      return bill;
+    }
+    const orderLines = (await db(client).purchaseOrderLine.findMany({
+      where: { organizationId, purchaseOrderId: bill.purchaseOrderId },
+      select: { productId: true, receivedQuantity: true, billedQuantity: true },
+    })) as Array<{ productId: string | null; receivedQuantity: DecimalLike; billedQuantity: DecimalLike }>;
+    return { ...bill, lines: mapBillLines(bill.lines, orderLines) };
   }
 
   async createBill(organizationId: string, actorId: string, input: BillWriteData) {
@@ -1108,7 +1585,7 @@ export class PurchasingRepository extends BaseRepository {
         },
         select: { id: true },
       })) as { id: string };
-      return this.findBill(organizationId, created.id);
+      return this.findBill(organizationId, created.id, false, tx);
     });
   }
 
@@ -1157,10 +1634,23 @@ export class PurchasingRepository extends BaseRepository {
       const client = db(tx);
       const bill = (await client.vendorBill.findFirst({
         where: { id, organizationId, deletedAt: null, status: "DRAFT" },
-        select: { id: true, purchaseOrderId: true },
-      })) as { id: string; purchaseOrderId: string | null } | null;
+        select: { id: true, purchaseOrderId: true, currencyCode: true },
+      })) as { id: string; purchaseOrderId: string | null; currencyCode: string } | null;
       if (!bill) {
         return null;
+      }
+      if (bill.purchaseOrderId) {
+        const order = (await client.purchaseOrder.findFirst({
+          where: { id: bill.purchaseOrderId, organizationId },
+          select: { status: true, currencyCode: true },
+        })) as { status: PurchaseOrderStatusValue; currencyCode: string } | null;
+        if (!order) {
+          return null;
+        }
+        assertPurchaseOrderTransition(order.status, "BILLED");
+        if (order.currencyCode !== bill.currencyCode) {
+          throw new ValidationFailedError({ currencyCode: ["A purchase-order bill must use the order currency"] });
+        }
       }
       await client.vendorBill.update({
         where: { id },
@@ -1183,16 +1673,119 @@ export class PurchasingRepository extends BaseRepository {
           },
         });
       }
-      return this.findBill(organizationId, id);
+      return this.findBill(organizationId, id, false, tx);
     });
   }
 
   async voidBill(organizationId: string, id: string, actorId: string) {
-    const result = await db(this.db).vendorBill.updateMany({
-      where: { id, organizationId, deletedAt: null, status: { in: ["APPROVED", "PARTIALLY_PAID"] }, amountPaid: 0 },
-      data: { status: "VOID", voidedAt: new Date(), updatedById: actorId },
+    return this.transaction(async (tx) => {
+      const client = db(tx);
+      const bill = (await client.vendorBill.findFirst({
+        where: {
+          id,
+          organizationId,
+          deletedAt: null,
+          status: { in: ["APPROVED", "PARTIALLY_PAID"] },
+          amountPaid: 0,
+        },
+        select: { id: true, purchaseOrderId: true },
+      })) as { id: string; purchaseOrderId: string | null } | null;
+      if (!bill) {
+        return false;
+      }
+      await client.vendorBill.update({
+        where: { id },
+        data: { status: "VOID", voidedAt: new Date(), updatedById: actorId },
+      });
+      if (bill.purchaseOrderId) {
+        const [order, remainingBills, orderLines] = await Promise.all([
+          client.purchaseOrder.findFirst({
+            where: { id: bill.purchaseOrderId, organizationId },
+            select: { id: true },
+          }),
+          client.vendorBill.findMany({
+            where: {
+              organizationId,
+              purchaseOrderId: bill.purchaseOrderId,
+              deletedAt: null,
+              id: { not: id },
+              status: { in: ["APPROVED", "PARTIALLY_PAID", "PAID"] },
+            },
+            orderBy: { createdAt: "asc" },
+            select: {
+              id: true,
+              total: true,
+              lines: { orderBy: { sortOrder: "asc" }, select: { productId: true, quantity: true } },
+            },
+          }),
+          client.purchaseOrderLine.findMany({
+            where: { organizationId, purchaseOrderId: bill.purchaseOrderId },
+            orderBy: { sortOrder: "asc" },
+            select: { id: true, productId: true, quantity: true, billedQuantity: true },
+          }),
+        ]);
+        const orderRow = order as { id: string } | null;
+        const bills = remainingBills as Array<{
+          id: string;
+          total: DecimalLike;
+          lines: Array<{ productId: string | null; quantity: DecimalLike }>;
+        }>;
+        const lines = orderLines as Array<{
+          id: string;
+          productId: string | null;
+          quantity: DecimalLike;
+          billedQuantity: DecimalLike;
+        }>;
+        if (orderRow) {
+          const targets = new Map<string, string>(lines.map((line) => [line.id, "0.0000"]));
+          for (const remaining of bills) {
+            const requested = new Map<string, Prisma.Decimal>();
+            for (const line of remaining.lines) {
+              if (!line.productId) {
+                continue;
+              }
+              requested.set(
+                line.productId,
+                (requested.get(line.productId) ?? new Prisma.Decimal(0)).add(toDecimal(line.quantity)),
+              );
+            }
+            for (const line of lines) {
+              if (!line.productId) {
+                continue;
+              }
+              const remainingRequest = requested.get(line.productId) ?? new Prisma.Decimal(0);
+              if (remainingRequest.lte(0)) {
+                continue;
+              }
+              const current = toDecimal(targets.get(line.id) ?? "0");
+              const capacity = toDecimal(line.quantity).sub(current);
+              const applied = capacity.gt(remainingRequest) ? remainingRequest : capacity;
+              if (applied.lte(0)) {
+                continue;
+              }
+              targets.set(line.id, current.add(applied).toFixed(4));
+              requested.set(line.productId, remainingRequest.sub(applied));
+            }
+          }
+          for (const line of lines) {
+            await client.purchaseOrderLine.update({
+              where: { id: line.id },
+              data: { billedQuantity: targets.get(line.id) ?? "0.0000" },
+            });
+          }
+          await client.purchaseOrder.update({
+            where: { id: bill.purchaseOrderId },
+            data: {
+              amountBilled: sumDecimal(bills.map((remaining) => remaining.total)),
+              status: bills.length > 0 ? "BILLED" : "RECEIVED",
+              ...(bills.length > 0 ? { billedAt: new Date() } : { billedAt: null }),
+              updatedById: actorId,
+            },
+          });
+        }
+      }
+      return true;
     });
-    return result.count === 1;
   }
 
   async softDeleteBill(organizationId: string, id: string, actorId: string) {
@@ -1247,8 +1840,13 @@ export class PurchasingRepository extends BaseRepository {
     return toCursorPage(rows, query.limit);
   }
 
-  async findPayment(organizationId: string, id: string, includeDeleted = false) {
-    return (await db(this.db).vendorPayment.findFirst({
+  async findPayment(
+    organizationId: string,
+    id: string,
+    includeDeleted = false,
+    client: PrismaClient | Prisma.TransactionClient = this.db,
+  ) {
+    return (await db(client).vendorPayment.findFirst({
       where: { id, organizationId, ...(includeDeleted ? {} : { deletedAt: null }) },
       select: {
         ...paymentListSelect,
@@ -1258,7 +1856,7 @@ export class PurchasingRepository extends BaseRepository {
             id: true,
             billId: true,
             amount: true,
-            bill: { select: { id: true, billNumber: true, status: true, total: true, amountPaid: true, vendorId: true } },
+            bill: { select: { id: true, billNumber: true, status: true, total: true, amountPaid: true, vendorId: true, currencyCode: true } },
           },
         },
       },
@@ -1271,8 +1869,8 @@ export class PurchasingRepository extends BaseRepository {
     }
     return (await db(this.db).vendorBill.findMany({
       where: { id: { in: billIds }, organizationId, deletedAt: null },
-      select: { id: true, billNumber: true, vendorId: true, status: true, total: true, amountPaid: true },
-    })) as Array<Pick<BillRow, "id" | "billNumber" | "vendorId" | "status" | "total" | "amountPaid">>;
+      select: { id: true, billNumber: true, vendorId: true, status: true, total: true, amountPaid: true, currencyCode: true },
+    })) as Array<Pick<BillRow, "id" | "billNumber" | "vendorId" | "status" | "total" | "amountPaid" | "currencyCode">>;
   }
 
   async sumPendingAllocations(organizationId: string, billIds: string[], excludePaymentId?: string) {
@@ -1294,7 +1892,8 @@ export class PurchasingRepository extends BaseRepository {
 
     const result = new Map<string, string>();
     for (const row of rows) {
-      result.set(row.billId, (Number(result.get(row.billId) ?? 0) + Number(row.amount)).toFixed(4));
+      const current = result.get(row.billId) ?? "0";
+      result.set(row.billId, toDecimal(current).add(toDecimal(row.amount)).toFixed(4));
     }
     return result;
   }
@@ -1333,7 +1932,7 @@ export class PurchasingRepository extends BaseRepository {
         },
         select: { id: true },
       })) as { id: string };
-      return this.findPayment(organizationId, created.id);
+      return this.findPayment(organizationId, created.id, false, tx);
     });
   }
 
@@ -1353,6 +1952,7 @@ export class PurchasingRepository extends BaseRepository {
       await client.vendorPayment.update({
         where: { id },
         data: {
+          ...(input.vendorId ? { vendorId: input.vendorId } : {}),
           ...(input.paidDate ? { paidDate: dateOnly(input.paidDate) } : {}),
           ...(input.method ? { method: input.method } : {}),
           ...(input.amount ? { amount: input.amount } : {}),
@@ -1389,40 +1989,68 @@ export class PurchasingRepository extends BaseRepository {
       const client = db(tx);
       const payment = (await client.vendorPayment.findFirst({
         where: { id, organizationId, deletedAt: null, status: "DRAFT" },
-        select: { id: true },
-      })) as { id: string } | null;
+        select: { id: true, vendorId: true, currencyCode: true },
+      })) as { id: string; vendorId: string; currencyCode: string } | null;
       if (!payment) {
         return null;
       }
+      const allocations = (await client.vendorPaymentAllocation.findMany({
+        where: { paymentId: id, organizationId },
+        select: { billId: true, amount: true },
+      })) as Array<{ billId: string; amount: DecimalLike }>;
+      const deltas = new Map<string, Prisma.Decimal>();
+      for (const allocation of allocations) {
+        deltas.set(
+          allocation.billId,
+          (deltas.get(allocation.billId) ?? new Prisma.Decimal(0)).add(toDecimal(allocation.amount)),
+        );
+      }
+      if (billUpdates.some((update) => !deltas.has(update.billId)) || billUpdates.length !== deltas.size) {
+        throw new ValidationFailedError({ allocations: ["One or more allocations are no longer available"] });
+      }
+
+      const appliedUpdates: Array<{ billId: string; amountPaid: string; status: string }> = [];
+      for (const [billId, delta] of deltas) {
+        const bill = (await client.vendorBill.findFirst({
+          where: { id: billId, organizationId, deletedAt: null },
+          select: { id: true, vendorId: true, status: true, total: true, amountPaid: true, currencyCode: true },
+        })) as {
+          id: string;
+          vendorId: string;
+          status: VendorBillStatusValue;
+          total: DecimalLike;
+          amountPaid: DecimalLike;
+          currencyCode: string;
+        } | null;
+        if (!bill || bill.vendorId !== payment.vendorId) {
+          throw new ValidationFailedError({ allocations: ["All bills must belong to the payment vendor"] });
+        }
+        if (bill.status !== "APPROVED" && bill.status !== "PARTIALLY_PAID") {
+          throw new ValidationFailedError({ allocations: ["Only approved bills can be paid"] });
+        }
+        if (bill.currencyCode !== payment.currencyCode) {
+          throw new ValidationFailedError({ currencyCode: ["Payment and bill currencies must match"] });
+        }
+        const applied = applyVendorBillPaymentDelta(bill, delta.toFixed(4));
+        appliedUpdates.push({ billId, amountPaid: applied.amountPaid, status: applied.status });
+      }
+
       await client.vendorPayment.update({
         where: { id },
         data: { status: "PAID", updatedById: actorId },
       });
-      for (const update of billUpdates) {
-        const bill = (await client.vendorBill.findFirst({
-          where: { id: update.billId, organizationId, deletedAt: null },
-          select: { id: true, status: true, total: true, amountPaid: true },
-        })) as { id: string; status: VendorBillStatusValue; total: DecimalLike; amountPaid: DecimalLike } | null;
-        if (!bill) {
-          continue;
-        }
-        const allocation = (await client.vendorPaymentAllocation.aggregate({
-          where: { paymentId: id, billId: update.billId },
-          _sum: { amount: true },
-        })) as { _sum: { amount: DecimalLike | null } };
-        const delta = allocation._sum.amount?.toString() ?? "0";
-        const applied = applyVendorBillPaymentDelta(bill, delta);
+      for (const update of appliedUpdates) {
         await client.vendorBill.update({
           where: { id: update.billId },
           data: {
-            amountPaid: applied.amountPaid,
-            status: applied.status,
-            ...(applied.status === "PAID" ? { paidAt: new Date() } : {}),
+            amountPaid: update.amountPaid,
+            status: update.status,
+            ...(update.status === "PAID" ? { paidAt: new Date() } : {}),
             updatedById: actorId,
           },
         });
       }
-      return this.findPayment(organizationId, id);
+      return this.findPayment(organizationId, id, false, tx);
     });
   }
 
@@ -1438,6 +2066,14 @@ export class PurchasingRepository extends BaseRepository {
     const result = await db(this.db).vendorPayment.updateMany({
       where: { id, organizationId, deletedAt: { not: null } },
       data: { deletedAt: null, updatedById: actorId },
+    });
+    return result.count === 1;
+  }
+
+  async cancelPayment(organizationId: string, id: string, actorId: string) {
+    const result = await db(this.db).vendorPayment.updateMany({
+      where: { id, organizationId, deletedAt: null, status: "DRAFT" },
+      data: { status: "CANCELLED", updatedById: actorId },
     });
     return result.count === 1;
   }

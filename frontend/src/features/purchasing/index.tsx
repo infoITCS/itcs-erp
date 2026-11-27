@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { StatusPill, formatDate, formatMoney, statusLabel } from "../sales/shared.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
+import { purchasingKeys } from "@/lib/query-keys.ts";
 import {
   PURCHASE_ORDER_STATUSES,
   PURCHASING_PERMISSIONS,
@@ -21,10 +22,10 @@ export default function PurchasingDashboardPage() {
   const canCreateBill = useHasPermission(PURCHASING_PERMISSIONS.create);
   const canCreatePayment = useHasPermission(PURCHASING_PERMISSIONS.create);
 
-  const orders = useQuery({ queryKey: ["purchasing", "orders", "hub"], queryFn: () => listPurchaseOrders({ limit: PAGE_SIZE }), enabled: canRead });
-  const receipts = useQuery({ queryKey: ["purchasing", "receipts", "hub"], queryFn: () => listGoodsReceipts({ limit: PAGE_SIZE }), enabled: canRead });
-  const bills = useQuery({ queryKey: ["purchasing", "bills", "hub"], queryFn: () => listVendorBills({ limit: PAGE_SIZE }), enabled: canRead });
-  const payments = useQuery({ queryKey: ["purchasing", "payments", "hub"], queryFn: () => listVendorPayments({ limit: PAGE_SIZE }), enabled: canRead });
+  const orders = useQuery({ queryKey: [...purchasingKeys.hub(), "orders"], queryFn: () => listPurchaseOrders({ limit: PAGE_SIZE }), enabled: canRead });
+  const receipts = useQuery({ queryKey: [...purchasingKeys.hub(), "receipts"], queryFn: () => listGoodsReceipts({ limit: PAGE_SIZE }), enabled: canRead });
+  const bills = useQuery({ queryKey: [...purchasingKeys.hub(), "bills"], queryFn: () => listVendorBills({ limit: PAGE_SIZE }), enabled: canRead });
+  const payments = useQuery({ queryKey: [...purchasingKeys.hub(), "payments"], queryFn: () => listVendorPayments({ limit: PAGE_SIZE }), enabled: canRead });
 
   const orderRows = orders.data?.items ?? [];
   const receiptRows = receipts.data?.items ?? [];
@@ -32,13 +33,28 @@ export default function PurchasingDashboardPage() {
   const paymentRows = payments.data?.items ?? [];
   const currency = orderRows[0]?.currencyCode ?? billRows[0]?.currencyCode ?? paymentRows[0]?.currencyCode ?? "PKR";
 
+  const billIdsByOrder = new Set<string>();
+  for (const bill of billRows) {
+    if (bill.purchaseOrderId && !bill.deletedAt && bill.status !== "VOID") {
+      billIdsByOrder.add(bill.purchaseOrderId);
+    }
+  }
+  for (const order of orderRows) {
+    for (const bill of order.bills ?? []) {
+      if (bill.status !== "VOID") {
+        billIdsByOrder.add(order.id);
+      }
+    }
+  }
+
   const openOrders = orderRows.filter((order) => ["APPROVED", "SENT", "PARTIALLY_RECEIVED"].includes(order.status) && !order.deletedAt);
   const awaitingApproval = orderRows.filter((order) => order.status === "DRAFT" && !order.deletedAt);
-  const receivedNotBilled = orderRows.filter((order) => (order.status === "RECEIVED" || order.status === "PARTIALLY_RECEIVED") && (order.bills?.length ?? 0) === 0);
+  const receivedNotBilled = orderRows.filter(
+    (order) => !order.deletedAt && ["RECEIVED", "PARTIALLY_RECEIVED"].includes(order.status) && !billIdsByOrder.has(order.id),
+  );
   const activeBills = billRows.filter((bill) => !bill.deletedAt && bill.status !== "VOID" && bill.status !== "DRAFT");
   const today = new Date().toISOString().slice(0, 10);
   const overdueBills = activeBills.filter((bill) => bill.dueDate && bill.dueDate < today && billBalance(bill) > 0);
-
   const metrics = [
     {
       label: "Open PO value",

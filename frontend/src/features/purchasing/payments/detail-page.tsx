@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { PrintPreviewModal } from "@/components/documents/PrintPreviewModal.tsx";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
+import { purchasingKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import {
   PURCHASING_PERMISSIONS,
@@ -12,25 +14,41 @@ import {
   getVendorPayment,
   restoreVendorPayment,
 } from "../api.ts";
-import { Detail, Metric, Panel, StatusPill, docNumber, formatDate, formatMoney, paymentAllocated, statusLabel } from "../shared.tsx";
+import {
+  Detail,
+  ErrorState,
+  LoadingState,
+  MetricCard,
+  MetricGrid,
+  Panel,
+  StatusPill,
+  buildPrintableProps,
+  docNumber,
+  formatDate,
+  formatMoney,
+  paymentAllocated,
+  statusLabel,
+} from "../shared.tsx";
 
 export default function VendorPaymentDetailPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const canUpdate = useHasPermission(PURCHASING_PERMISSIONS.update);
+  const canApprove = useHasPermission("purchasing:approve");
   const canDelete = useHasPermission(PURCHASING_PERMISSIONS.delete);
   const canRestore = useHasPermission(PURCHASING_PERMISSIONS.restore);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const payment = useQuery({ queryKey: ["purchasing", "payments", id], queryFn: () => getVendorPayment(id), enabled: Boolean(id) });
+  const payment = useQuery({ queryKey: purchasingKeys.payments.detail(id), queryFn: () => getVendorPayment(id), enabled: Boolean(id) });
 
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "payments"] }),
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "bills"] }),
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "hub"] }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.payments.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
     ]);
   };
 
@@ -62,21 +80,52 @@ export default function VendorPaymentDetailPage() {
   });
 
   if (payment.isPending) {
-    return <p className="text-sm text-slate-500">Loading vendor payment…</p>;
+    return <LoadingState label="Loading vendor payment…" />;
   }
   if (payment.isError || !payment.data) {
-    return <p className="text-sm text-red-700">{payment.isError ? getApiErrorMessage(payment.error) : "Vendor payment not found"}</p>;
+    return (
+      <div className="mx-auto max-w-3xl p-6">
+        <ErrorState
+          message={payment.isError ? getApiErrorMessage(payment.error) : "Vendor payment not found"}
+          onRetry={() => payment.refetch()}
+          backTo="/purchasing/payments"
+          backLabel="Back to payments"
+        />
+      </div>
+    );
   }
 
   const row = payment.data;
   const allocations = row.allocations ?? [];
+  const printProps = buildPrintableProps({
+    type: "VENDOR PAYMENT",
+    documentNumber: docNumber(row),
+    date: formatDate(row.paidDate),
+    paymentTerms: "",
+    partyName: row.vendor?.displayName ?? row.vendor?.name ?? "Vendor",
+    partyAddress: row.vendor?.email ?? undefined,
+    taxId: row.vendor?.legalName ?? undefined,
+    lines: allocations.map((line) => ({
+      id: line.id ?? line.billId,
+      name: line.bill?.billNumber ?? `Bill ${line.billId.slice(0, 8)}`,
+      description: "Payment allocation",
+      quantity: "1",
+      unitPrice: line.amount,
+      lineTotal: line.amount,
+    })),
+    subtotal: paymentAllocated(row),
+    taxAmount: "0",
+    total: row.amount,
+    notes: row.notes ?? row.reference ?? undefined,
+    currencyCode: row.currencyCode,
+  });
 
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <div className="border-b border-slate-200 pb-5">
         <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
           <span className="h-2 w-2 rounded-full bg-brand-600" />
-          <Link className="hover:underline" to="/purchasing/payments">Supply / Payments</Link>
+          <Link className="hover:underline" to="/purchasing/payments">Purchasing / Payments</Link>
           <span className="text-slate-400">/</span>
           <span className="font-mono text-slate-500">{docNumber(row)}</span>
         </p>
@@ -104,11 +153,12 @@ export default function VendorPaymentDetailPage() {
                     <Button variant="secondary">Edit</Button>
                   </Link>
                 ) : null}
-                {canUpdate && row.status === "DRAFT" ? (
+                {canApprove && row.status === "DRAFT" ? (
                   <Button className="bg-brand-800 hover:bg-brand-900" disabled={approve.isPending} onClick={() => approve.mutate()}>
                     {approve.isPending ? "Approving…" : "Approve payment"}
                   </Button>
                 ) : null}
+                <Button variant="secondary" onClick={() => setPrintOpen(true)}>Print preview</Button>
                 {canDelete && row.status === "DRAFT" ? (
                   <Button variant="ghost" className="text-red-700 hover:bg-red-50" onClick={() => setDeleteOpen(true)}>Delete</Button>
                 ) : null}
@@ -128,12 +178,12 @@ export default function VendorPaymentDetailPage() {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric label="Amount" value={formatMoney(row.amount, row.currencyCode)} />
-        <Metric label="Allocated" value={formatMoney(paymentAllocated(row), row.currencyCode)} />
-        <Metric label="Bills" value={String(allocations.length)} />
-        <Metric label="Status" value={statusLabel(row.status)} />
-      </div>
+      <MetricGrid>
+        <MetricCard label="Amount" value={formatMoney(row.amount, row.currencyCode)} hint="Payment total" />
+        <MetricCard label="Allocated" value={formatMoney(paymentAllocated(row), row.currencyCode)} hint="Applied to bills" />
+        <MetricCard label="Bills" value={String(allocations.length)} hint="Linked allocations" />
+        <MetricCard label="Status" value={statusLabel(row.status)} hint="Workflow state" />
+      </MetricGrid>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
         <Panel title="Bill allocations">
@@ -151,15 +201,9 @@ export default function VendorPaymentDetailPage() {
                 {allocations.map((line, index) => (
                   <tr key={line.id ?? line.billId ?? index} className="border-b border-slate-100">
                     <td className="py-2 pr-3">
-                      {line.bill ? (
-                        <Link className="font-medium text-brand-800 hover:underline" to={`/purchasing/bills/${line.billId}`}>
-                          {line.bill.billNumber ?? line.billId}
-                        </Link>
-                      ) : (
-                        <Link className="font-medium text-brand-800 hover:underline" to={`/purchasing/bills/${line.billId}`}>
-                          {line.billId}
-                        </Link>
-                      )}
+                      <Link className="font-medium text-brand-800 hover:underline" to={`/purchasing/bills/${line.billId}`}>
+                        {line.bill?.billNumber ?? line.billId.slice(0, 8)}
+                      </Link>
                     </td>
                     <td className="py-2 text-right font-medium tabular-nums">{formatMoney(line.amount, row.currencyCode)}</td>
                   </tr>
@@ -196,6 +240,8 @@ export default function VendorPaymentDetailPage() {
         onCancel={() => setDeleteOpen(false)}
         onConfirm={() => remove.mutate()}
       />
+
+      <PrintPreviewModal isOpen={printOpen} onClose={() => setPrintOpen(false)} docProps={printProps} />
     </section>
   );
 }

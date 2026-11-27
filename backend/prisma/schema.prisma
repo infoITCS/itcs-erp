@@ -440,50 +440,50 @@ model Organization {
   createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  baseCurrency           Currency                     @relation(fields: [baseCurrencyCode], references: [code])
-  members                OrganizationMember[]
-  roles                  Role[]
-  auditLogs              AuditLog[]
-  exchangeRates          ExchangeRate[]
-  documentSequences      DocumentSequence[]
-  customers              Customer[]
-  resellers              Reseller[]
-  resellerAddresses      ResellerAddress[]
-  resellerContacts       ResellerContact[]
-  products               Product[]
-  productCategories      ProductCategory[]
-  unitsOfMeasure         UnitOfMeasure[]
-  taxCodes               TaxCode[]
-  productPrices          ProductPrice[]
-  paymentTerms           PaymentTerm[]
-  customerPricingGroups  CustomerPricingGroup[]
-  accountingCategories   AccountingCategory[]
-  customerNotes          CustomerNote[]
-  customerActivities     CustomerActivity[]
-  customerSupportTickets CustomerSupportTicket[]
-  customerDocuments      CustomerDocument[]
-  opportunities          Opportunity[]
-  opportunityInterests   OpportunityProductInterest[]
-  tenders                Tender[]
-  leads                  Lead[]
-  quotes                 Quote[]
-  salesOrders            SalesOrder[]
-  invoices               Invoice[]
-  payments               Payment[]
-  quoteLines             QuoteLine[]
-  salesOrderLines        SalesOrderLine[]
-  invoiceLines           InvoiceLine[]
-  vendors                Vendor[]
-  purchaseOrders         PurchaseOrder[]
-  purchaseOrderLines     PurchaseOrderLine[]
-  goodsReceipts          GoodsReceipt[]
-  goodsReceiptLines      GoodsReceiptLine[]
-  vendorBills            VendorBill[]
-  vendorBillLines        VendorBillLine[]
-  vendorPayments         VendorPayment[]
+  baseCurrency             Currency                     @relation(fields: [baseCurrencyCode], references: [code])
+  members                  OrganizationMember[]
+  roles                    Role[]
+  auditLogs                AuditLog[]
+  exchangeRates            ExchangeRate[]
+  documentSequences        DocumentSequence[]
+  customers                Customer[]
+  resellers                Reseller[]
+  resellerAddresses        ResellerAddress[]
+  resellerContacts         ResellerContact[]
+  products                 Product[]
+  productCategories        ProductCategory[]
+  unitsOfMeasure           UnitOfMeasure[]
+  taxCodes                 TaxCode[]
+  productPrices            ProductPrice[]
+  paymentTerms             PaymentTerm[]
+  customerPricingGroups    CustomerPricingGroup[]
+  accountingCategories     AccountingCategory[]
+  customerNotes            CustomerNote[]
+  customerActivities       CustomerActivity[]
+  customerSupportTickets   CustomerSupportTicket[]
+  customerDocuments        CustomerDocument[]
+  opportunities            Opportunity[]
+  opportunityInterests     OpportunityProductInterest[]
+  tenders                  Tender[]
+  leads                    Lead[]
+  quotes                   Quote[]
+  salesOrders              SalesOrder[]
+  invoices                 Invoice[]
+  payments                 Payment[]
+  quoteLines               QuoteLine[]
+  salesOrderLines          SalesOrderLine[]
+  invoiceLines             InvoiceLine[]
+  vendors                  Vendor[]
+  purchaseOrders           PurchaseOrder[]
+  purchaseOrderLines       PurchaseOrderLine[]
+  goodsReceipts            GoodsReceipt[]
+  goodsReceiptLines        GoodsReceiptLine[]
+  vendorBills              VendorBill[]
+  vendorBillLines          VendorBillLine[]
+  vendorPayments           VendorPayment[]
   vendorPaymentAllocations VendorPaymentAllocation[]
-  inventoryMovements     InventoryMovement[]
-  inventoryBalances      InventoryBalance[]
+  inventoryMovements       InventoryMovement[]
+  inventoryBalances        InventoryBalance[]
 
   @@index([status])
   @@map("organizations")
@@ -561,19 +561,19 @@ model User {
   invoicesUpdated             Invoice[]                    @relation("InvoiceUpdatedBy")
   paymentsCreated             Payment[]                    @relation("PaymentCreatedBy")
   paymentsUpdated             Payment[]                    @relation("PaymentUpdatedBy")
-  vendorsCreated              Vendor[]                    @relation("VendorCreatedBy")
-  vendorsUpdated              Vendor[]                    @relation("VendorUpdatedBy")
-  purchaseOrdersOwned         PurchaseOrder[]             @relation("PurchaseOrderOwner")
-  purchaseOrdersCreated       PurchaseOrder[]             @relation("PurchaseOrderCreatedBy")
-  purchaseOrdersUpdated       PurchaseOrder[]             @relation("PurchaseOrderUpdatedBy")
-  goodsReceiptsCreated        GoodsReceipt[]              @relation("GoodsReceiptCreatedBy")
-  goodsReceiptsUpdated        GoodsReceipt[]              @relation("GoodsReceiptUpdatedBy")
-  vendorBillsOwned            VendorBill[]                @relation("VendorBillOwner")
-  vendorBillsCreated          VendorBill[]                @relation("VendorBillCreatedBy")
-  vendorBillsUpdated          VendorBill[]                @relation("VendorBillUpdatedBy")
-  vendorPaymentsCreated       VendorPayment[]             @relation("VendorPaymentCreatedBy")
-  vendorPaymentsUpdated       VendorPayment[]             @relation("VendorPaymentUpdatedBy")
-  inventoryMovementsCreated   InventoryMovement[]         @relation("InventoryMovementCreatedBy")
+  vendorsCreated              Vendor[]                     @relation("VendorCreatedBy")
+  vendorsUpdated              Vendor[]                     @relation("VendorUpdatedBy")
+  purchaseOrdersOwned         PurchaseOrder[]              @relation("PurchaseOrderOwner")
+  purchaseOrdersCreated       PurchaseOrder[]              @relation("PurchaseOrderCreatedBy")
+  purchaseOrdersUpdated       PurchaseOrder[]              @relation("PurchaseOrderUpdatedBy")
+  goodsReceiptsCreated        GoodsReceipt[]               @relation("GoodsReceiptCreatedBy")
+  goodsReceiptsUpdated        GoodsReceipt[]               @relation("GoodsReceiptUpdatedBy")
+  vendorBillsOwned            VendorBill[]                 @relation("VendorBillOwner")
+  vendorBillsCreated          VendorBill[]                 @relation("VendorBillCreatedBy")
+  vendorBillsUpdated          VendorBill[]                 @relation("VendorBillUpdatedBy")
+  vendorPaymentsCreated       VendorPayment[]              @relation("VendorPaymentCreatedBy")
+  vendorPaymentsUpdated       VendorPayment[]              @relation("VendorPaymentUpdatedBy")
+  inventoryMovementsCreated   InventoryMovement[]          @relation("InventoryMovementCreatedBy")
 
   @@index([status])
   @@map("users")
@@ -720,25 +720,25 @@ model Currency {
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organizations Organization[]
-  customers     Customer[]
-  resellers     Reseller[]
-  productPrices ProductPrice[]
-  opportunities Opportunity[]
-  tenders       Tender[]
-  leads         Lead[]
-  quotes        Quote[]
-  salesOrders   SalesOrder[]
-  invoices      Invoice[]
-  payments      Payment[]
-  vendors       Vendor[]
+  organizations  Organization[]
+  customers      Customer[]
+  resellers      Reseller[]
+  productPrices  ProductPrice[]
+  opportunities  Opportunity[]
+  tenders        Tender[]
+  leads          Lead[]
+  quotes         Quote[]
+  salesOrders    SalesOrder[]
+  invoices       Invoice[]
+  payments       Payment[]
+  vendors        Vendor[]
   purchaseOrders PurchaseOrder[]
-  goodsReceipts GoodsReceipt[]
-  vendorBills   VendorBill[]
+  goodsReceipts  GoodsReceipt[]
+  vendorBills    VendorBill[]
   vendorPayments VendorPayment[]
-  baseRates     ExchangeRate[] @relation("ExchangeRateBase")
+  baseRates      ExchangeRate[]  @relation("ExchangeRateBase")
 
-  quoteRates    ExchangeRate[] @relation("ExchangeRateQuote")
+  quoteRates ExchangeRate[] @relation("ExchangeRateQuote")
 
   @@index([isActive])
   @@map("currencies")
@@ -757,14 +757,14 @@ model PaymentTerm {
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  customers    Customer[]
-  quotes       Quote[]
-  salesOrders  SalesOrder[]
-  invoices     Invoice[]
-  vendors      Vendor[]
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  customers      Customer[]
+  quotes         Quote[]
+  salesOrders    SalesOrder[]
+  invoices       Invoice[]
+  vendors        Vendor[]
   purchaseOrders PurchaseOrder[]
-  vendorBills  VendorBill[]
+  vendorBills    VendorBill[]
 
   @@unique([organizationId, code])
   @@index([organizationId, isActive])
@@ -1270,54 +1270,54 @@ model TaxCode {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization    Organization     @relation(fields: [organizationId], references: [id])
-  products        Product[]
-  customers       Customer[]       @relation("CustomerDefaultTaxCode")
-  quoteLines      QuoteLine[]
-  salesOrderLines SalesOrderLine[]
-  invoiceLines    InvoiceLine[]
-  vendors         Vendor[]
+  organization       Organization        @relation(fields: [organizationId], references: [id])
+  products           Product[]
+  customers          Customer[]          @relation("CustomerDefaultTaxCode")
+  quoteLines         QuoteLine[]
+  salesOrderLines    SalesOrderLine[]
+  invoiceLines       InvoiceLine[]
+  vendors            Vendor[]
   purchaseOrderLines PurchaseOrderLine[]
-  vendorBillLines VendorBillLine[]
+  vendorBillLines    VendorBillLine[]
 
   @@unique([organizationId, code])
   @@map("tax_codes")
 }
 
 model Product {
-  id              String        @id @default(uuid()) @db.Uuid
-  organizationId  String        @map("organization_id") @db.Uuid
-  code            String        @db.VarChar(64)
-  name            String        @db.VarChar(200)
-  description     String?       @db.VarChar(4000)
-  productType     ProductType   @map("product_type")
-  status          ProductStatus @default(ACTIVE)
-  categoryId      String?       @map("category_id") @db.Uuid
-  unitOfMeasureId String        @map("unit_of_measure_id") @db.Uuid
-  taxCodeId       String?       @map("tax_code_id") @db.Uuid
-  trackInventory        Boolean       @default(false) @map("track_inventory")
-  valuationMethod       String        @default("WEIGHTED_AVERAGE") @map("valuation_method") @db.VarChar(32)
-  weightedAveragePrice  Decimal       @default(0) @map("weighted_average_price") @db.Decimal(19, 4)
-  allowNegativeStock    Boolean       @default(false) @map("allow_negative_stock")
-  minimumStockQuantity  Decimal       @default(0) @map("minimum_stock_quantity") @db.Decimal(19, 4)
-  receivingLocation     String        @default("MAIN LOCATION") @map("receiving_location") @db.VarChar(120)
-  deliveryLocation      String        @default("MAIN LOCATION") @map("delivery_location") @db.VarChar(120)
-  inventoryAccount      String?       @map("inventory_account") @db.VarChar(120)
-  inventoryTransitAccount String?     @map("inventory_transit_account") @db.VarChar(120)
-  privateNote           String?       @map("private_note") @db.VarChar(4000)
-  netWeight             Decimal       @default(0) @map("net_weight") @db.Decimal(19, 4)
-  width                 Decimal       @default(0) @db.Decimal(19, 4)
-  length                Decimal       @default(0) @db.Decimal(19, 4)
-  height                Decimal       @default(0) @db.Decimal(19, 4)
-  dimensionUnit         String        @default("METER") @map("dimension_unit") @db.VarChar(16)
-  cogsAccount           String        @default("COGS - Products (50110)") @map("cogs_account") @db.VarChar(120)
-  incomeAccount         String        @default("Sales - Miscellaneous (40150)") @map("income_account") @db.VarChar(120)
-  notes                 String?       @db.VarChar(4000)
-  createdById           String        @map("created_by_id") @db.Uuid
-  updatedById     String        @map("updated_by_id") @db.Uuid
-  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz(6)
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                      String        @id @default(uuid()) @db.Uuid
+  organizationId          String        @map("organization_id") @db.Uuid
+  code                    String        @db.VarChar(64)
+  name                    String        @db.VarChar(200)
+  description             String?       @db.VarChar(4000)
+  productType             ProductType   @map("product_type")
+  status                  ProductStatus @default(ACTIVE)
+  categoryId              String?       @map("category_id") @db.Uuid
+  unitOfMeasureId         String        @map("unit_of_measure_id") @db.Uuid
+  taxCodeId               String?       @map("tax_code_id") @db.Uuid
+  trackInventory          Boolean       @default(false) @map("track_inventory")
+  valuationMethod         String        @default("WEIGHTED_AVERAGE") @map("valuation_method") @db.VarChar(32)
+  weightedAveragePrice    Decimal       @default(0) @map("weighted_average_price") @db.Decimal(19, 4)
+  allowNegativeStock      Boolean       @default(false) @map("allow_negative_stock")
+  minimumStockQuantity    Decimal       @default(0) @map("minimum_stock_quantity") @db.Decimal(19, 4)
+  receivingLocation       String        @default("MAIN LOCATION") @map("receiving_location") @db.VarChar(120)
+  deliveryLocation        String        @default("MAIN LOCATION") @map("delivery_location") @db.VarChar(120)
+  inventoryAccount        String?       @map("inventory_account") @db.VarChar(120)
+  inventoryTransitAccount String?       @map("inventory_transit_account") @db.VarChar(120)
+  privateNote             String?       @map("private_note") @db.VarChar(4000)
+  netWeight               Decimal       @default(0) @map("net_weight") @db.Decimal(19, 4)
+  width                   Decimal       @default(0) @db.Decimal(19, 4)
+  length                  Decimal       @default(0) @db.Decimal(19, 4)
+  height                  Decimal       @default(0) @db.Decimal(19, 4)
+  dimensionUnit           String        @default("METER") @map("dimension_unit") @db.VarChar(16)
+  cogsAccount             String        @default("COGS - Products (50110)") @map("cogs_account") @db.VarChar(120)
+  incomeAccount           String        @default("Sales - Miscellaneous (40150)") @map("income_account") @db.VarChar(120)
+  notes                   String?       @db.VarChar(4000)
+  createdById             String        @map("created_by_id") @db.Uuid
+  updatedById             String        @map("updated_by_id") @db.Uuid
+  deletedAt               DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt               DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization         Organization                 @relation(fields: [organizationId], references: [id])
   category             ProductCategory?             @relation(fields: [categoryId], references: [id])
@@ -1714,6 +1714,7 @@ model SalesOrder {
   taxTotal             Decimal          @default(0) @map("tax_total") @db.Decimal(19, 4)
   total                Decimal          @default(0) @db.Decimal(19, 4)
   totalBase            Decimal?         @map("total_base") @db.Decimal(19, 4)
+  cogsTotal            Decimal          @default(0) @map("cogs_total") @db.Decimal(19, 4)
   notes                String?          @db.VarChar(4000)
   terms                String?          @db.VarChar(4000)
   confirmedAt          DateTime?        @map("confirmed_at") @db.Timestamptz(6)
@@ -1726,18 +1727,19 @@ model SalesOrder {
   createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization     @relation(fields: [organizationId], references: [id])
-  sourceQuote  Quote?           @relation("QuoteSalesOrders", fields: [sourceQuoteId], references: [id])
-  customer     Customer         @relation(fields: [customerId], references: [id])
-  contact      Contact?         @relation(fields: [contactId], references: [id])
-  opportunity  Opportunity?     @relation(fields: [opportunityId], references: [id])
-  owner        User             @relation("SalesOrderOwner", fields: [ownerUserId], references: [id])
-  currency     Currency         @relation(fields: [currencyCode], references: [code])
-  paymentTerm  PaymentTerm?     @relation(fields: [paymentTermId], references: [id])
-  createdBy    User             @relation("SalesOrderCreatedBy", fields: [createdById], references: [id])
-  updatedBy    User             @relation("SalesOrderUpdatedBy", fields: [updatedById], references: [id])
-  lines        SalesOrderLine[]
-  invoices     Invoice[]        @relation("OrderInvoices")
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  sourceQuote    Quote?           @relation("QuoteSalesOrders", fields: [sourceQuoteId], references: [id])
+  customer       Customer         @relation(fields: [customerId], references: [id])
+  contact        Contact?         @relation(fields: [contactId], references: [id])
+  opportunity    Opportunity?     @relation(fields: [opportunityId], references: [id])
+  owner          User             @relation("SalesOrderOwner", fields: [ownerUserId], references: [id])
+  currency       Currency         @relation(fields: [currencyCode], references: [code])
+  paymentTerm    PaymentTerm?     @relation(fields: [paymentTermId], references: [id])
+  createdBy      User             @relation("SalesOrderCreatedBy", fields: [createdById], references: [id])
+  updatedBy      User             @relation("SalesOrderUpdatedBy", fields: [updatedById], references: [id])
+  lines          SalesOrderLine[]
+  invoices       Invoice[]        @relation("OrderInvoices")
+  purchaseOrders PurchaseOrder[]  @relation("SalesOrderPurchaseOrders")
 
   @@unique([organizationId, salesOrderNumber])
   @@index([organizationId, createdAt, id])
@@ -1750,32 +1752,35 @@ model SalesOrder {
 }
 
 model SalesOrderLine {
-  id              String   @id @default(uuid()) @db.Uuid
-  organizationId  String   @map("organization_id") @db.Uuid
-  salesOrderId    String   @map("sales_order_id") @db.Uuid
-  productId       String?  @map("product_id") @db.Uuid
-  productCode     String?  @map("product_code") @db.VarChar(64)
-  productName     String   @map("product_name") @db.VarChar(200)
-  description     String?  @db.VarChar(1000)
-  unitOfMeasure   String?  @map("unit_of_measure") @db.VarChar(32)
-  quantity        Decimal  @default(1) @db.Decimal(19, 4)
-  unitPrice       Decimal  @map("unit_price") @db.Decimal(19, 4)
-  discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(7, 4)
-  taxCodeId       String?  @map("tax_code_id") @db.Uuid
-  taxCode         String?  @map("tax_code") @db.VarChar(32)
-  taxRate         Decimal  @default(0) @map("tax_rate") @db.Decimal(7, 4)
-  lineSubtotal    Decimal  @map("line_subtotal") @db.Decimal(19, 4)
-  lineDiscount    Decimal  @map("line_discount") @db.Decimal(19, 4)
-  lineTax         Decimal  @map("line_tax") @db.Decimal(19, 4)
-  lineTotal       Decimal  @map("line_total") @db.Decimal(19, 4)
-  sortOrder       Int      @default(0) @map("sort_order")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                String   @id @default(uuid()) @db.Uuid
+  organizationId    String   @map("organization_id") @db.Uuid
+  salesOrderId      String   @map("sales_order_id") @db.Uuid
+  productId         String?  @map("product_id") @db.Uuid
+  productCode       String?  @map("product_code") @db.VarChar(64)
+  productName       String   @map("product_name") @db.VarChar(200)
+  description       String?  @db.VarChar(1000)
+  unitOfMeasure     String?  @map("unit_of_measure") @db.VarChar(32)
+  quantity          Decimal  @default(1) @db.Decimal(19, 4)
+  fulfilledQuantity Decimal  @default(0) @map("fulfilled_quantity") @db.Decimal(19, 4)
+  cogsAmount        Decimal  @default(0) @map("cogs_amount") @db.Decimal(19, 4)
+  unitPrice         Decimal  @map("unit_price") @db.Decimal(19, 4)
+  discountPercent   Decimal  @default(0) @map("discount_percent") @db.Decimal(7, 4)
+  taxCodeId         String?  @map("tax_code_id") @db.Uuid
+  taxCode           String?  @map("tax_code") @db.VarChar(32)
+  taxRate           Decimal  @default(0) @map("tax_rate") @db.Decimal(7, 4)
+  lineSubtotal      Decimal  @map("line_subtotal") @db.Decimal(19, 4)
+  lineDiscount      Decimal  @map("line_discount") @db.Decimal(19, 4)
+  lineTax           Decimal  @map("line_tax") @db.Decimal(19, 4)
+  lineTotal         Decimal  @map("line_total") @db.Decimal(19, 4)
+  sortOrder         Int      @default(0) @map("sort_order")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  salesOrder   SalesOrder   @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
-  product      Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
-  taxCodeRef   TaxCode?     @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
+  organization       Organization        @relation(fields: [organizationId], references: [id])
+  salesOrder         SalesOrder          @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product            Product?            @relation(fields: [productId], references: [id], onDelete: SetNull)
+  taxCodeRef         TaxCode?            @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
+  purchaseOrderLines PurchaseOrderLine[] @relation("SalesOrderLinePurchaseOrders")
 
   @@index([organizationId, salesOrderId, sortOrder])
   @@map("sales_order_lines")
@@ -1803,6 +1808,7 @@ model Invoice {
   taxTotal           Decimal       @default(0) @map("tax_total") @db.Decimal(19, 4)
   total              Decimal       @default(0) @db.Decimal(19, 4)
   totalBase          Decimal?      @map("total_base") @db.Decimal(19, 4)
+  cogsTotal          Decimal       @default(0) @map("cogs_total") @db.Decimal(19, 4)
   amountPaid         Decimal       @default(0) @map("amount_paid") @db.Decimal(19, 4)
   notes              String?       @db.VarChar(4000)
   terms              String?       @db.VarChar(4000)
@@ -1849,6 +1855,7 @@ model InvoiceLine {
   description     String?  @db.VarChar(1000)
   unitOfMeasure   String?  @map("unit_of_measure") @db.VarChar(32)
   quantity        Decimal  @default(1) @db.Decimal(19, 4)
+  cogsAmount      Decimal  @default(0) @map("cogs_amount") @db.Decimal(19, 4)
   unitPrice       Decimal  @map("unit_price") @db.Decimal(19, 4)
   discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(7, 4)
   taxCodeId       String?  @map("tax_code_id") @db.Uuid
@@ -1958,44 +1965,44 @@ model Project {
 }
 
 model Vendor {
-  id                String       @id @default(uuid()) @db.Uuid
-  organizationId    String       @map("organization_id") @db.Uuid
-  vendorNumber      String       @map("vendor_number") @db.VarChar(32)
-  code              String?      @db.VarChar(64)
-  name              String       @db.VarChar(200)
-  legalName         String?      @map("legal_name") @db.VarChar(200)
-  displayName       String?      @map("display_name") @db.VarChar(200)
-  status            VendorStatus @default(ACTIVE)
-  vendorType        String?      @map("vendor_type") @db.VarChar(64)
-  category          String?      @db.VarChar(100)
-  currencyCode      String       @map("currency_code") @db.Char(3)
-  paymentTermId     String?      @map("payment_term_id") @db.Uuid
-  taxCodeId         String?      @map("tax_code_id") @db.Uuid
-  taxId             String?      @map("tax_id") @db.VarChar(120)
-  registrationNumber String?     @map("registration_number") @db.VarChar(120)
-  website           String?      @db.VarChar(500)
-  email             String?      @db.VarChar(320)
-  phone             String?      @db.VarChar(60)
-  addressLine1      String?      @map("address_line1") @db.VarChar(255)
-  addressLine2      String?      @map("address_line2") @db.VarChar(255)
-  city              String?      @db.VarChar(120)
-  stateProvince     String?      @map("state_province") @db.VarChar(120)
-  postalCode        String?      @map("postal_code") @db.VarChar(120)
-  countryCode       String?      @map("country_code") @db.VarChar(8)
-  bankAccount       String?      @map("bank_account") @db.VarChar(255)
-  notes             String?      @db.VarChar(4000)
-  createdById       String       @map("created_by_id") @db.Uuid
-  updatedById       String       @map("updated_by_id") @db.Uuid
-  deletedAt         DateTime?    @map("deleted_at") @db.Timestamptz(6)
-  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                 String       @id @default(uuid()) @db.Uuid
+  organizationId     String       @map("organization_id") @db.Uuid
+  vendorNumber       String       @map("vendor_number") @db.VarChar(32)
+  code               String?      @db.VarChar(64)
+  name               String       @db.VarChar(200)
+  legalName          String?      @map("legal_name") @db.VarChar(200)
+  displayName        String?      @map("display_name") @db.VarChar(200)
+  status             VendorStatus @default(ACTIVE)
+  vendorType         String?      @map("vendor_type") @db.VarChar(64)
+  category           String?      @db.VarChar(100)
+  currencyCode       String       @map("currency_code") @db.Char(3)
+  paymentTermId      String?      @map("payment_term_id") @db.Uuid
+  taxCodeId          String?      @map("tax_code_id") @db.Uuid
+  taxId              String?      @map("tax_id") @db.VarChar(120)
+  registrationNumber String?      @map("registration_number") @db.VarChar(120)
+  website            String?      @db.VarChar(500)
+  email              String?      @db.VarChar(320)
+  phone              String?      @db.VarChar(60)
+  addressLine1       String?      @map("address_line1") @db.VarChar(255)
+  addressLine2       String?      @map("address_line2") @db.VarChar(255)
+  city               String?      @db.VarChar(120)
+  stateProvince      String?      @map("state_province") @db.VarChar(120)
+  postalCode         String?      @map("postal_code") @db.VarChar(120)
+  countryCode        String?      @map("country_code") @db.VarChar(8)
+  bankAccount        String?      @map("bank_account") @db.VarChar(255)
+  notes              String?      @db.VarChar(4000)
+  createdById        String       @map("created_by_id") @db.Uuid
+  updatedById        String       @map("updated_by_id") @db.Uuid
+  deletedAt          DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  currency     Currency     @relation(fields: [currencyCode], references: [code])
-  paymentTerm  PaymentTerm? @relation(fields: [paymentTermId], references: [id])
-  taxCode      TaxCode?     @relation(fields: [taxCodeId], references: [id])
-  createdBy    User         @relation("VendorCreatedBy", fields: [createdById], references: [id])
-  updatedBy    User         @relation("VendorUpdatedBy", fields: [updatedById], references: [id])
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  currency       Currency        @relation(fields: [currencyCode], references: [code])
+  paymentTerm    PaymentTerm?    @relation(fields: [paymentTermId], references: [id])
+  taxCode        TaxCode?        @relation(fields: [taxCodeId], references: [id])
+  createdBy      User            @relation("VendorCreatedBy", fields: [createdById], references: [id])
+  updatedBy      User            @relation("VendorUpdatedBy", fields: [updatedById], references: [id])
   purchaseOrders PurchaseOrder[]
   goodsReceipts  GoodsReceipt[]
   bills          VendorBill[]
@@ -2013,6 +2020,7 @@ model PurchaseOrder {
   organizationId       String              @map("organization_id") @db.Uuid
   purchaseOrderNumber  String              @map("purchase_order_number") @db.VarChar(32)
   vendorId             String              @map("vendor_id") @db.Uuid
+  sourceSalesOrderId   String?             @map("source_sales_order_id") @db.Uuid
   ownerUserId          String              @map("owner_user_id") @db.Uuid
   status               PurchaseOrderStatus @default(DRAFT)
   orderDate            DateTime            @map("order_date") @db.Date
@@ -2043,16 +2051,17 @@ model PurchaseOrder {
   createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  vendor       Vendor       @relation(fields: [vendorId], references: [id])
-  owner        User         @relation("PurchaseOrderOwner", fields: [ownerUserId], references: [id])
-  currency     Currency     @relation(fields: [currencyCode], references: [code])
-  paymentTerm  PaymentTerm? @relation(fields: [paymentTermId], references: [id])
-  createdBy    User         @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
-  updatedBy    User         @relation("PurchaseOrderUpdatedBy", fields: [updatedById], references: [id])
-  lines        PurchaseOrderLine[]
-  receipts     GoodsReceipt[]
-  bills        VendorBill[]
+  organization     Organization        @relation(fields: [organizationId], references: [id])
+  vendor           Vendor              @relation(fields: [vendorId], references: [id])
+  sourceSalesOrder SalesOrder?         @relation("SalesOrderPurchaseOrders", fields: [sourceSalesOrderId], references: [id])
+  owner            User                @relation("PurchaseOrderOwner", fields: [ownerUserId], references: [id])
+  currency         Currency            @relation(fields: [currencyCode], references: [code])
+  paymentTerm      PaymentTerm?        @relation(fields: [paymentTermId], references: [id])
+  createdBy        User                @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
+  updatedBy        User                @relation("PurchaseOrderUpdatedBy", fields: [updatedById], references: [id])
+  lines            PurchaseOrderLine[]
+  receipts         GoodsReceipt[]
+  bills            VendorBill[]
 
   @@unique([organizationId, purchaseOrderNumber])
   @@index([organizationId, createdAt, id])
@@ -2060,68 +2069,72 @@ model PurchaseOrder {
   @@index([organizationId, vendorId, createdAt])
   @@index([organizationId, ownerUserId, status])
   @@index([organizationId, orderDate])
+  @@index([organizationId, sourceSalesOrderId])
   @@map("purchase_orders")
 }
 
 model PurchaseOrderLine {
-  id              String  @id @default(uuid()) @db.Uuid
-  organizationId  String  @map("organization_id") @db.Uuid
-  purchaseOrderId String  @map("purchase_order_id") @db.Uuid
-  productId       String? @map("product_id") @db.Uuid
-  productCode     String? @map("product_code") @db.VarChar(64)
-  productName     String  @map("product_name") @db.VarChar(200)
-  description     String? @db.VarChar(1000)
-  unitOfMeasure   String? @map("unit_of_measure") @db.VarChar(32)
-  quantity        Decimal @default(1) @db.Decimal(19, 4)
-  unitPrice       Decimal @map("unit_price") @db.Decimal(19, 4)
-  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(7, 4)
-  taxCodeId       String? @map("tax_code_id") @db.Uuid
-  taxCode         String? @map("tax_code") @db.VarChar(32)
-  taxRate         Decimal @default(0) @map("tax_rate") @db.Decimal(7, 4)
-  lineSubtotal    Decimal @map("line_subtotal") @db.Decimal(19, 4)
-  lineDiscount    Decimal @map("line_discount") @db.Decimal(19, 4)
-  lineTax         Decimal @map("line_tax") @db.Decimal(19, 4)
-  lineTotal       Decimal @map("line_total") @db.Decimal(19, 4)
-  receivedQuantity Decimal @default(0) @map("received_quantity") @db.Decimal(19, 4)
-  billedQuantity   Decimal @default(0) @map("billed_quantity") @db.Decimal(19, 4)
-  sortOrder       Int     @default(0) @map("sort_order")
-  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                     String   @id @default(uuid()) @db.Uuid
+  organizationId         String   @map("organization_id") @db.Uuid
+  purchaseOrderId        String   @map("purchase_order_id") @db.Uuid
+  sourceSalesOrderLineId String?  @map("source_sales_order_line_id") @db.Uuid
+  productId              String?  @map("product_id") @db.Uuid
+  productCode            String?  @map("product_code") @db.VarChar(64)
+  productName            String   @map("product_name") @db.VarChar(200)
+  description            String?  @db.VarChar(1000)
+  unitOfMeasure          String?  @map("unit_of_measure") @db.VarChar(32)
+  quantity               Decimal  @default(1) @db.Decimal(19, 4)
+  unitPrice              Decimal  @map("unit_price") @db.Decimal(19, 4)
+  discountPercent        Decimal  @default(0) @map("discount_percent") @db.Decimal(7, 4)
+  taxCodeId              String?  @map("tax_code_id") @db.Uuid
+  taxCode                String?  @map("tax_code") @db.VarChar(32)
+  taxRate                Decimal  @default(0) @map("tax_rate") @db.Decimal(7, 4)
+  lineSubtotal           Decimal  @map("line_subtotal") @db.Decimal(19, 4)
+  lineDiscount           Decimal  @map("line_discount") @db.Decimal(19, 4)
+  lineTax                Decimal  @map("line_tax") @db.Decimal(19, 4)
+  lineTotal              Decimal  @map("line_total") @db.Decimal(19, 4)
+  receivedQuantity       Decimal  @default(0) @map("received_quantity") @db.Decimal(19, 4)
+  billedQuantity         Decimal  @default(0) @map("billed_quantity") @db.Decimal(19, 4)
+  sortOrder              Int      @default(0) @map("sort_order")
+  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization  @relation(fields: [organizationId], references: [id])
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  product       Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
-  taxCodeRef    TaxCode?      @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
-  receipts      GoodsReceiptLine[]
+  organization         Organization       @relation(fields: [organizationId], references: [id])
+  purchaseOrder        PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  sourceSalesOrderLine SalesOrderLine?    @relation("SalesOrderLinePurchaseOrders", fields: [sourceSalesOrderLineId], references: [id])
+  product              Product?           @relation(fields: [productId], references: [id], onDelete: SetNull)
+  taxCodeRef           TaxCode?           @relation(fields: [taxCodeId], references: [id], onDelete: SetNull)
+  receipts             GoodsReceiptLine[]
 
   @@index([organizationId, purchaseOrderId, sortOrder])
+  @@index([organizationId, sourceSalesOrderLineId])
   @@map("purchase_order_lines")
 }
 
 model GoodsReceipt {
-  id                String             @id @default(uuid()) @db.Uuid
-  organizationId    String             @map("organization_id") @db.Uuid
-  receiptNumber     String             @map("receipt_number") @db.VarChar(32)
-  purchaseOrderId   String             @map("purchase_order_id") @db.Uuid
-  vendorId          String             @map("vendor_id") @db.Uuid
-  status            GoodsReceiptStatus @default(DRAFT)
-  receiptDate       DateTime           @map("receipt_date") @db.Date
-  vendorReference   String?            @map("vendor_reference") @db.VarChar(120)
-  currencyCode      String             @map("currency_code") @db.Char(3)
-  notes             String?            @db.VarChar(4000)
-  postedAt          DateTime?          @map("posted_at") @db.Timestamptz(6)
-  createdById       String             @map("created_by_id") @db.Uuid
-  updatedById       String             @map("updated_by_id") @db.Uuid
-  deletedAt         DateTime?          @map("deleted_at") @db.Timestamptz(6)
-  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id              String             @id @default(uuid()) @db.Uuid
+  organizationId  String             @map("organization_id") @db.Uuid
+  receiptNumber   String             @map("receipt_number") @db.VarChar(32)
+  purchaseOrderId String             @map("purchase_order_id") @db.Uuid
+  vendorId        String             @map("vendor_id") @db.Uuid
+  status          GoodsReceiptStatus @default(DRAFT)
+  receiptDate     DateTime           @map("receipt_date") @db.Date
+  vendorReference String?            @map("vendor_reference") @db.VarChar(120)
+  currencyCode    String             @map("currency_code") @db.Char(3)
+  notes           String?            @db.VarChar(4000)
+  postedAt        DateTime?          @map("posted_at") @db.Timestamptz(6)
+  createdById     String             @map("created_by_id") @db.Uuid
+  updatedById     String             @map("updated_by_id") @db.Uuid
+  deletedAt       DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization  Organization  @relation(fields: [organizationId], references: [id])
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-  vendor        Vendor        @relation(fields: [vendorId], references: [id])
-  currency      Currency      @relation(fields: [currencyCode], references: [code])
-  createdBy     User          @relation("GoodsReceiptCreatedBy", fields: [createdById], references: [id])
-  updatedBy     User          @relation("GoodsReceiptUpdatedBy", fields: [updatedById], references: [id])
+  organization  Organization       @relation(fields: [organizationId], references: [id])
+  purchaseOrder PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  vendor        Vendor             @relation(fields: [vendorId], references: [id])
+  currency      Currency           @relation(fields: [currencyCode], references: [code])
+  createdBy     User               @relation("GoodsReceiptCreatedBy", fields: [createdById], references: [id])
+  updatedBy     User               @relation("GoodsReceiptUpdatedBy", fields: [updatedById], references: [id])
   lines         GoodsReceiptLine[]
 
   @@unique([organizationId, receiptNumber])
@@ -2133,28 +2146,28 @@ model GoodsReceipt {
 }
 
 model GoodsReceiptLine {
-  id                 String  @id @default(uuid()) @db.Uuid
-  organizationId     String  @map("organization_id") @db.Uuid
-  goodsReceiptId     String  @map("goods_receipt_id") @db.Uuid
-  purchaseOrderLineId String @map("purchase_order_line_id") @db.Uuid
-  productId          String? @map("product_id") @db.Uuid
-  productCode        String? @map("product_code") @db.VarChar(64)
-  productName        String  @map("product_name") @db.VarChar(200)
-  description        String? @db.VarChar(1000)
-  unitOfMeasure      String? @map("unit_of_measure") @db.VarChar(32)
-  orderedQuantity    Decimal @map("ordered_quantity") @db.Decimal(19, 4)
-  receivedQuantity   Decimal @map("received_quantity") @db.Decimal(19, 4)
-  unitCost           Decimal @map("unit_cost") @db.Decimal(19, 4)
-  lineTotal          Decimal @map("line_total") @db.Decimal(19, 4)
-  location           String  @db.VarChar(120)
-  sortOrder          Int     @default(0) @map("sort_order")
-  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                  String   @id @default(uuid()) @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  goodsReceiptId      String   @map("goods_receipt_id") @db.Uuid
+  purchaseOrderLineId String   @map("purchase_order_line_id") @db.Uuid
+  productId           String?  @map("product_id") @db.Uuid
+  productCode         String?  @map("product_code") @db.VarChar(64)
+  productName         String   @map("product_name") @db.VarChar(200)
+  description         String?  @db.VarChar(1000)
+  unitOfMeasure       String?  @map("unit_of_measure") @db.VarChar(32)
+  orderedQuantity     Decimal  @map("ordered_quantity") @db.Decimal(19, 4)
+  receivedQuantity    Decimal  @map("received_quantity") @db.Decimal(19, 4)
+  unitCost            Decimal  @map("unit_cost") @db.Decimal(19, 4)
+  lineTotal           Decimal  @map("line_total") @db.Decimal(19, 4)
+  location            String   @db.VarChar(120)
+  sortOrder           Int      @default(0) @map("sort_order")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization     Organization      @relation(fields: [organizationId], references: [id])
-  goodsReceipt     GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  organization      Organization      @relation(fields: [organizationId], references: [id])
+  goodsReceipt      GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
   purchaseOrderLine PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id])
-  product          Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product           Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, goodsReceiptId, sortOrder])
   @@index([organizationId, purchaseOrderLineId])
@@ -2162,48 +2175,48 @@ model GoodsReceiptLine {
 }
 
 model VendorBill {
-  id                 String          @id @default(uuid()) @db.Uuid
-  organizationId     String          @map("organization_id") @db.Uuid
-  billNumber         String          @map("bill_number") @db.VarChar(32)
-  purchaseOrderId    String?         @map("purchase_order_id") @db.Uuid
-  vendorId           String          @map("vendor_id") @db.Uuid
-  ownerUserId        String          @map("owner_user_id") @db.Uuid
+  id                 String           @id @default(uuid()) @db.Uuid
+  organizationId     String           @map("organization_id") @db.Uuid
+  billNumber         String           @map("bill_number") @db.VarChar(32)
+  purchaseOrderId    String?          @map("purchase_order_id") @db.Uuid
+  vendorId           String           @map("vendor_id") @db.Uuid
+  ownerUserId        String           @map("owner_user_id") @db.Uuid
   status             VendorBillStatus @default(DRAFT)
-  billDate           DateTime        @map("bill_date") @db.Date
-  dueDate            DateTime?       @map("due_date") @db.Date
-  vendorReference    String?         @map("vendor_reference") @db.VarChar(120)
-  currencyCode       String          @map("currency_code") @db.Char(3)
-  exchangeRateToBase Decimal?        @map("exchange_rate_to_base") @db.Decimal(19, 8)
-  baseCurrencyCode   String?         @map("base_currency_code") @db.Char(3)
-  paymentTermId      String?         @map("payment_term_id") @db.Uuid
-  expenseAccount     String?         @map("expense_account") @db.VarChar(120)
-  liabilityAccount   String?         @map("liability_account") @db.VarChar(120)
-  subtotal           Decimal         @default(0) @db.Decimal(19, 4)
-  discountTotal      Decimal         @default(0) @map("discount_total") @db.Decimal(19, 4)
-  taxTotal           Decimal         @default(0) @map("tax_total") @db.Decimal(19, 4)
-  total              Decimal         @default(0) @db.Decimal(19, 4)
-  totalBase          Decimal?        @map("total_base") @db.Decimal(19, 4)
-  amountPaid         Decimal         @default(0) @map("amount_paid") @db.Decimal(19, 4)
-  notes              String?         @db.VarChar(4000)
-  approvedAt         DateTime?       @map("approved_at") @db.Timestamptz(6)
-  billedAt           DateTime?       @map("billed_at") @db.Timestamptz(6)
-  paidAt             DateTime?       @map("paid_at") @db.Timestamptz(6)
-  voidedAt           DateTime?       @map("voided_at") @db.Timestamptz(6)
-  createdById        String          @map("created_by_id") @db.Uuid
-  updatedById        String          @map("updated_by_id") @db.Uuid
-  deletedAt          DateTime?       @map("deleted_at") @db.Timestamptz(6)
-  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  billDate           DateTime         @map("bill_date") @db.Date
+  dueDate            DateTime?        @map("due_date") @db.Date
+  vendorReference    String?          @map("vendor_reference") @db.VarChar(120)
+  currencyCode       String           @map("currency_code") @db.Char(3)
+  exchangeRateToBase Decimal?         @map("exchange_rate_to_base") @db.Decimal(19, 8)
+  baseCurrencyCode   String?          @map("base_currency_code") @db.Char(3)
+  paymentTermId      String?          @map("payment_term_id") @db.Uuid
+  expenseAccount     String?          @map("expense_account") @db.VarChar(120)
+  liabilityAccount   String?          @map("liability_account") @db.VarChar(120)
+  subtotal           Decimal          @default(0) @db.Decimal(19, 4)
+  discountTotal      Decimal          @default(0) @map("discount_total") @db.Decimal(19, 4)
+  taxTotal           Decimal          @default(0) @map("tax_total") @db.Decimal(19, 4)
+  total              Decimal          @default(0) @db.Decimal(19, 4)
+  totalBase          Decimal?         @map("total_base") @db.Decimal(19, 4)
+  amountPaid         Decimal          @default(0) @map("amount_paid") @db.Decimal(19, 4)
+  notes              String?          @db.VarChar(4000)
+  approvedAt         DateTime?        @map("approved_at") @db.Timestamptz(6)
+  billedAt           DateTime?        @map("billed_at") @db.Timestamptz(6)
+  paidAt             DateTime?        @map("paid_at") @db.Timestamptz(6)
+  voidedAt           DateTime?        @map("voided_at") @db.Timestamptz(6)
+  createdById        String           @map("created_by_id") @db.Uuid
+  updatedById        String           @map("updated_by_id") @db.Uuid
+  deletedAt          DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization  Organization @relation(fields: [organizationId], references: [id])
-  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  vendor        Vendor       @relation(fields: [vendorId], references: [id])
-  owner         User         @relation("VendorBillOwner", fields: [ownerUserId], references: [id])
-  currency      Currency     @relation(fields: [currencyCode], references: [code])
-  paymentTerm   PaymentTerm? @relation(fields: [paymentTermId], references: [id])
-  createdBy     User         @relation("VendorBillCreatedBy", fields: [createdById], references: [id])
-  updatedBy     User         @relation("VendorBillUpdatedBy", fields: [updatedById], references: [id])
-  lines         VendorBillLine[]
+  organization       Organization              @relation(fields: [organizationId], references: [id])
+  purchaseOrder      PurchaseOrder?            @relation(fields: [purchaseOrderId], references: [id])
+  vendor             Vendor                    @relation(fields: [vendorId], references: [id])
+  owner              User                      @relation("VendorBillOwner", fields: [ownerUserId], references: [id])
+  currency           Currency                  @relation(fields: [currencyCode], references: [code])
+  paymentTerm        PaymentTerm?              @relation(fields: [paymentTermId], references: [id])
+  createdBy          User                      @relation("VendorBillCreatedBy", fields: [createdById], references: [id])
+  updatedBy          User                      @relation("VendorBillUpdatedBy", fields: [updatedById], references: [id])
+  lines              VendorBillLine[]
   paymentAllocations VendorPaymentAllocation[]
 
   @@unique([organizationId, billNumber])
@@ -2216,25 +2229,25 @@ model VendorBill {
 }
 
 model VendorBillLine {
-  id              String  @id @default(uuid()) @db.Uuid
-  organizationId  String  @map("organization_id") @db.Uuid
-  billId          String  @map("bill_id") @db.Uuid
-  productId       String? @map("product_id") @db.Uuid
-  productCode     String? @map("product_code") @db.VarChar(64)
-  productName     String  @map("product_name") @db.VarChar(200)
-  description     String? @db.VarChar(1000)
-  unitOfMeasure   String? @map("unit_of_measure") @db.VarChar(32)
-  quantity        Decimal @default(1) @db.Decimal(19, 4)
-  unitPrice       Decimal @map("unit_price") @db.Decimal(19, 4)
-  discountPercent Decimal @default(0) @map("discount_percent") @db.Decimal(7, 4)
-  taxCodeId       String? @map("tax_code_id") @db.Uuid
-  taxCode         String? @map("tax_code") @db.VarChar(32)
-  taxRate         Decimal @default(0) @map("tax_rate") @db.Decimal(7, 4)
-  lineSubtotal    Decimal @map("line_subtotal") @db.Decimal(19, 4)
-  lineDiscount    Decimal @map("line_discount") @db.Decimal(19, 4)
-  lineTax         Decimal @map("line_tax") @db.Decimal(19, 4)
-  lineTotal       Decimal @map("line_total") @db.Decimal(19, 4)
-  sortOrder       Int     @default(0) @map("sort_order")
+  id              String   @id @default(uuid()) @db.Uuid
+  organizationId  String   @map("organization_id") @db.Uuid
+  billId          String   @map("bill_id") @db.Uuid
+  productId       String?  @map("product_id") @db.Uuid
+  productCode     String?  @map("product_code") @db.VarChar(64)
+  productName     String   @map("product_name") @db.VarChar(200)
+  description     String?  @db.VarChar(1000)
+  unitOfMeasure   String?  @map("unit_of_measure") @db.VarChar(32)
+  quantity        Decimal  @default(1) @db.Decimal(19, 4)
+  unitPrice       Decimal  @map("unit_price") @db.Decimal(19, 4)
+  discountPercent Decimal  @default(0) @map("discount_percent") @db.Decimal(7, 4)
+  taxCodeId       String?  @map("tax_code_id") @db.Uuid
+  taxCode         String?  @map("tax_code") @db.VarChar(32)
+  taxRate         Decimal  @default(0) @map("tax_rate") @db.Decimal(7, 4)
+  lineSubtotal    Decimal  @map("line_subtotal") @db.Decimal(19, 4)
+  lineDiscount    Decimal  @map("line_discount") @db.Decimal(19, 4)
+  lineTax         Decimal  @map("line_tax") @db.Decimal(19, 4)
+  lineTotal       Decimal  @map("line_total") @db.Decimal(19, 4)
+  sortOrder       Int      @default(0) @map("sort_order")
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -2266,11 +2279,11 @@ model VendorPayment {
   createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  vendor       Vendor       @relation(fields: [vendorId], references: [id])
-  currency     Currency     @relation(fields: [currencyCode], references: [code])
-  createdBy    User         @relation("VendorPaymentCreatedBy", fields: [createdById], references: [id])
-  updatedBy    User         @relation("VendorPaymentUpdatedBy", fields: [updatedById], references: [id])
+  organization Organization              @relation(fields: [organizationId], references: [id])
+  vendor       Vendor                    @relation(fields: [vendorId], references: [id])
+  currency     Currency                  @relation(fields: [currencyCode], references: [code])
+  createdBy    User                      @relation("VendorPaymentCreatedBy", fields: [createdById], references: [id])
+  updatedBy    User                      @relation("VendorPaymentUpdatedBy", fields: [updatedById], references: [id])
   allocations  VendorPaymentAllocation[]
 
   @@unique([organizationId, paymentNumber])
@@ -2288,9 +2301,9 @@ model VendorPaymentAllocation {
   amount         Decimal  @db.Decimal(19, 4)
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
   payment      VendorPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-  bill         VendorBill   @relation(fields: [billId], references: [id])
+  bill         VendorBill    @relation(fields: [billId], references: [id])
 
   @@index([organizationId, paymentId])
   @@index([organizationId, billId])
@@ -2298,18 +2311,18 @@ model VendorPaymentAllocation {
 }
 
 model InventoryMovement {
-  id             String               @id @default(uuid()) @db.Uuid
-  organizationId String               @map("organization_id") @db.Uuid
-  productId      String               @map("product_id") @db.Uuid
+  id             String                @id @default(uuid()) @db.Uuid
+  organizationId String                @map("organization_id") @db.Uuid
+  productId      String                @map("product_id") @db.Uuid
   movementType   InventoryMovementType @map("movement_type")
-  quantity       Decimal              @db.Decimal(19, 4)
-  unitCost       Decimal              @map("unit_cost") @db.Decimal(19, 4)
-  location       String               @db.VarChar(120)
-  referenceType  String               @map("reference_type") @db.VarChar(64)
-  referenceId    String               @map("reference_id") @db.Uuid
-  balanceAfter   Decimal              @map("balance_after") @db.Decimal(19, 4)
-  createdById    String               @map("created_by_id") @db.Uuid
-  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  quantity       Decimal               @db.Decimal(19, 4)
+  unitCost       Decimal               @map("unit_cost") @db.Decimal(19, 4)
+  location       String                @db.VarChar(120)
+  referenceType  String                @map("reference_type") @db.VarChar(64)
+  referenceId    String                @map("reference_id") @db.Uuid
+  balanceAfter   Decimal               @map("balance_after") @db.Decimal(19, 4)
+  createdById    String                @map("created_by_id") @db.Uuid
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id])
   product      Product      @relation(fields: [productId], references: [id])
@@ -2323,13 +2336,13 @@ model InventoryMovement {
 }
 
 model InventoryBalance {
-  id          String   @id @default(uuid()) @db.Uuid
-  organizationId String @map("organization_id") @db.Uuid
-  productId   String   @map("product_id") @db.Uuid
-  location    String   @db.VarChar(120)
-  quantity    Decimal  @default(0) @db.Decimal(19, 4)
-  averageCost Decimal  @default(0) @map("average_cost") @db.Decimal(19, 4)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  location       String   @db.VarChar(120)
+  quantity       Decimal  @default(0) @db.Decimal(19, 4)
+  averageCost    Decimal  @default(0) @map("average_cost") @db.Decimal(19, 4)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   organization Organization @relation(fields: [organizationId], references: [id])
   product      Product      @relation(fields: [productId], references: [id])

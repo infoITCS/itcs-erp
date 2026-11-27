@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { PrintPreviewModal } from "@/components/documents/PrintPreviewModal.tsx";
 import { ConfirmDialog } from "@/components/modals/ConfirmDialog.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
+import { purchasingKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import {
   PURCHASING_PERMISSIONS,
@@ -12,25 +14,40 @@ import {
   postGoodsReceipt,
   restoreGoodsReceipt,
 } from "../api.ts";
-import { Detail, Metric, Panel, StatusPill, docNumber, formatDate, formatQuantity, numberValue, statusLabel } from "../shared.tsx";
+import {
+  Detail,
+  ErrorState,
+  LoadingState,
+  MetricCard,
+  MetricGrid,
+  Panel,
+  StatusPill,
+  buildPrintableProps,
+  docNumber,
+  formatDate,
+  formatQuantity,
+  numberValue,
+  statusLabel,
+} from "../shared.tsx";
 
 export default function GoodsReceiptDetailPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const canUpdate = useHasPermission(PURCHASING_PERMISSIONS.update);
+  const canPost = useHasPermission(["purchasing:approve", "inventory:manage"]);
   const canDelete = useHasPermission(PURCHASING_PERMISSIONS.delete);
   const canRestore = useHasPermission(PURCHASING_PERMISSIONS.restore);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const receipt = useQuery({ queryKey: ["purchasing", "receipts", id], queryFn: () => getGoodsReceipt(id), enabled: Boolean(id) });
+  const receipt = useQuery({ queryKey: purchasingKeys.receipts.detail(id), queryFn: () => getGoodsReceipt(id), enabled: Boolean(id) });
 
   const refresh = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "receipts"] }),
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "orders"] }),
-      queryClient.invalidateQueries({ queryKey: ["purchasing", "hub"] }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.receipts.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.orders.all() }), queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
     ]);
   };
 
@@ -62,22 +79,51 @@ export default function GoodsReceiptDetailPage() {
   });
 
   if (receipt.isPending) {
-    return <p className="text-sm text-slate-500">Loading goods receipt…</p>;
+    return <LoadingState label="Loading goods receipt…" />;
   }
   if (receipt.isError || !receipt.data) {
-    return <p className="text-sm text-red-700">{receipt.isError ? getApiErrorMessage(receipt.error) : "Goods receipt not found"}</p>;
+    return (
+      <div className="mx-auto max-w-3xl p-6">
+        <ErrorState
+          message={receipt.isError ? getApiErrorMessage(receipt.error) : "Goods receipt not found"}
+          onRetry={() => receipt.refetch()}
+          backTo="/purchasing/receipts"
+          backLabel="Back to receipts"
+        />
+      </div>
+    );
   }
 
   const row = receipt.data;
   const lines = row.lines ?? [];
   const totalQuantity = lines.reduce((sum, line) => sum + numberValue(line.receivedQuantity ?? line.quantity), 0);
+  const printProps = buildPrintableProps({
+    type: "GOODS RECEIPT",
+    documentNumber: docNumber(row),
+    date: formatDate(row.receiptDate),
+    paymentTerms: "",
+    partyName: row.vendor?.displayName ?? row.vendor?.name ?? "Vendor",
+    partyAddress: row.vendor?.email ?? undefined,
+    taxId: row.vendor?.legalName ?? undefined,
+    lines: lines.map((line) => ({
+      id: line.id,
+      name: line.productName ?? line.description ?? "Item",
+      description: line.location ? `Location: ${line.location}` : undefined,
+      quantity: line.receivedQuantity ?? line.quantity,
+      unitPrice: "0",
+      lineTotal: "0",
+    })),
+    total: "0",
+    notes: row.notes ?? undefined,
+    currencyCode: row.currencyCode,
+  });
 
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <div className="border-b border-slate-200 pb-5">
         <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
           <span className="h-2 w-2 rounded-full bg-brand-600" />
-          <Link className="hover:underline" to="/purchasing/receipts">Supply / Receipts</Link>
+          <Link className="hover:underline" to="/purchasing/receipts">Purchasing / Receipts</Link>
           <span className="text-slate-400">/</span>
           <span className="font-mono text-slate-500">{docNumber(row)}</span>
         </p>
@@ -100,11 +146,12 @@ export default function GoodsReceiptDetailPage() {
               ) : null
             ) : (
               <>
-                {canUpdate && row.status === "DRAFT" ? (
+                {canPost && row.status === "DRAFT" ? (
                   <Button className="bg-brand-800 hover:bg-brand-900" disabled={post.isPending} onClick={() => post.mutate()}>
                     {post.isPending ? "Posting…" : "Post receipt"}
                   </Button>
                 ) : null}
+                <Button variant="secondary" onClick={() => setPrintOpen(true)}>Print preview</Button>
                 {canDelete && row.status === "DRAFT" ? (
                   <Button variant="ghost" className="text-red-700 hover:bg-red-50" onClick={() => setDeleteOpen(true)}>Delete</Button>
                 ) : null}
@@ -124,12 +171,12 @@ export default function GoodsReceiptDetailPage() {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metric label="Lines" value={String(lines.length)} />
-        <Metric label="Units received" value={formatQuantity(totalQuantity)} />
-        <Metric label="Receipt date" value={formatDate(row.receiptDate)} />
-        <Metric label="Status" value={statusLabel(row.status)} />
-      </div>
+      <MetricGrid>
+        <MetricCard label="Lines" value={String(lines.length)} hint="Items received" />
+        <MetricCard label="Units received" value={formatQuantity(totalQuantity)} hint="Total quantity" />
+        <MetricCard label="Receipt date" value={formatDate(row.receiptDate)} hint="Document date" />
+        <MetricCard label="Status" value={statusLabel(row.status)} hint="Workflow state" />
+      </MetricGrid>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(260px,1fr)]">
         <Panel title="Received lines">
@@ -169,7 +216,7 @@ export default function GoodsReceiptDetailPage() {
             <Detail label="Status" value={statusLabel(row.status)} />
             <Detail label="Currency" value={row.currencyCode} />
             <Detail label="Vendor reference" value={row.vendorReference} />
-            <Detail label="Posted" value={formatDate((row as typeof row & { postedAt?: string | null }).postedAt)} />
+            <Detail label="Posted" value={formatDate(row.postedAt)} />
             <Detail label="Created" value={formatDate(row.createdAt)} />
           </dl>
           {row.purchaseOrderId ? (
@@ -190,6 +237,8 @@ export default function GoodsReceiptDetailPage() {
         onCancel={() => setDeleteOpen(false)}
         onConfirm={() => remove.mutate()}
       />
+
+      <PrintPreviewModal isOpen={printOpen} onClose={() => setPrintOpen(false)} docProps={printProps} />
     </section>
   );
 }

@@ -10,9 +10,15 @@ export const VENDOR_PERMISSIONS = {
   restore: "vendors:restore",
 } as const;
 
-export type VendorStatus = "ACTIVE" | "INACTIVE" | "HOLD" | "BLOCKED";
+export type VendorStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
 
-export const VENDOR_STATUSES: VendorStatus[] = ["ACTIVE", "INACTIVE", "HOLD", "BLOCKED"];
+export const VENDOR_STATUSES: VendorStatus[] = ["ACTIVE", "INACTIVE", "SUSPENDED"];
+
+export const VENDOR_STATUS_LABELS: Record<VendorStatus, string> = {
+  ACTIVE: "Active",
+  INACTIVE: "Inactive",
+  SUSPENDED: "Suspended",
+};
 
 export interface VendorOption {
   id: string;
@@ -22,7 +28,7 @@ export interface VendorOption {
   legalName?: string | null;
   currencyCode: string;
   paymentTermId?: string | null;
-  status?: string;
+  status: VendorStatus;
   email?: string | null;
 }
 
@@ -30,7 +36,7 @@ export interface VendorFormOptions {
   currencies: CurrencyRef[];
   paymentTerms: PaymentTermRef[];
   taxCodes: TaxCodeOption[];
-  statuses: Array<{ value: string; label: string }>;
+  statuses: Array<{ value: VendorStatus; label: string }>;
 }
 
 export interface Vendor {

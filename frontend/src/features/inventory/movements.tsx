@@ -6,7 +6,20 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue.ts";
 import { useHasPermission } from "@/hooks/useSession.ts";
 import { queryKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
-import { ListFilters, MetricCard, PageHeader, formatQuantity, numberValue, statusLabel } from "../purchasing/shared.tsx";
+import {
+  ListFilters,
+  MetricGrid,
+  MetricCard,
+  PageHeader,
+  RowLink,
+  UnauthorizedState,
+  formatQuantity,
+  numberValue,
+  optionLabel,
+  optionValue,
+  statusLabel,
+  useFilterParams,
+} from "../purchasing/shared.tsx";
 import {
   INVENTORY_PERMISSIONS,
   getInventoryFormOptions,
@@ -14,17 +27,21 @@ import {
   type InventoryMovement,
 } from "./api.ts";
 
+const FILTER_KEYS = ["q", "type", "productId", "location"] as const;
 const PAGE_SIZE = 50;
 
 export default function InventoryMovementsPage() {
+  const { filters, setFilter, clearFilters } = useFilterParams(FILTER_KEYS);
   const canRead = useHasPermission(INVENTORY_PERMISSIONS.read);
-  const [q, setQ] = useState("");
-  const [movementType, setMovementType] = useState("");
-  const [productId, setProductId] = useState("");
-  const [location, setLocation] = useState("");
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [cursors, setCursors] = useState<Array<string | undefined>>([undefined]);
+  const q = filters.q ?? "";
+  const movementType = filters.type ?? "";
+  const productId = filters.productId ?? "";
+  const location = filters.location ?? "";
   const debouncedQ = useDebouncedValue(q, 300);
   const cursor = cursors.at(-1);
+  const filtersActive = Boolean(q || movementType || productId || location);
 
   const params = {
     q: debouncedQ || undefined,
@@ -32,11 +49,23 @@ export default function InventoryMovementsPage() {
     productId: productId || undefined,
     location: location || undefined,
     cursor,
-    limit: PAGE_SIZE,
+    limit: pageSize,
   };
 
-  const movements = useQuery({ queryKey: queryKeys.list("inventory/movements", params), queryFn: () => listInventoryMovements(params), enabled: canRead });
-  const formOptions = useQuery({ queryKey: ["inventory", "form-options"], queryFn: getInventoryFormOptions, enabled: canRead });
+  const movements = useQuery({
+    queryKey: queryKeys.list("inventory/movements", params),
+    queryFn: () => listInventoryMovements(params),
+    enabled: canRead,
+  });
+  const formOptions = useQuery({
+    queryKey: ["inventory", "form-options"],
+    queryFn: getInventoryFormOptions,
+    enabled: canRead,
+  });
+
+  if (!canRead) {
+    return <UnauthorizedState backTo="/purchasing" backLabel="Back to purchasing" />;
+  }
 
   const rows = movements.data?.items ?? [];
   const inward = rows.reduce((sum, row) => sum + Math.max(numberValue(row.quantity), 0), 0);
@@ -58,7 +87,13 @@ export default function InventoryMovementsPage() {
       cell: (row) => (
         <div className="min-w-[180px]">
           <p className="font-mono text-xs text-slate-500">{row.productCode ?? row.product?.code ?? "—"}</p>
-          <p className="mt-0.5 font-semibold text-slate-950">{row.productName ?? row.product?.name ?? "Product"}</p>
+          {row.productId ? (
+            <RowLink to={`/products/${row.productId}`} muted>
+              <span className="font-semibold text-slate-950">{row.productName ?? row.product?.name ?? "Product"}</span>
+            </RowLink>
+          ) : (
+            <p className="mt-0.5 font-semibold text-slate-950">{row.productName ?? row.product?.name ?? "Product"}</p>
+          )}
         </div>
       ),
     },
@@ -110,7 +145,7 @@ export default function InventoryMovementsPage() {
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <PageHeader
-        section="Supply / Inventory"
+        section="Supply chain / Inventory"
         title="Movement ledger"
         description="An append-only record of stock receipts, issues, transfers and manual adjustments."
         actions={
@@ -120,25 +155,25 @@ export default function InventoryMovementsPage() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <MetricGrid>
         <MetricCard label="Movements on page" value={String(rows.length)} hint="Most recent ledger entries" />
         <MetricCard label="Inward units" value={formatQuantity(inward)} hint="Positive quantity movements" />
         <MetricCard label="Outward units" value={formatQuantity(outward)} hint="Negative quantity movements" />
         <MetricCard label="Products affected" value={String(new Set(rows.map((row) => row.productId)).size)} hint="Distinct products in view" />
-      </div>
+      </MetricGrid>
 
       <ListFilters
         q={q}
         onSearch={(value) => {
-          setQ(value);
+          setFilter("q", value);
           resetPage();
         }}
         status={movementType}
         onStatus={(value) => {
-          setMovementType(value);
+          setFilter("type", value);
           resetPage();
         }}
-        statuses={formOptions.data?.movementTypes ?? []}
+        statuses={(formOptions.data?.movementTypes ?? []).map((option) => ({ value: optionValue(option), label: optionLabel(option) }))}
         statusFilterLabel="Movement type"
         extra={
           <div className="grid gap-3 sm:grid-cols-2">
@@ -147,7 +182,7 @@ export default function InventoryMovementsPage() {
               className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
               value={productId}
               onChange={(event) => {
-                setProductId(event.target.value);
+                setFilter("productId", event.target.value);
                 resetPage();
               }}
             >
@@ -163,13 +198,13 @@ export default function InventoryMovementsPage() {
               className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
               value={location}
               onChange={(event) => {
-                setLocation(event.target.value);
+                setFilter("location", event.target.value);
                 resetPage();
               }}
             >
               <option value="">All locations</option>
-              {(formOptions.data?.locations ?? []).map((value) => (
-                <option key={value} value={value}>{value}</option>
+              {(formOptions.data?.locations ?? []).map((option) => (
+                <option key={optionValue(option)} value={optionValue(option)}>{optionLabel(option)}</option>
               ))}
             </select>
           </div>
@@ -182,7 +217,7 @@ export default function InventoryMovementsPage() {
         getRowId={(row) => row.id}
         isLoading={movements.isPending}
         error={movements.isError ? getApiErrorMessage(movements.error) : null}
-        emptyMessage={q || movementType || productId || location ? "No movements match these filters." : "No stock movements recorded yet."}
+        emptyMessage={filtersActive ? "No movements match these filters." : "No stock movements recorded yet."}
         hasNextPage={movements.data?.pageInfo.hasNextPage ?? false}
         hasPreviousPage={cursors.length > 1}
         onNext={() => {
@@ -192,6 +227,14 @@ export default function InventoryMovementsPage() {
           }
         }}
         onPrevious={() => setCursors((current) => (current.length > 1 ? current.slice(0, -1) : current))}
+        pageSize={pageSize}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          resetPage();
+        }}
+        onRetry={() => movements.refetch()}
+        onClearFilters={filtersActive ? () => { clearFilters(); resetPage(); } : undefined}
+        backTo="/inventory"
       />
     </section>
   );

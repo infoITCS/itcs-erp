@@ -248,7 +248,10 @@ export class VendorsRepository extends BaseRepository {
     const hex = organizationId.replaceAll("-", "");
     const high = Number.parseInt(hex.slice(0, 8), 16) | 0;
     const low = Number.parseInt(hex.slice(8, 16), 16) | 0;
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(${high}::int, ${low}::int)`;
+    await tx.$queryRaw<Array<{ ok: number }>>`
+      SELECT 1 AS ok
+      FROM (SELECT pg_advisory_xact_lock(${high}::int, ${low}::int)) AS lock
+    `;
     const row = await tx.vendor.findFirst({
       where: { organizationId, vendorNumber: { startsWith: prefix } },
       orderBy: { vendorNumber: "desc" },

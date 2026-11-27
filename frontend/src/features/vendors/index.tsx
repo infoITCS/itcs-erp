@@ -1,38 +1,50 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { DataTable, type DataTableColumn } from "@/components/tables/DataTable.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue.ts";
 import { useHasPermission } from "@/hooks/useSession.ts";
-import { queryKeys } from "@/lib/query-keys.ts";
+import { purchasingKeys, vendorKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
-import { Detail, Panel, StatusPill, formatDate, statusLabel } from "../sales/shared.tsx";
+import {
+  ErrorState,
+  MetricCard,
+  MetricGrid,
+  PageHeader,
+  RowLink,
+  StatusPill,
+  formatDate,
+  statusLabel,
+  useFilterParams,
+} from "../purchasing/shared.tsx";
 import {
   VENDOR_PERMISSIONS,
-  VENDOR_STATUSES,
   getVendorFormOptions,
   listVendors,
   restoreVendor,
   type Vendor,
 } from "./api.ts";
 
-const PAGE_SIZE = 50;
+const FILTER_KEYS = ["q", "status", "currencyCode", "paymentTermId", "sort", "order", "includeDeleted"] as const;
+const FALLBACK_STATUSES = ["ACTIVE", "INACTIVE", "SUSPENDED"];
 
 export default function VendorsPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { filters, setFilter, clearFilters } = useFilterParams(FILTER_KEYS);
   const canCreate = useHasPermission(VENDOR_PERMISSIONS.create);
+  const canUpdate = useHasPermission(VENDOR_PERMISSIONS.update);
   const canRestore = useHasPermission(VENDOR_PERMISSIONS.restore);
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState("");
-  const [currencyCode, setCurrencyCode] = useState("");
-  const [paymentTermId, setPaymentTermId] = useState("");
-  const [sort, setSort] = useState("createdAt");
-  const [order, setOrder] = useState("desc");
-  const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [pageSize, setPageSize] = useState(50);
   const [cursors, setCursors] = useState<Array<string | undefined>>([undefined]);
+  const q = filters.q ?? "";
+  const status = filters.status ?? "";
+  const currencyCode = filters.currencyCode ?? "";
+  const paymentTermId = filters.paymentTermId ?? "";
+  const sort = filters.sort ?? "createdAt";
+  const order = filters.order === "asc" ? "asc" : "desc";
+  const includeDeleted = canRestore && filters.includeDeleted === "true";
   const debouncedQ = useDebouncedValue(q, 300);
   const cursor = cursors.at(-1);
 
@@ -41,71 +53,62 @@ export default function VendorsPage() {
     status: status || undefined,
     currencyCode: currencyCode || undefined,
     paymentTermId: paymentTermId || undefined,
-    includeDeleted: canRestore && includeDeleted ? "true" : undefined,
+    includeDeleted: includeDeleted || undefined,
     sort,
     order,
     cursor,
-    limit: PAGE_SIZE,
+    limit: pageSize,
   };
 
-  const vendors = useQuery({ queryKey: queryKeys.list("vendors", params), queryFn: () => listVendors(params) });
-  const formOptions = useQuery({ queryKey: ["vendors", "form-options"], queryFn: getVendorFormOptions });
+  const vendors = useQuery({ queryKey: vendorKeys.list(params), queryFn: () => listVendors(params) });
+  const formOptions = useQuery({ queryKey: vendorKeys.formOptions(), queryFn: getVendorFormOptions });
 
   const restore = useMutation({
     mutationFn: restoreVendor,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["vendors"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: vendorKeys.all() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.formOptions() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.orders.formOptions() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.formOptions() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.payments.formOptions() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      ]);
     },
   });
 
   const rows = vendors.data?.items ?? [];
   const activeRows = rows.filter((row) => !row.deletedAt);
-  const kpis = [
-    { label: "Vendors on this page", value: String(activeRows.length), note: "Visible records" },
-    {
-      label: "Active",
-      value: String(activeRows.filter((row) => row.status === "ACTIVE").length),
-      note: "Approved for purchasing",
-    },
-    {
-      label: "On hold or blocked",
-      value: String(activeRows.filter((row) => row.status === "HOLD" || row.status === "BLOCKED").length),
-      note: "Needs review before use",
-    },
-    {
-      label: "Currencies",
-      value: String(new Set(activeRows.map((row) => row.currencyCode)).size),
-      note: "Distinct settlement currencies",
-    },
-  ];
   const filtersActive = Boolean(q || status || currencyCode || paymentTermId || includeDeleted);
 
   function resetPage() {
     setCursors([undefined]);
   }
 
-  function clearFilters() {
-    setQ("");
-    setStatus("");
-    setCurrencyCode("");
-    setPaymentTermId("");
-    setIncludeDeleted(false);
+  function changeSort(key: string) {
+    if (sort === key) {
+      setFilter("order", order === "asc" ? "desc" : "asc");
+    } else {
+      setFilter("sort", key);
+      setFilter("order", "asc");
+    }
     resetPage();
   }
 
   const columns: DataTableColumn<Vendor>[] = [
     {
-      id: "vendor",
+      id: "name",
       header: "Vendor",
+      sortable: true,
       cell: (row) => (
         <div className="min-w-[200px]">
           <p className="font-mono text-xs text-slate-500">{row.code ?? "—"}</p>
           {row.deletedAt ? (
             <p className="mt-0.5 font-semibold text-slate-500">{row.displayName ?? row.name}</p>
           ) : (
-            <Link className="mt-0.5 block font-semibold text-slate-950 hover:text-brand-800" to={`/vendors/${row.id}`}>
-              {row.displayName ?? row.name}
-            </Link>
+            <RowLink to={`/vendors/${row.id}`} muted>
+              <span className="font-semibold text-slate-950">{row.displayName ?? row.name}</span>
+            </RowLink>
           )}
           <p className="mt-0.5 truncate text-xs text-slate-500">{row.legalName ?? row.email ?? "—"}</p>
         </div>
@@ -114,6 +117,7 @@ export default function VendorsPage() {
     {
       id: "status",
       header: "Status",
+      sortable: true,
       cell: (row) => <StatusPill status={row.status} deleted={Boolean(row.deletedAt)} />,
     },
     {
@@ -127,7 +131,7 @@ export default function VendorsPage() {
       ),
     },
     {
-      id: "type",
+      id: "vendorType",
       header: "Type",
       cell: (row) => (
         <div className="whitespace-nowrap text-xs text-slate-600">
@@ -147,13 +151,15 @@ export default function VendorsPage() {
       ),
     },
     {
-      id: "created",
+      id: "createdAt",
       header: "Created",
+      sortable: true,
       cell: (row) => <span className="whitespace-nowrap text-xs text-slate-600">{formatDate(row.createdAt)}</span>,
     },
     {
       id: "actions",
       header: "Actions",
+      align: "right",
       cell: (row) => (
         <div className="flex justify-end gap-1 whitespace-nowrap text-xs font-medium">
           {row.deletedAt ? (
@@ -169,12 +175,8 @@ export default function VendorsPage() {
             ) : null
           ) : (
             <>
-              <button type="button" className="rounded px-2 py-1.5 text-slate-700 hover:bg-slate-100" onClick={() => navigate(`/vendors/${row.id}`)}>
-                View
-              </button>
-              <button type="button" className="rounded px-2 py-1.5 text-slate-700 hover:bg-slate-100" onClick={() => navigate(`/vendors/${row.id}/edit`)}>
-                Edit
-              </button>
+              <RowLink to={`/vendors/${row.id}`}>View</RowLink>
+              {canUpdate ? <RowLink to={`/vendors/${row.id}/edit`}>Edit</RowLink> : null}
             </>
           )}
         </div>
@@ -184,30 +186,29 @@ export default function VendorsPage() {
 
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
-      <header className="flex flex-col items-start justify-between gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end">
-        <div className="min-w-0">
-          <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-800">
-            <span className="h-2 w-2 rounded-full bg-brand-600" />
-            Supply / Vendor master
-          </p>
-          <h1 className="text-3xl font-semibold text-slate-950">Vendors</h1>
-          <p className="mt-1 text-sm text-slate-600">Maintain supplier identities, commercial terms, contacts and banking details.</p>
-        </div>
-        {canCreate ? (
-          <Link to="/vendors/new">
-            <Button className="h-10 bg-brand-800 px-4 hover:bg-brand-900">New vendor</Button>
-          </Link>
-        ) : null}
-      </header>
+      <PageHeader
+        section="Vendors"
+        title="Vendors"
+        description="Maintain supplier identities, commercial terms, contacts and banking details."
+        actions={
+          canCreate ? (
+            <Link to="/vendors/new">
+              <Button className="h-10 bg-brand-800 px-4 hover:bg-brand-900">New vendor</Button>
+            </Link>
+          ) : null
+        }
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((kpi) => (
-          <Panel key={kpi.label} title={kpi.label}>
-            <p className="text-2xl font-semibold tabular-nums text-slate-950">{kpi.value}</p>
-            <p className="mt-1 text-xs text-slate-500">{kpi.note}</p>
-          </Panel>
-        ))}
-      </div>
+      <MetricGrid>
+        <MetricCard label="Vendors on this page" value={String(activeRows.length)} hint="Visible records" />
+        <MetricCard label="Active" value={String(activeRows.filter((row) => row.status === "ACTIVE").length)} hint="Approved for purchasing" />
+        <MetricCard
+          label="On hold or blocked"
+          value={String(activeRows.filter((row) => row.status !== "ACTIVE").length)}
+          hint="Needs review before use"
+        />
+        <MetricCard label="Currencies" value={String(new Set(activeRows.map((row) => row.currencyCode)).size)} hint="Distinct settlement currencies" />
+      </MetricGrid>
 
       <section className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_180px_180px_220px]">
@@ -218,7 +219,7 @@ export default function VendorsPage() {
             value={q}
             placeholder="Search code, name, legal name or email"
             onChange={(event) => {
-              setQ(event.target.value);
+              setFilter("q", event.target.value);
               resetPage();
             }}
           />
@@ -227,15 +228,13 @@ export default function VendorsPage() {
             className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
             value={status}
             onChange={(event) => {
-              setStatus(event.target.value);
+              setFilter("status", event.target.value);
               resetPage();
             }}
           >
             <option value="">All statuses</option>
-            {(formOptions.data?.statuses ?? VENDOR_STATUSES.map((value) => ({ value, label: statusLabel(value) }))).map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
+            {(formOptions.data?.statuses ?? FALLBACK_STATUSES.map((value) => ({ value, label: statusLabel(value) }))).map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
           <select
@@ -243,15 +242,13 @@ export default function VendorsPage() {
             className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
             value={currencyCode}
             onChange={(event) => {
-              setCurrencyCode(event.target.value);
+              setFilter("currencyCode", event.target.value);
               resetPage();
             }}
           >
             <option value="">All currencies</option>
             {(formOptions.data?.currencies ?? []).map((currency) => (
-              <option key={currency.code} value={currency.code}>
-                {currency.code}
-              </option>
+              <option key={currency.code} value={currency.code}>{currency.code}</option>
             ))}
           </select>
           <select
@@ -259,29 +256,25 @@ export default function VendorsPage() {
             className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
             value={paymentTermId}
             onChange={(event) => {
-              setPaymentTermId(event.target.value);
+              setFilter("paymentTermId", event.target.value);
               resetPage();
             }}
           >
             <option value="">All payment terms</option>
             {(formOptions.data?.paymentTerms ?? []).map((term) => (
-              <option key={term.id} value={term.id}>
-                {term.name} ({term.dueDays} days)
-              </option>
+              <option key={term.id} value={term.id}>{term.name} ({term.dueDays} days)</option>
             ))}
           </select>
         </div>
         <div className="grid gap-3 border-t border-slate-100 pt-3 sm:grid-cols-2">
           <div className="flex items-center gap-2">
-            <label className="text-xs font-medium text-slate-500" htmlFor="vendor-sort">
-              Sort by
-            </label>
+            <label className="text-xs font-medium text-slate-500" htmlFor="vendor-sort">Sort by</label>
             <select
               id="vendor-sort"
               className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm"
               value={sort}
               onChange={(event) => {
-                setSort(event.target.value);
+                setFilter("sort", event.target.value);
                 resetPage();
               }}
             >
@@ -295,7 +288,7 @@ export default function VendorsPage() {
               className="h-9 rounded-md border border-slate-300 bg-white px-2 text-sm"
               value={order}
               onChange={(event) => {
-                setOrder(event.target.value);
+                setFilter("order", event.target.value);
                 resetPage();
               }}
             >
@@ -311,7 +304,7 @@ export default function VendorsPage() {
                   type="checkbox"
                   checked={includeDeleted}
                   onChange={(event) => {
-                    setIncludeDeleted(event.target.checked);
+                    setFilter("includeDeleted", event.target.checked ? "true" : "");
                     resetPage();
                   }}
                 />
@@ -321,7 +314,7 @@ export default function VendorsPage() {
               <span />
             )}
             {filtersActive ? (
-              <button type="button" className="text-xs font-medium text-brand-800 hover:underline" onClick={clearFilters}>
+              <button type="button" className="text-xs font-medium text-brand-800 hover:underline" onClick={() => { clearFilters(); resetPage(); }}>
                 Clear filters
               </button>
             ) : null}
@@ -330,9 +323,7 @@ export default function VendorsPage() {
       </section>
 
       {restore.isError ? (
-        <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {getApiErrorMessage(restore.error)}
-        </p>
+        <ErrorState message={getApiErrorMessage(restore.error)} onRetry={() => { if (restore.variables) restore.mutate(restore.variables); }} backTo="/vendors" backLabel="Back to vendors" />
       ) : null}
 
       <DataTable
@@ -351,13 +342,21 @@ export default function VendorsPage() {
           }
         }}
         onPrevious={() => setCursors((current) => (current.length > 1 ? current.slice(0, -1) : current))}
+        pageSize={pageSize}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          resetPage();
+        }}
+        sort={{ key: sort, direction: order }}
+        onSort={changeSort}
+        onRetry={() => vendors.refetch()}
+        onClearFilters={filtersActive ? () => { clearFilters(); resetPage(); } : undefined}
+        backTo="/purchasing"
       />
 
       <p className="text-xs text-slate-500">
         Page {cursors.length} · {rows.length} vendor{rows.length === 1 ? "" : "s"} shown
       </p>
-
-      <Detail label="Tip" value="Vendors on hold or blocked cannot be used for new purchase orders until their status is updated." />
     </section>
   );
 }

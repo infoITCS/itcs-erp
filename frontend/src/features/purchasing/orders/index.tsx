@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { DataTable, type DataTableColumn } from "@/components/tables/DataTable.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue.ts";
 import { useHasPermission } from "@/hooks/useSession.ts";
-import { queryKeys } from "@/lib/query-keys.ts";
+import { purchasingKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import {
   PURCHASE_ORDER_STATUSES,
@@ -16,69 +16,67 @@ import {
   restorePurchaseOrder,
   type PurchaseOrder,
 } from "../api.ts";
-import { PageHeader, StatusPill, docNumber, formatDate, formatMoney, statusLabel } from "../shared.tsx";
+import {
+  ErrorState,
+  MetricCard,
+  MetricGrid,
+  PageHeader,
+  RowLink,
+  StatusPill,
+  docNumber,
+  formatDate,
+  formatMoney,
+  statusLabel,
+  useFilterParams,
+} from "../shared.tsx";
 
-const PAGE_SIZE = 50;
+const FILTER_KEYS = ["q", "status", "vendorId", "includeDeleted"] as const;
 
 export default function PurchaseOrdersPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [searchParams] = useSearchParams();
+  const { filters, setFilter, clearFilters } = useFilterParams(FILTER_KEYS);
   const canCreate = useHasPermission(PURCHASING_PERMISSIONS.create);
+  const canUpdate = useHasPermission(PURCHASING_PERMISSIONS.update);
   const canRestore = useHasPermission(PURCHASING_PERMISSIONS.restore);
-
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState(searchParams.get("status") ?? "");
-  const [vendorId, setVendorId] = useState(searchParams.get("vendorId") ?? "");
-  const [includeDeleted, setIncludeDeleted] = useState(false);
+  const [pageSize, setPageSize] = useState(50);
   const [cursors, setCursors] = useState<Array<string | undefined>>([undefined]);
+  const q = filters.q ?? "";
+  const status = filters.status ?? "";
+  const vendorId = filters.vendorId ?? "";
+  const includeDeleted = canRestore && filters.includeDeleted === "true";
   const debouncedQ = useDebouncedValue(q, 300);
   const cursor = cursors.at(-1);
-
-  useEffect(() => {
-    const nextStatus = searchParams.get("status") ?? "";
-    setStatus((current) => (current === nextStatus ? current : nextStatus));
-  }, [searchParams]);
 
   const params = {
     q: debouncedQ || undefined,
     status: status || undefined,
     vendorId: vendorId || undefined,
-    includeDeleted: canRestore && includeDeleted ? "true" : undefined,
+    includeDeleted: includeDeleted || undefined,
     cursor,
-    limit: PAGE_SIZE,
+    limit: pageSize,
   };
 
-  const orders = useQuery({ queryKey: queryKeys.list("purchasing/orders", params), queryFn: () => listPurchaseOrders(params) });
-  const formOptions = useQuery({ queryKey: ["purchasing", "orders", "form-options"], queryFn: getPurchaseOrderFormOptions });
+  const orders = useQuery({ queryKey: purchasingKeys.orders.list(params), queryFn: () => listPurchaseOrders(params) });
+  const formOptions = useQuery({ queryKey: purchasingKeys.orders.formOptions(), queryFn: getPurchaseOrderFormOptions });
 
   const restore = useMutation({
     mutationFn: restorePurchaseOrder,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["purchasing", "orders"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.orders.all() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.formOptions() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.receipts.all() }),
+      ]);
     },
   });
 
   const rows = orders.data?.items ?? [];
   const activeRows = rows.filter((row) => !row.deletedAt);
-  const kpis = [
-    { label: "Drafts", value: String(activeRows.filter((row) => row.status === "DRAFT").length) },
-    { label: "Awaiting receipt", value: String(activeRows.filter((row) => ["APPROVED", "SENT", "PARTIALLY_RECEIVED"].includes(row.status)).length) },
-    { label: "Received", value: String(activeRows.filter((row) => row.status === "RECEIVED").length) },
-    { label: "Page value", value: formatMoney(activeRows.reduce((sum, row) => sum + (Number(row.total) || 0), 0), activeRows[0]?.currencyCode ?? "PKR") },
-  ];
   const filtersActive = Boolean(q || status || vendorId || includeDeleted);
 
   function resetPage() {
     setCursors([undefined]);
-  }
-
-  function clearFilters() {
-    setQ("");
-    setStatus("");
-    setVendorId("");
-    setIncludeDeleted(false);
-    resetPage();
   }
 
   const columns: DataTableColumn<PurchaseOrder>[] = [
@@ -91,9 +89,9 @@ export default function PurchaseOrdersPage() {
           {row.deletedAt ? (
             <p className="mt-0.5 font-semibold text-slate-500">{row.vendor?.displayName ?? row.vendor?.name ?? "—"}</p>
           ) : (
-            <Link className="mt-0.5 block font-semibold text-slate-950 hover:text-brand-800" to={`/purchasing/orders/${row.id}`}>
-              {row.vendor?.displayName ?? row.vendor?.name ?? "—"}
-            </Link>
+            <RowLink to={`/purchasing/orders/${row.id}`} muted>
+              <span className="font-semibold text-slate-950">{row.vendor?.displayName ?? row.vendor?.name ?? "—"}</span>
+            </RowLink>
           )}
           <p className="mt-0.5 truncate text-xs text-slate-500">{row.vendorReference ?? "No reference"}</p>
         </div>
@@ -117,25 +115,33 @@ export default function PurchaseOrdersPage() {
     {
       id: "total",
       header: "Total",
+      align: "right",
       cell: (row) => <span className="whitespace-nowrap font-medium tabular-nums text-slate-800">{formatMoney(row.total, row.currencyCode)}</span>,
     },
     {
       id: "lines",
       header: "Lines",
+      align: "right",
       cell: (row) => <span className="tabular-nums text-slate-700">{row._count?.lines ?? row.lines?.length ?? 0}</span>,
     },
     {
       id: "documents",
       header: "Linked",
       cell: (row) => (
-        <span className="whitespace-nowrap text-xs text-slate-600">
-          {row._count?.receipts ?? row.receipts?.length ?? 0} receipts · {row._count?.bills ?? row.bills?.length ?? 0} bills
-        </span>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 whitespace-nowrap text-xs">
+          <RowLink to={`/purchasing/receipts?purchaseOrderId=${row.id}`}>
+            {row._count?.receipts ?? row.receipts?.length ?? 0} receipts
+          </RowLink>
+          <RowLink to={`/purchasing/bills?purchaseOrderId=${row.id}`}>
+            {row._count?.bills ?? row.bills?.length ?? 0} bills
+          </RowLink>
+        </div>
       ),
     },
     {
       id: "actions",
       header: "Actions",
+      align: "right",
       cell: (row) => (
         <div className="flex justify-end gap-1 whitespace-nowrap text-xs font-medium">
           {row.deletedAt ? (
@@ -151,13 +157,9 @@ export default function PurchaseOrdersPage() {
             ) : null
           ) : (
             <>
-              <button type="button" className="rounded px-2 py-1.5 text-slate-700 hover:bg-slate-100" onClick={() => navigate(`/purchasing/orders/${row.id}`)}>
-                View
-              </button>
-              {row.status === "DRAFT" ? (
-                <button type="button" className="rounded px-2 py-1.5 text-slate-700 hover:bg-slate-100" onClick={() => navigate(`/purchasing/orders/${row.id}/edit`)}>
-                  Edit
-                </button>
+              <RowLink to={`/purchasing/orders/${row.id}`}>View</RowLink>
+              {canUpdate && row.status === "DRAFT" ? (
+                <RowLink to={`/purchasing/orders/${row.id}/edit`}>Edit</RowLink>
               ) : null}
             </>
           )}
@@ -169,7 +171,7 @@ export default function PurchaseOrdersPage() {
   return (
     <section className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <PageHeader
-        section="Supply / Purchasing"
+        section="Purchasing"
         title="Purchase orders"
         description="Raise orders, manage approvals and track receipts and bills against each commitment."
         actions={
@@ -181,14 +183,20 @@ export default function PurchaseOrdersPage() {
         }
       />
 
-      <div className="grid grid-cols-2 divide-x divide-y divide-slate-200 border-y border-slate-200 sm:grid-cols-4 sm:divide-y-0">
-        {kpis.map((kpi) => (
-          <div key={kpi.label} className="flex min-h-[76px] flex-col justify-center px-4 py-3 first:pl-0 sm:pl-5">
-            <p className="text-xs font-medium text-slate-500">{kpi.label}</p>
-            <p className="mt-1 truncate text-2xl font-semibold tabular-nums text-slate-950" title={kpi.value}>{kpi.value}</p>
-          </div>
-        ))}
-      </div>
+      <MetricGrid>
+        <MetricCard label="Drafts" value={String(activeRows.filter((row) => row.status === "DRAFT").length)} hint="Not yet approved" />
+        <MetricCard
+          label="Awaiting receipt"
+          value={String(activeRows.filter((row) => ["APPROVED", "SENT", "PARTIALLY_RECEIVED"].includes(row.status)).length)}
+          hint="Open commitments"
+        />
+        <MetricCard label="Received" value={String(activeRows.filter((row) => row.status === "RECEIVED").length)} hint="Ready to bill" />
+        <MetricCard
+          label="Page value"
+          value={formatMoney(activeRows.reduce((sum, row) => sum + (Number(row.total) || 0), 0), activeRows[0]?.currencyCode ?? "PKR")}
+          hint="Total on this page"
+        />
+      </MetricGrid>
 
       <section className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_190px_240px]">
@@ -199,7 +207,7 @@ export default function PurchaseOrdersPage() {
             value={q}
             placeholder="Search order number, vendor or reference"
             onChange={(event) => {
-              setQ(event.target.value);
+              setFilter("q", event.target.value);
               resetPage();
             }}
           />
@@ -208,15 +216,13 @@ export default function PurchaseOrdersPage() {
             className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
             value={status}
             onChange={(event) => {
-              setStatus(event.target.value);
+              setFilter("status", event.target.value);
               resetPage();
             }}
           >
             <option value="">All statuses</option>
             {PURCHASE_ORDER_STATUSES.map((value) => (
-              <option key={value} value={value}>
-                {statusLabel(value)}
-              </option>
+              <option key={value} value={value}>{statusLabel(value)}</option>
             ))}
           </select>
           <select
@@ -224,7 +230,7 @@ export default function PurchaseOrdersPage() {
             className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm"
             value={vendorId}
             onChange={(event) => {
-              setVendorId(event.target.value);
+              setFilter("vendorId", event.target.value);
               resetPage();
             }}
           >
@@ -244,7 +250,7 @@ export default function PurchaseOrdersPage() {
                 type="checkbox"
                 checked={includeDeleted}
                 onChange={(event) => {
-                  setIncludeDeleted(event.target.checked);
+                  setFilter("includeDeleted", event.target.checked ? "true" : "");
                   resetPage();
                 }}
               />
@@ -254,7 +260,7 @@ export default function PurchaseOrdersPage() {
             <span />
           )}
           {filtersActive ? (
-            <button type="button" className="text-xs font-medium text-brand-800 hover:underline" onClick={clearFilters}>
+            <button type="button" className="text-xs font-medium text-brand-800 hover:underline" onClick={() => { clearFilters(); resetPage(); }}>
               Clear filters
             </button>
           ) : null}
@@ -262,9 +268,7 @@ export default function PurchaseOrdersPage() {
       </section>
 
       {restore.isError ? (
-        <p role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          {getApiErrorMessage(restore.error)}
-        </p>
+        <ErrorState message={getApiErrorMessage(restore.error)} onRetry={() => { if (restore.variables) restore.mutate(restore.variables); }} backTo="/purchasing/orders" backLabel="Back to orders" />
       ) : null}
 
       <DataTable
@@ -273,7 +277,7 @@ export default function PurchaseOrdersPage() {
         getRowId={(row) => row.id}
         isLoading={orders.isPending}
         error={orders.isError ? getApiErrorMessage(orders.error) : null}
-        emptyMessage={filtersActive ? "No purchase orders match these filters." : "No purchase orders yet."}
+        emptyMessage={filtersActive ? "No purchase orders match these filters." : "No purchase orders yet. Create the first one to start procurement."}
         hasNextPage={orders.data?.pageInfo.hasNextPage ?? false}
         hasPreviousPage={cursors.length > 1}
         onNext={() => {
@@ -283,6 +287,14 @@ export default function PurchaseOrdersPage() {
           }
         }}
         onPrevious={() => setCursors((current) => (current.length > 1 ? current.slice(0, -1) : current))}
+        pageSize={pageSize}
+        onPageSizeChange={(size) => {
+          setPageSize(size);
+          resetPage();
+        }}
+        onRetry={() => orders.refetch()}
+        onClearFilters={filtersActive ? () => { clearFilters(); resetPage(); } : undefined}
+        backTo="/purchasing"
       />
 
       <p className="text-xs text-slate-500">

@@ -1,15 +1,18 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { FormField } from "@/components/forms/FormField.tsx";
 import { Button } from "@/components/ui/Button.tsx";
 import { Input } from "@/components/ui/Input.tsx";
 import { useHasPermission } from "@/hooks/useSession.ts";
+import { purchasingKeys, vendorKeys } from "@/lib/query-keys.ts";
 import { getApiErrorMessage } from "@/utils/api-error.ts";
 import { PageHeader } from "../purchasing/shared.tsx";
 import {
   VENDOR_PERMISSIONS,
   VENDOR_STATUSES,
+  VENDOR_STATUS_LABELS,
   createVendor,
   getVendor,
   getVendorFormOptions,
@@ -18,23 +21,39 @@ import {
   type VendorWrite,
 } from "./api.ts";
 
-function titleize(value: string): string {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(" ");
-}
+const optionalEmail = z
+  .string()
+  .trim()
+  .max(320)
+  .refine((value) => !value || z.email().safeParse(value).success, "Enter a valid email");
+
+const optionalPhone = z.string().trim().max(60).refine(
+  (value) => !value || (/^\+?[0-9(). -]{7,60}$/.test(value) && (value.match(/\d/g)?.length ?? 0) >= 7),
+  "Enter a phone number with 7-60 digits or phone punctuation",
+);
+
+const optionalWebsite = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((value) => !value || /^https?:\/\/\S+$/i.test(value), "Enter an http or https URL");
+
+const optionalCountryCode = z
+  .string()
+  .trim()
+  .refine((value) => !value || /^[A-Za-z]{2,8}$/.test(value), "Use a two to eight letter country code");
 
 export default function VendorFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const canCreate = useHasPermission(VENDOR_PERMISSIONS.create);
   const canUpdate = useHasPermission(VENDOR_PERMISSIONS.update);
   const isEdit = Boolean(id);
   const allowed = isEdit ? canUpdate : canCreate;
 
-  const existing = useQuery({ queryKey: ["vendors", id], queryFn: () => getVendor(id as string), enabled: isEdit });
-  const formOptions = useQuery({ queryKey: ["vendors", "form-options"], queryFn: getVendorFormOptions });
+  const existing = useQuery({ queryKey: vendorKeys.detail(id as string), queryFn: () => getVendor(id as string), enabled: isEdit });
+  const formOptions = useQuery({ queryKey: vendorKeys.formOptions(), queryFn: getVendorFormOptions });
 
   const [form, setForm] = useState<VendorWrite>({
     name: "",
@@ -42,7 +61,14 @@ export default function VendorFormPage() {
     currencyCode: "PKR",
   });
   const [error, setError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; currencyCode?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    currencyCode?: string;
+    email?: string;
+    phone?: string;
+    website?: string;
+    countryCode?: string;
+  }>({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -92,6 +118,32 @@ export default function VendorFormPage() {
       setFieldErrors({ currencyCode: "Choose a settlement currency." });
       return;
     }
+    const validationErrors: {
+      email?: string;
+      phone?: string;
+      website?: string;
+      countryCode?: string;
+    } = {};
+    const emailResult = optionalEmail.safeParse(form.email ?? "");
+    if (!emailResult.success) {
+      validationErrors.email = emailResult.error.issues[0]?.message;
+    }
+    const phoneResult = optionalPhone.safeParse(form.phone ?? "");
+    if (!phoneResult.success) {
+      validationErrors.phone = phoneResult.error.issues[0]?.message;
+    }
+    const websiteResult = optionalWebsite.safeParse(form.website ?? "");
+    if (!websiteResult.success) {
+      validationErrors.website = websiteResult.error.issues[0]?.message;
+    }
+    const countryCodeResult = optionalCountryCode.safeParse(form.countryCode ?? "");
+    if (!countryCodeResult.success) {
+      validationErrors.countryCode = countryCodeResult.error.issues[0]?.message;
+    }
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      return;
+    }
     const body: VendorWrite = Object.fromEntries(
       Object.entries(form).map(([key, value]) => [key, typeof value === "string" ? value.trim() || undefined : value]),
     ) as VendorWrite;
@@ -99,14 +151,26 @@ export default function VendorFormPage() {
     body.currencyCode = form.currencyCode;
     body.status = form.status;
 
+    const refresh = async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: vendorKeys.all() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.formOptions() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.orders.formOptions() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.bills.formOptions() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.payments.formOptions() }),
+        queryClient.invalidateQueries({ queryKey: purchasingKeys.hub() }),
+      ]);
+    };
     setBusy(true);
     try {
       if (id) {
         await updateVendor(id, body);
+        await refresh();
         navigate(`/vendors/${id}`);
         return;
       }
       const created = await createVendor(body);
+      await refresh();
       navigate(`/vendors/${created.id}`);
     } catch (submitError) {
       setError(getApiErrorMessage(submitError));
@@ -165,7 +229,7 @@ export default function VendorFormPage() {
               value={form.status}
               onChange={(event) => patch({ status: event.target.value as VendorStatus })}
             >
-              {(formOptions.data?.statuses ?? VENDOR_STATUSES.map((value) => ({ value, label: titleize(value) }))).map((option) => (
+              {(formOptions.data?.statuses ?? VENDOR_STATUSES.map((value) => ({ value, label: VENDOR_STATUS_LABELS[value] }))).map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
@@ -257,14 +321,40 @@ export default function VendorFormPage() {
 
         <fieldset className="grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2 xl:grid-cols-3">
           <legend className="mb-1 text-sm font-semibold text-slate-900">Contact</legend>
-          <FormField label="Email" htmlFor="email">
-            <Input id="email" type="email" value={form.email ?? ""} onChange={(event) => patch({ email: event.target.value })} />
+          <FormField label="Email" htmlFor="email" error={fieldErrors.email}>
+            <Input
+              id="email"
+              type="email"
+              error={Boolean(fieldErrors.email)}
+              value={form.email ?? ""}
+              onChange={(event) => {
+                patch({ email: event.target.value });
+                setFieldErrors((current) => ({ ...current, email: undefined }));
+              }}
+            />
           </FormField>
-          <FormField label="Phone" htmlFor="phone">
-            <Input id="phone" value={form.phone ?? ""} onChange={(event) => patch({ phone: event.target.value })} />
+          <FormField label="Phone" htmlFor="phone" error={fieldErrors.phone}>
+            <Input
+              id="phone"
+              error={Boolean(fieldErrors.phone)}
+              value={form.phone ?? ""}
+              onChange={(event) => {
+                patch({ phone: event.target.value });
+                setFieldErrors((current) => ({ ...current, phone: undefined }));
+              }}
+            />
           </FormField>
-          <FormField label="Website" htmlFor="website">
-            <Input id="website" value={form.website ?? ""} placeholder="https://" onChange={(event) => patch({ website: event.target.value })} />
+          <FormField label="Website" htmlFor="website" error={fieldErrors.website}>
+            <Input
+              id="website"
+              error={Boolean(fieldErrors.website)}
+              value={form.website ?? ""}
+              placeholder="https://"
+              onChange={(event) => {
+                patch({ website: event.target.value });
+                setFieldErrors((current) => ({ ...current, website: undefined }));
+              }}
+            />
           </FormField>
         </fieldset>
 
@@ -285,8 +375,18 @@ export default function VendorFormPage() {
           <FormField label="Postal code" htmlFor="postalCode">
             <Input id="postalCode" value={form.postalCode ?? ""} onChange={(event) => patch({ postalCode: event.target.value })} />
           </FormField>
-          <FormField label="Country code" htmlFor="countryCode">
-            <Input id="countryCode" maxLength={2} value={form.countryCode ?? ""} placeholder="PK" onChange={(event) => patch({ countryCode: event.target.value.toUpperCase() })} />
+          <FormField label="Country code" htmlFor="countryCode" error={fieldErrors.countryCode}>
+            <Input
+              id="countryCode"
+              maxLength={8}
+              error={Boolean(fieldErrors.countryCode)}
+              value={form.countryCode ?? ""}
+              placeholder="PK"
+              onChange={(event) => {
+                patch({ countryCode: event.target.value.toUpperCase() });
+                setFieldErrors((current) => ({ ...current, countryCode: undefined }));
+              }}
+            />
           </FormField>
         </fieldset>
 
@@ -303,7 +403,7 @@ export default function VendorFormPage() {
           <Link className="inline-flex h-9 items-center rounded-md border border-slate-300 px-3 text-sm text-slate-700" to={id ? `/vendors/${id}` : "/vendors"}>
             Cancel
           </Link>
-          <Button className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy || existing.isPending} onClick={submit}>
+          <Button className="h-9 bg-brand-800 hover:bg-brand-900" disabled={busy || existing.isLoading} onClick={submit}>
             {busy ? "Saving…" : isEdit ? "Save changes" : "Create vendor"}
           </Button>
         </div>

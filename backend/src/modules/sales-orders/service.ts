@@ -1,11 +1,12 @@
 import { Prisma } from "@prisma/client";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationFailedError } from "../../common/errors/app-error";
 import { computeCurrencySnapshot } from "../opportunities/currency-snapshot";
+import { DEFAULT_LOCATION } from "../inventory/types";
 import type { AuditLogsService } from "../audit-logs/service";
 import type { RequestMeta } from "../auth/types";
 import { computeDocumentMoney, computeLineMoney, today } from "../../common/sales/totals";
 import type { SalesLineInput } from "../../common/sales/validation";
-import type { SalesOrdersRepository, SalesOrderLineWriteData } from "./repository";
+import type { SalesOrdersRepository, SalesOrderFulfilmentLine, SalesOrderLineWriteData } from "./repository";
 import {
   SALES_ORDER_STATUSES,
   SALES_ORDER_STATUS_LABELS,
@@ -272,6 +273,65 @@ export class SalesOrdersService {
     return this.get(organizationId, id);
   }
 
+  async fulfil(organizationId: string, actorId: string, id: string, meta: RequestMeta) {
+    const order = await this.get(organizationId, id);
+    if (!["CONFIRMED", "PROCESSING"].includes(order.status)) {
+      throw new ValidationFailedError({ status: ["Only a confirmed sales order can be fulfilled from stock"] });
+    }
+
+    const orderLines = order.lines ?? [];
+    const productIds = unique(orderLines.flatMap((line) => (line.productId ? [line.productId] : [])));
+    const [products, balances] = await Promise.all([
+      this.repository.findProductsByIds(organizationId, productIds),
+      this.repository.findInventoryBalances(organizationId, productIds),
+    ]);
+    const productMap = new Map(products.map((product) => [product.id, product]));
+    const balanceMap = new Map(balances.map((balance) => [`${balance.productId}:${balance.location}`, balance]));
+
+    const fulfilmentLines: SalesOrderFulfilmentLine[] = [];
+    for (const [index, line] of orderLines.entries()) {
+      const remaining = amount(line.quantity).sub(amount(line.fulfilledQuantity ?? 0));
+      if (remaining.lte(0)) {
+        continue;
+      }
+      const product = line.productId ? productMap.get(line.productId) : undefined;
+      const trackInventory = Boolean(product?.trackInventory);
+      const location = product?.deliveryLocation ?? DEFAULT_LOCATION;
+      const balance = product ? balanceMap.get(`${product.id}:${location}`) : undefined;
+      const available = amount(balance?.quantity ?? 0);
+      const unitCost = amount(balance?.averageCost ?? product?.weightedAveragePrice ?? 0);
+      if (trackInventory && available.lt(remaining) && !product?.allowNegativeStock) {
+        throw new ValidationFailedError({
+          lines: [`Line ${index + 1}: only ${available.toFixed(4)} is available in ${location}`],
+        });
+      }
+      fulfilmentLines.push({
+        id: line.id!,
+        productId: line.productId,
+        trackInventory,
+        quantity: remaining.toFixed(4),
+        unitCost: trackInventory ? unitCost.toFixed(4) : "0.0000",
+        cogsAmount: trackInventory ? remaining.mul(unitCost).toFixed(4) : "0.0000",
+        location,
+        allowNegativeStock: product?.allowNegativeStock ?? false,
+      });
+    }
+
+    if (fulfilmentLines.length === 0) {
+      throw new ValidationFailedError({ lines: ["This sales order is already fully fulfilled"] });
+    }
+    const updated = await this.repository.fulfilOrder(organizationId, actorId, id, fulfilmentLines);
+    if (!updated) {
+      throw new NotFoundError("Sales order not found");
+    }
+    await this.record(organizationId, actorId, "sales-orders.fulfilled", "sales-order", id, meta, {
+      salesOrderId: id,
+      salesOrderNumber: order.salesOrderNumber,
+      lines: fulfilmentLines.length,
+    });
+    return this.get(organizationId, id);
+  }
+
   async convertToInvoice(
     organizationId: string,
     actorId: string,
@@ -458,6 +518,13 @@ export class SalesOrdersService {
       userAgent: meta.userAgent,
     });
   }
+}
+
+function amount(value: unknown): Prisma.Decimal {
+  if (value === null || value === undefined) {
+    return new Prisma.Decimal(0);
+  }
+  return new Prisma.Decimal(value.toString());
 }
 
 function canSeeDeleted(permissions: string[]): boolean {

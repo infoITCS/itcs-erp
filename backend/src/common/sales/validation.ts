@@ -5,7 +5,7 @@ export function optionalText(max: number) {
     .string()
     .trim()
     .max(max)
-    .optional()
+    .nullish()
     .transform((value) => (value ? value : undefined));
 }
 

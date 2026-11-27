@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
+import { EmptyState, ErrorState, LoadingState } from "@/features/purchasing/shared.tsx";
 
 export interface DataTableColumn<T> {
   id: string;
   header: string;
   cell: (row: T) => ReactNode;
+  sortable?: boolean;
+  align?: "left" | "right";
 }
 
 interface DataTableProps<T> {
@@ -17,9 +20,17 @@ interface DataTableProps<T> {
   hasPreviousPage?: boolean;
   onNext?: () => void;
   onPrevious?: () => void;
+  pageSize?: number;
+  pageSizeOptions?: number[];
+  onPageSizeChange?: (size: number) => void;
+  sort?: { key: string; direction: "asc" | "desc" } | null;
+  onSort?: (key: string) => void;
+  onRetry?: () => void;
+  onClearFilters?: () => void;
+  backTo?: string;
 }
 
-const MAX_RENDERED_ROWS = 100;
+const DEFAULT_PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 export function DataTable<T>({
   columns,
@@ -32,49 +43,80 @@ export function DataTable<T>({
   hasPreviousPage = false,
   onNext,
   onPrevious,
+  pageSize = 50,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
+  onPageSizeChange,
+  sort = null,
+  onSort,
+  onRetry,
+  onClearFilters,
+  backTo = "/",
 }: DataTableProps<T>) {
-  const visibleRows = rows.slice(0, MAX_RENDERED_ROWS);
+  const colSpan = Math.max(columns.length, 1);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-left text-sm">
           <thead className="bg-slate-50 text-slate-500">
             <tr>
-              {columns.map((column) => (
-                <th key={column.id} className="px-4 py-2.5 font-medium">
-                  {column.header}
-                </th>
-              ))}
+              {columns.map((column) => {
+                const active = sort?.key === column.id;
+                const sortLabel = column.sortable && onSort ? `${column.header}, sort` : undefined;
+                return (
+                  <th
+                    key={column.id}
+                    scope="col"
+                    aria-sort={active ? (sort?.direction === "asc" ? "ascending" : "descending") : undefined}
+                    className={`px-4 py-2.5 font-medium ${column.align === "right" ? "text-right" : ""}`}
+                  >
+                    {column.sortable && onSort ? (
+                      <button
+                        type="button"
+                        aria-label={sortLabel}
+                        className="inline-flex items-center gap-1.5 rounded px-1 py-0.5 hover:bg-slate-100 hover:text-slate-800"
+                        onClick={() => onSort(column.id)}
+                      >
+                        {column.header}
+                        <span className={`text-xs ${active ? "text-brand-800" : "text-slate-400"}`}>
+                          {active ? (sort?.direction === "asc" ? "↑" : "↓") : "↕"}
+                        </span>
+                      </button>
+                    ) : (
+                      column.header
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-500">
-                  Loading page…
+                <td colSpan={colSpan}>
+                  <LoadingState label="Loading records…" />
                 </td>
               </tr>
             ) : null}
             {!isLoading && error ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-10 text-center text-red-700">
-                  {error}
+                <td colSpan={colSpan}>
+                  <ErrorState message={error} onRetry={onRetry} backTo={backTo} backLabel="Back to list" />
                 </td>
               </tr>
             ) : null}
-            {!isLoading && !error && visibleRows.length === 0 ? (
+            {!isLoading && !error && rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-10 text-center text-slate-500">
-                  {emptyMessage}
+                <td colSpan={colSpan}>
+                  <EmptyState title="No matching records" description={emptyMessage} onClear={onClearFilters} backTo={backTo} backLabel="Back to list" />
                 </td>
               </tr>
             ) : null}
             {!isLoading && !error
-              ? visibleRows.map((row) => (
-                  <tr key={getRowId(row)} className="border-t border-slate-100">
+              ? rows.map((row) => (
+                  <tr key={getRowId(row)} className="border-t border-slate-100 transition hover:bg-slate-50/70">
                     {columns.map((column) => (
-                      <td key={column.id} className="px-4 py-2.5 text-slate-800">
+                      <td key={column.id} className={`px-4 py-2.5 text-slate-800 ${column.align === "right" ? "text-right" : ""}`}>
                         {column.cell(row)}
                       </td>
                     ))}
@@ -84,12 +126,27 @@ export function DataTable<T>({
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between border-t border-slate-200 px-4 py-2 text-sm text-slate-500">
-        <span>Showing {visibleRows.length} on this page</span>
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 px-4 py-2 text-xs text-slate-500">
+        <span>Showing {rows.length} on this page</span>
+        <div className="flex items-center gap-2">
+          {onPageSizeChange ? (
+            <label className="inline-flex items-center gap-2">
+              <span>Rows</span>
+              <select
+                aria-label="Rows per page"
+                className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700"
+                value={pageSize}
+                onChange={(event) => onPageSizeChange(Number(event.target.value))}
+              >
+                {pageSizeOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <button
             type="button"
-            className="rounded-md border border-slate-300 px-2.5 py-1 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-slate-300 px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
             disabled={!hasPreviousPage}
             onClick={onPrevious}
           >
@@ -97,7 +154,7 @@ export function DataTable<T>({
           </button>
           <button
             type="button"
-            className="rounded-md border border-slate-300 px-2.5 py-1 disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-slate-300 px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
             disabled={!hasNextPage}
             onClick={onNext}
           >

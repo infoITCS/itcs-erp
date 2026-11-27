@@ -7,6 +7,7 @@ import {
   billListQuerySchema,
   changeOrderStatusSchema,
   createBillSchema,
+  createOrderFromSalesOrderSchema,
   createOrderSchema,
   createPaymentSchema,
   createReceiptSchema,
@@ -26,6 +27,12 @@ export function createPurchasingRouter(controller: PurchasingController): Router
   router.get("/orders", requirePermission("purchasing:read"), validate({ query: orderListQuerySchema }), controller.listOrders);
   router.get("/orders/form-options", requirePermission("purchasing:read"), controller.formOptions);
   router.post("/orders", requirePermission("purchasing:create"), validate({ body: createOrderSchema }), controller.createOrder);
+  router.post(
+    "/orders/from-sales-order",
+    requirePermission("purchasing:create"),
+    validate({ body: createOrderFromSalesOrderSchema }),
+    controller.createOrderFromSalesOrder,
+  );
   router.get("/orders/:id", requirePermission("purchasing:read"), validate({ params: purchasingIdParamSchema }), controller.getOrder);
   router.patch(
     "/orders/:id",
@@ -41,7 +48,7 @@ export function createPurchasingRouter(controller: PurchasingController): Router
   );
   router.post(
     "/orders/:id/restore",
-    requirePermission("purchasing:delete"),
+    requirePermission("purchasing:restore"),
     validate({ params: purchasingIdParamSchema }),
     controller.restoreOrder,
   );
@@ -84,9 +91,15 @@ export function createPurchasingRouter(controller: PurchasingController): Router
   );
   router.post(
     "/receipts/:id/restore",
-    requirePermission("purchasing:delete"),
+    requirePermission("purchasing:restore"),
     validate({ params: purchasingIdParamSchema }),
     controller.restoreReceipt,
+  );
+  router.post(
+    "/receipts/:id/cancel",
+    requireAnyPermission("purchasing:approve", "purchasing:update"),
+    validate({ params: purchasingIdParamSchema }),
+    controller.cancelReceipt,
   );
 
   router.get("/bills", requirePermission("purchasing:read"), validate({ query: billListQuerySchema }), controller.listBills);
@@ -119,7 +132,7 @@ export function createPurchasingRouter(controller: PurchasingController): Router
   );
   router.post(
     "/bills/:id/restore",
-    requirePermission("purchasing:delete"),
+    requirePermission("purchasing:restore"),
     validate({ params: purchasingIdParamSchema }),
     controller.restoreBill,
   );
@@ -163,9 +176,15 @@ export function createPurchasingRouter(controller: PurchasingController): Router
   );
   router.post(
     "/payments/:id/restore",
-    requirePermission("purchasing:delete"),
+    requirePermission("purchasing:restore"),
     validate({ params: purchasingIdParamSchema }),
     controller.restorePayment,
+  );
+  router.post(
+    "/payments/:id/cancel",
+    requireAnyPermission("purchasing:approve", "purchasing:update"),
+    validate({ params: purchasingIdParamSchema }),
+    controller.cancelPayment,
   );
 
   return router;

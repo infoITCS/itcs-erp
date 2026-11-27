@@ -22,6 +22,7 @@ const lineSelect = {
   lineDiscount: true,
   lineTax: true,
   lineTotal: true,
+  cogsAmount: true,
   sortOrder: true,
 } satisfies Prisma.InvoiceLineSelect;
 
@@ -47,6 +48,7 @@ const invoiceListSelect = {
   taxTotal: true,
   total: true,
   totalBase: true,
+  cogsTotal: true,
   amountPaid: true,
   notes: true,
   terms: true,
@@ -87,6 +89,7 @@ export interface InvoiceWriteData {
   currencyCode: string;
   exchangeRateToBase?: string | null;
   baseCurrencyCode?: string | null;
+  cogsTotal?: string | null;
   paymentTermId?: string | null;
   subtotal: string;
   discountTotal: string;
@@ -126,7 +129,14 @@ export class InvoicesRepository extends BaseRepository {
   async findSalesOrder(organizationId: string, salesOrderId: string) {
     return this.db.salesOrder.findFirst({
       where: { id: salesOrderId, organizationId, deletedAt: null },
-      select: { id: true, salesOrderNumber: true, customerId: true, currencyCode: true, status: true },
+      select: {
+        id: true,
+        salesOrderNumber: true,
+        customerId: true,
+        currencyCode: true,
+        status: true,
+        cogsTotal: true,
+      },
     });
   }
 
@@ -330,6 +340,7 @@ export class InvoicesRepository extends BaseRepository {
           taxTotal: input.taxTotal,
           total: input.total,
           totalBase: input.totalBase ?? null,
+          cogsTotal: input.cogsTotal ?? "0",
           amountPaid: input.amountPaid ?? "0",
           notes: input.notes ?? null,
           terms: input.terms ?? null,
@@ -375,6 +386,7 @@ export class InvoicesRepository extends BaseRepository {
           taxTotal: input.taxTotal,
           total: input.total,
           totalBase: input.totalBase ?? null,
+          cogsTotal: input.cogsTotal ?? "0",
           amountPaid: input.amountPaid ?? "0",
           notes: input.notes ?? null,
           terms: input.terms ?? null,

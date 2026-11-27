@@ -95,6 +95,12 @@ export class SalesOrdersController {
     sendSuccess(res, { message: "Sales order status updated", data: order });
   });
 
+  fulfil = asyncHandler(async (req: Request, res: Response) => {
+    const params = req.validated?.params as { id: string };
+    const order = await this.salesOrdersService.fulfil(organizationId(req), actorId(req), params.id, meta(req));
+    sendSuccess(res, { message: "Sales order fulfilled from stock", data: order });
+  });
+
   convertToInvoice = asyncHandler(async (req: Request, res: Response) => {
     const params = req.validated?.params as { id: string };
     const body = req.validated?.body as ConvertSalesOrderInput;

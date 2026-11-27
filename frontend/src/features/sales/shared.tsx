@@ -45,6 +45,8 @@ export interface ProductOption {
   currentPrice?: string | null;
   currentPriceCurrency?: string | null;
   currentPriceList?: string | null;
+  availableQuantity?: string;
+  trackInventory?: boolean;
 }
 
 export interface CustomerOption {
@@ -74,6 +76,8 @@ export interface DocumentLine {
   lineDiscount: string;
   lineTax: string;
   lineTotal: string;
+  fulfilledQuantity?: string;
+  cogsAmount?: string;
   sortOrder: number;
 }
 
@@ -317,6 +321,7 @@ export function LinesEditor({
                         {product.currentPrice
                           ? ` · ${formatMoney(product.currentPrice, product.currentPriceCurrency ?? currency)}`
                           : ""}
+                        {product.trackInventory ? ` · ${product.availableQuantity ?? "0"} available` : ""}
                       </option>
                     ))}
                   </select>

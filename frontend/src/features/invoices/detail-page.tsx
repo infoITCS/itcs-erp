@@ -197,6 +197,11 @@ export default function InvoiceDetailPage() {
         <Metric label="Paid" value={formatMoney(row.amountPaid, row.currencyCode)} />
         <Metric label="Balance" value={formatMoney(balance, row.currencyCode)} />
         <Metric label="Tax" value={formatMoney(row.taxTotal, row.currencyCode)} />
+        <Metric label="COGS" value={formatMoney(row.cogsTotal ?? "0", row.currencyCode)} />
+        <Metric
+          label="Gross margin"
+          value={formatMoney((Number(row.total) - Number(row.cogsTotal ?? 0)).toFixed(4), row.currencyCode)}
+        />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
@@ -210,6 +215,7 @@ export default function InvoiceDetailPage() {
                     <th className="py-2 pr-3 text-right">Qty</th>
                     <th className="py-2 pr-3 text-right">Unit price</th>
                     <th className="py-2 pr-3 text-right">Tax</th>
+                    <th className="py-2 pr-3 text-right">COGS</th>
                     <th className="py-2 text-right">Total</th>
                   </tr>
                 </thead>
@@ -224,31 +230,34 @@ export default function InvoiceDetailPage() {
                       <td className="py-2 pr-3 text-right tabular-nums">{Number(line.quantity).toFixed(2)}</td>
                       <td className="py-2 pr-3 text-right tabular-nums">{formatMoney(line.unitPrice, row.currencyCode)}</td>
                       <td className="py-2 pr-3 text-right tabular-nums">{formatMoney(line.lineTax, row.currencyCode)}</td>
+                      <td className="py-2 pr-3 text-right tabular-nums">
+                        {formatMoney(line.cogsAmount ?? "0", row.currencyCode)}
+                      </td>
                       <td className="py-2 text-right font-medium tabular-nums">{formatMoney(line.lineTotal, row.currencyCode)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={4} className="pt-3 text-right text-slate-500">
+                    <td colSpan={5} className="pt-3 text-right text-slate-500">
                       Subtotal
                     </td>
                     <td className="pt-3 text-right tabular-nums">{formatMoney(row.subtotal, row.currencyCode)}</td>
                   </tr>
                   <tr>
-                    <td colSpan={4} className="text-right text-slate-500">
+                    <td colSpan={5} className="text-right text-slate-500">
                       Discount
                     </td>
                     <td className="text-right tabular-nums">{formatMoney(row.discountTotal, row.currencyCode)}</td>
                   </tr>
                   <tr>
-                    <td colSpan={4} className="text-right text-slate-500">
+                    <td colSpan={5} className="text-right text-slate-500">
                       Tax
                     </td>
                     <td className="text-right tabular-nums">{formatMoney(row.taxTotal, row.currencyCode)}</td>
                   </tr>
                   <tr>
-                    <td colSpan={4} className="border-t border-slate-200 pt-2 text-right font-semibold text-slate-900">
+                    <td colSpan={5} className="border-t border-slate-200 pt-2 text-right font-semibold text-slate-900">
                       Total
                     </td>
                     <td className="border-t border-slate-200 pt-2 text-right font-semibold tabular-nums text-slate-950">

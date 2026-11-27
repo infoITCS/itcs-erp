@@ -5,15 +5,19 @@ import type { Page } from "../sales/shared.tsx";
 export const INVENTORY_PERMISSIONS = {
   read: "inventory:read",
   create: "inventory:create",
-  update: "inventory:update",
-  delete: "inventory:delete",
+  manage: "inventory:manage",
 } as const;
+
+export interface InventoryUnitOfMeasure {
+  code?: string | null;
+  name?: string | null;
+}
 
 export interface InventoryProductOption {
   id: string;
   code?: string | null;
   name: string;
-  unitOfMeasure?: string | null;
+  unitOfMeasure?: string | InventoryUnitOfMeasure | null;
   trackInventory?: boolean;
 }
 
@@ -30,7 +34,7 @@ export interface StockItem {
   committedQuantity?: string;
   location?: string | null;
   warehouse?: string | null;
-  unitOfMeasure?: string | null;
+  unitOfMeasure?: string | InventoryUnitOfMeasure | null;
   updatedAt?: string;
 }
 
@@ -54,11 +58,16 @@ export interface InventoryMovement {
   createdBy?: { id: string; firstName?: string; lastName?: string; email?: string } | null;
 }
 
+export interface InventoryOption {
+  value: string;
+  label: string;
+}
+
 export interface InventoryFormOptions {
   products: InventoryProductOption[];
-  locations: string[];
-  reasons: string[];
-  movementTypes: string[];
+  locations: InventoryOption[];
+  reasons: InventoryOption[];
+  movementTypes: InventoryOption[];
 }
 
 export interface InventoryAdjustmentWrite {
@@ -85,5 +94,9 @@ export function getInventoryFormOptions(): Promise<InventoryFormOptions> {
 }
 
 export function createInventoryAdjustment(body: InventoryAdjustmentWrite): Promise<InventoryMovement> {
+  const reason = body.reason?.trim() ?? "";
+  if (reason.length < 3 || reason.length > 500) {
+    throw new Error("Enter a reason with 3 to 500 characters.");
+  }
   return data(http.post("/api/v1/inventory/adjustments", body));
 }

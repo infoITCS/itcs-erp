@@ -1,4 +1,4 @@
-export type VendorSort = "createdAt" | "name" | "vendorNumber" | "code";
+export type VendorSort = "createdAt" | "name" | "vendorNumber" | "code" | "status";
 
 export interface VendorCursor {
   sort: VendorSort;
@@ -6,7 +6,7 @@ export interface VendorCursor {
   id: string;
 }
 
-const vendorSorts: VendorSort[] = ["createdAt", "name", "vendorNumber", "code"];
+const vendorSorts: VendorSort[] = ["createdAt", "name", "vendorNumber", "code", "status"];
 
 export function encodeVendorCursor(cursor: VendorCursor): string {
   return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
@@ -47,7 +47,7 @@ export function vendorCursorWhere(cursor: VendorCursor, order: "asc" | "desc"): 
 }
 
 export function toVendorPage<
-  T extends { id: string; createdAt: Date; name: string; vendorNumber: string; code: string | null },
+  T extends { id: string; createdAt: Date; name: string; vendorNumber: string; code: string | null; status: string },
 >(rows: T[], limit: number, sort: VendorSort) {
   const hasNextPage = rows.length > limit;
   const items = hasNextPage ? rows.slice(0, limit) : rows;
@@ -61,7 +61,9 @@ export function toVendorPage<
           ? last.name
           : sort === "vendorNumber"
             ? last.vendorNumber
-            : last.code;
+            : sort === "status"
+              ? last.status
+              : last.code;
 
   return {
     items,

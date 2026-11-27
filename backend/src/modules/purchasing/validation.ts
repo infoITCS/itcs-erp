@@ -10,6 +10,7 @@ import {
   positiveMoneySchema,
 } from "../../common/sales/validation";
 import {
+  GOODS_RECEIPT_STATUSES,
   PURCHASE_ORDER_MANUAL_STATUSES,
   PURCHASE_ORDER_STATUSES,
   VENDOR_BILL_STATUSES,
@@ -40,6 +41,7 @@ export const orderListQuerySchema = listQuerySchema.extend({
 });
 
 export const receiptListQuerySchema = listQuerySchema.extend({
+  status: z.enum(GOODS_RECEIPT_STATUSES).optional(),
   vendorId: z.uuid().optional(),
   purchaseOrderId: z.uuid().optional(),
   includeDeleted: includeDeletedSchema,
@@ -70,6 +72,16 @@ export const createOrderSchema = z.strictObject({
   notes: optionalText(4000),
   terms: optionalText(4000),
   lines: documentLines,
+});
+
+export const createOrderFromSalesOrderSchema = z.strictObject({
+  salesOrderId: z.uuid(),
+  vendorId: z.uuid(),
+  ownerUserId: z.uuid().optional(),
+  orderDate: z.iso.date().optional(),
+  expectedDeliveryDate: z.iso.date().optional(),
+  vendorReference: optionalText(120),
+  notes: optionalText(4000),
 });
 
 export const updateOrderSchema = z
@@ -182,6 +194,7 @@ export type ReceiptListQuery = z.infer<typeof receiptListQuerySchema>;
 export type BillListQuery = z.infer<typeof billListQuerySchema>;
 export type PaymentListQuery = z.infer<typeof paymentListQuerySchema>;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+export type CreateOrderFromSalesOrderInput = z.infer<typeof createOrderFromSalesOrderSchema>;
 export type UpdateOrderInput = z.infer<typeof updateOrderSchema>;
 export type ChangeOrderStatusInput = z.infer<typeof changeOrderStatusSchema>;
 export type CreateReceiptInput = z.infer<typeof createReceiptSchema>;

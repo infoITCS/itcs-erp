@@ -48,6 +48,8 @@ export const changeSalesOrderStatusSchema = z.strictObject({
   status: z.enum(SALES_ORDER_MANUAL_STATUSES),
 });
 
+export const fulfilSalesOrderSchema = z.strictObject({}).optional();
+
 export const convertSalesOrderSchema = z
   .strictObject({
     issueDate: z.iso.date().optional(),
